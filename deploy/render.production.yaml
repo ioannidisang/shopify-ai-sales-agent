@@ -50,7 +50,12 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
-        value: gpt-4.1-mini
+        value: gpt-4.1-mini-2025-04-14
+      # Both provider keys are required before enabling the three-arm experiment.
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: MISTRAL_MODEL
+        value: mistral-small-2603
 
   - type: cron
     name: shopify-ai-sales-agent-migrator
@@ -63,6 +68,7 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     dockerCommand: node dist/apps/server/src/migrate.js
+    # This release requires schema v2 before first runtime-role provisioning/startup.
     # A schedule is required; this is not a manual-only setting.
     # Suspend scheduled execution between intentional migration runs.
     # One-time runtime-role provisioning is documented in RENDER-DEPLOYMENT.md;

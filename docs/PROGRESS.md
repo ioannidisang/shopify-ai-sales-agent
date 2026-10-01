@@ -2,6 +2,18 @@
 
 1 Οκτωβρίου 2026, Europe/Athens.
 
+## Συνέχεια εγκατάστασης μετά τη νέα έκδοση
+
+Επιβεβαιώθηκε επιτυχές GitHub CI για το commit `20fdf8c`, run `36845216758` (1m24s), με το pipeline ελέγχων και Docker build. Στο Render αποκαταστάθηκε η εντολή του migrator σε `node dist/apps/server/src/migrate.js`, έγινε προσωρινή επαναφορά του service και ολοκληρώθηκε επιτυχώς το build `bld-dav318ojo6nc73f9ces0` (47s) της ίδιας έκδοσης. Το πραγματικό **migration schema v2 ολοκληρώθηκε στις 13:07:47**, με επιτυχή λήξη job στις **13:07:52**. Το runtime-role bootstrap δεν εκτελέστηκε.
+
+Ο χρήστης ενέκρινε ρητά τον περιορισμένο runtime role και τη μεταφορά των συγκεκριμένων Shopify/application/runtime credentials στο νέο service. Το bootstrap ολοκληρώθηκε επιτυχώς στις **13:13:22**, με επιτυχή λήξη job στις **13:13:26**, από το build `bld-dav33hh7lnhs73ak8ehg` του `20fdf8c`. Το restricted credential αποθηκεύτηκε ιδιωτικά στο ignored αρχείο προετοιμασίας· δεν εκτυπώθηκε. Αφαιρέθηκαν και επαληθεύτηκε η απουσία των `RUNTIME_DATABASE_PASSWORD` και `RUNTIME_ROLE_BOOTSTRAP` από τον migrator. Η εντολή επανήλθε σε `migrate.js`.
+
+Προετοιμάστηκε ξανά η φόρμα του ξεχωριστού web service: Docker, Frankfurt, $7/month, branch `codex/shopify-ai-sales-agent`, `/readyz`, explicit server command, auto-deploy off. Τα εγκεκριμένα application/Shopify/runtime credentials εισήχθησαν ιδιωτικά, χωρίς owner credential. Η φόρμα δεν έχει ακόμη υποβληθεί· εκκρεμεί το API key.
+
+Ο χρήστης ολοκλήρωσε ο ίδιος το OpenAI billing. Επαληθεύτηκαν **$10.00 credit balance και Auto-reload OFF**. Προετοιμάστηκε νέο project key `shopify-ai-sales-agent-pilot`, Responses Write, λήξη 30 ημερών, χωρίς υποβολή· ζητήθηκε επιβεβαίωση δημιουργίας και αποθήκευσης στο ignored `.env` και νέο Render service. Το `pnpm run doctor` πριν από τη ρύθμιση επιβεβαίωσε ότι δεν υπήρχαν OpenAI/Mistral API keys. Δεν εκτελέστηκαν χρεώσιμες κλήσεις AI. Τα pinned model IDs προστέθηκαν στο production Blueprint και στο ignored αρχείο προετοιμασίας του web service, χωρίς αλλαγή ή εκτύπωση των υφιστάμενων secrets.
+
+Ο έλεγχος του Docker επιβεβαίωσε ότι τα compiled `dist/scripts/ai-smoke.js` και `dist/scripts/sync-config.js` περιλαμβάνονται ήδη. Ενισχύθηκε ο χειρισμός αποτυχιών του configuration sync και της εκκίνησης/διακοπής του server ώστε να μην εμφανίζονται raw database/file errors ή merchant knowledge στα logs και να κλείνουν οι διαθέσιμοι πόροι. Το πλήρες `pnpm check` πέρασε **243 tests σε 19 suites, typecheck και production build**. Δεν έχει γίνει Shopify εγκατάσταση, μεταβολή theme ή ενεργοποίηση A/B/C.
+
 ## Νέα κατεύθυνση: φυσική συνομιλία, γνώση και A/B/C
 
 Ο χρήστης ζήτησε να αντικατασταθούν τα κοινά προκαθορισμένα κείμενα με φυσικά γραμμένες απαντήσεις, με γνώση από το site και δική του εκπαίδευση, και ενέκρινε την υλοποίηση. Η νέα οδηγία υπερισχύει του προηγούμενου template-only περιορισμού· το `AGENTS.md` και η αρχιτεκτονική ενημερώθηκαν. Ο χρήστης επιβεβαίωσε ότι το Nutri Tiger είναι ακόμη κλειστό/υπό κατασκευή. Δεν έγινε εισαγωγή περιεχομένου από άσχετα δημόσια καταστήματα και δεν εγκρίθηκαν αυτόματα πληροφορίες προϊόντων.
