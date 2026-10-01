@@ -7,7 +7,7 @@ export interface Database {
 }
 
 export interface DatabaseOptions {
-  purpose?: 'runtime' | 'migration';
+  purpose?: 'runtime' | 'migration' | 'provision';
   expectedDatabase?: string;
   poolMax?: number;
   connectionTimeoutMs?: number;
@@ -52,7 +52,8 @@ export async function openDatabase(url?: string, localPath = '.data/postgres', o
   const connectionTimeoutMs = boundedInteger('DB_CONNECTION_TIMEOUT_MS', options.connectionTimeoutMs ?? defaults.connectionTimeoutMs, 5000, 1000, 30000);
   const queryTimeoutMs = boundedInteger('DB_QUERY_TIMEOUT_MS', options.queryTimeoutMs ?? defaults.queryTimeoutMs, 10000, 1000, 60000);
   if (url) {
-    if (options.purpose === 'migration' && (!options.expectedDatabase || options.expectedDatabase.length > 128)) {
+    const privileged = options.purpose === 'migration' || options.purpose === 'provision';
+    if (privileged && (!options.expectedDatabase || options.expectedDatabase.length > 128)) {
       throw new Error('MIGRATION_EXPECTED_DATABASE is required for migration');
     }
     // All unqualified application SQL must stay outside other apps' tables. node-postgres
@@ -68,15 +69,15 @@ export async function openDatabase(url?: string, localPath = '.data/postgres', o
     const pool = new pg.Pool({ connectionString: connectionUrl.toString(), options: startupOptions, max: poolMax, connectionTimeoutMillis: connectionTimeoutMs, statement_timeout: queryTimeoutMs, query_timeout: queryTimeoutMs });
     const adapter: Database = { query: async <T extends Record<string, unknown>>(sql: string, params?: unknown[]) => ({ rows: (await pool.query<T>(sql, params)).rows }), close: () => pool.end() };
     try {
-      if (options.purpose === 'migration') {
+      if (privileged) {
         const target = await pool.query<{ database: string }>('SELECT current_database() AS database');
         if (target.rows[0]?.database !== options.expectedDatabase) throw new Error('Unexpected migration database');
-        await pool.query('CREATE SCHEMA IF NOT EXISTS sales_agent');
+        if (options.purpose === 'migration') await pool.query('CREATE SCHEMA IF NOT EXISTS sales_agent');
       }
       else await verifyDatabaseReady(adapter);
     } catch {
       await pool.end();
-      throw new Error(options.purpose === 'migration'
+      throw new Error(privileged
         ? 'Unable to initialize sales_agent schema; check expected database, migration connectivity and owner privileges'
         : 'sales_agent schema is not ready or runtime role is not restricted; verify scoped grants and run the separate migration deployment first');
     }

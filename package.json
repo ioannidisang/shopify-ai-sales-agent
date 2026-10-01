@@ -11,6 +11,7 @@
     "dev": "tsx --env-file-if-exists=.env apps/server/src/index.ts",
     "start": "node --env-file-if-exists=.env dist/apps/server/src/index.js",
     "db:migrate": "node --env-file-if-exists=.env dist/apps/server/src/migrate.js",
+    "db:provision-runtime": "node --env-file-if-exists=.env dist/apps/server/src/provision-runtime.js",
     "build": "tsc -p tsconfig.build.json && node scripts/build-widget.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

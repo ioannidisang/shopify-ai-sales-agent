@@ -16,7 +16,9 @@
 - Το ιδιωτικό GitHub repo `ioannidisang/kooqie-loyalty` διαβάστηκε από authenticated browser. Το production Blueprint στο commit `541365d4b9d453ec077ba4eaa6797c43cc20eb25` συμφωνεί με το deployed commit: Docker/Node 24, ξεχωριστά runtime/migrator credentials και PostgreSQL. Δεν διαβάστηκαν secrets ή customer rows και δεν έγιναν αλλαγές στο loyalty.
 - Στον υπάρχοντα OpenAI οργανισμό `KOOQIE` δημιουργήθηκε και επιβεβαιώθηκε το νέο project `Shopify AI Sales Agent` (`proj_4Q1qfxEyu73sVqFDGmxwO1OI`). Εμφανιζόμενο credit balance $0.00. Δεν δημιουργήθηκαν keys, δεν καταχωρίστηκαν πληρωμές και δεν έγιναν API calls.
 
-Πρόταση: ίδιο Render account/περιοχή και πρακτικές deployment, ξεχωριστό Shopify app, backend, credentials και PostgreSQL instance για ανεξάρτητη χωρητικότητα/ανάκτηση. Εναλλακτικά κοινό PostgreSQL instance μόνο μετά από έλεγχο φόρτου, με ξεχωριστή logical database και roles. Η τεκμηριωμένη σύγκριση είναι στο `docs/LOYALTY-INTEGRATION.md`. Ζητήθηκε επιλογή hosting: περίπου $14.30/μήνα πρόσθετο βασικό κόστος με ανεξάρτητη DB ή $8/μήνα με κοινή DB, μαζί με ξεχωριστό migrator, πριν φόρους/υπερβάσεις/OpenAI. Δεν δημιουργήθηκε χρεώσιμη υπηρεσία.
+Ο χρήστης ενέκρινε να προχωρήσει το προτεινόμενο ανεξάρτητο hosting περίπου $14.30/μήνα, με προϋπόθεση reusable εφαρμογή για περισσότερα stores. Το ποσό είναι αρχική υποδομή pilot, πριν φόρους/υπερβάσεις/OpenAI και μελλοντική αύξηση πόρων. Δημιουργήθηκε το private GitHub repo `ioannidisang/shopify-ai-sales-agent` και ολοκληρώθηκε τοπικό Git login με τα υπάρχοντα Git Credential Manager δικαιώματα. Δημιουργήθηκε Render PostgreSQL `shopify-ai-sales-agent-db` (`dpg-dauvg4o473hc73crqerg-a`), PG16, Frankfurt, 256 MB/0.1 CPU, **1 GB** επαληθευμένο από το Plan, $6.30/μήνα. Logical database `sales_agent_production`, owner `sales_agent_owner`. Αφαιρέθηκε ο κανόνας δημόσιας πρόσβασης. Δεν χρησιμοποιήθηκαν ή τροποποιήθηκαν loyalty δεδομένα/credentials.
+
+Για πολλαπλά ανεξάρτητα καταστήματα απαιτείται ξεχωριστή public Shopify registration και App Review. Το άμεσο Nutri pilot μπορεί να χρησιμοποιήσει partner-owned custom registration, με ίδιο source αλλά διαφορετική μελλοντική app identity. Custom distribution δεν μετατρέπεται σε public. Βλέπε `docs/DISTRIBUTION.md`.
 
 ## Επαληθευμένο περιβάλλον
 
@@ -44,7 +46,7 @@
 
 ## Αποδεικτικά ελέγχου
 
-- Τελικό `pnpm check`: **typecheck, 100 tests σε 10 suites και production build πέρασαν**, μαζί με διαχωρισμό migrator/runtime και έλεγχο σωστής βάσης. Οι έλεγχοι SQL ρόλων έγιναν σε τοπικό PGlite μέσω test adapter· δεν υποκαθιστούν δοκιμή στην πραγματική hosted PostgreSQL.
+- Τελικό `pnpm check`: **typecheck, 104 tests σε 11 suites και production build πέρασαν**, μαζί με διαχωρισμό migrator/runtime, έλεγχο σωστής βάσης και ασφαλές one-time runtime-role bootstrap. Οι έλεγχοι SQL ρόλων έγιναν σε τοπικό PGlite μέσω test adapter· δεν υποκαθιστούν δοκιμή στην πραγματική hosted PostgreSQL.
 - Το `deploy/render.production.yaml.example` πέρασε τοπικό YAML/JSON Schema validation απέναντι στο τρέχον επίσημο Render schema. Δεν έγινε provider validation, Docker build ή πραγματικό deployment.
 - Τέσσερα Storefront queries και πέντε Admin provisioning operations ελέγχθηκαν στον επίσημο Shopify validator για 2026-07.
 - Theme app Liquid block πέρασε τον επίσημο stateless validator. Το ενεργό app TOML δεν έχει ελεγχθεί μέσω CLI, γιατί δεν υπάρχει πραγματικό client ID/config ακόμη.
@@ -56,7 +58,7 @@
 
 ## Τι απομένει για λειτουργικό πραγματικό storefront
 
-1. Επιλογή/έγκριση κόστους hosting και provisioning απομονωμένων πόρων. Repo και Render υποδομή εντοπίστηκαν· δεν αγοράστηκε νέο hosting.
+1. Git push και Render backend/migrator provisioning. Hosting εγκρίθηκε, private remote repo και νέα PostgreSQL δημιουργήθηκαν. Εκκρεμούν πραγματικά migrations/runtime role και deployed backend.
 2. OpenAI billing και API key που εισάγεται ιδιωτικά στο `.env`/secret manager. Το project δημιουργήθηκε, αλλά δεν έγινε πραγματικό OpenAI API call.
 3. Δημιουργία ξεχωριστού Shopify app με πραγματικό HTTPS backend URL, σύνδεση config, CLI validation, deploy extensions και OAuth install στο Nutri Tiger.
 4. Εγκεκριμένες πληροφορίες/εικόνες προϊόντων και πραγματική catalog visibility για το app.

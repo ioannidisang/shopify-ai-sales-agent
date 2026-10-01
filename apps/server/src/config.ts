@@ -30,6 +30,7 @@ export async function readTenantFiles(shop: string, root = 'config/stores') {
 export function readEnv() {
   const raw = process.env;
   if (raw.NODE_ENV === 'production' && raw.MIGRATION_DATABASE_URL) throw new Error('Production runtime must not receive MIGRATION_DATABASE_URL');
+  if (raw.NODE_ENV === 'production' && (raw.RUNTIME_DATABASE_PASSWORD || raw.RUNTIME_ROLE_BOOTSTRAP === 'true')) throw new Error('Production runtime must not receive role bootstrap secrets or mode');
   const port = z.coerce.number().int().min(1).max(65535).parse(raw.PORT ?? '3000');
   const allowedShops = (raw.ALLOWED_SHOPS ?? 'ym5fhx-fa.myshopify.com').split(',').map(s => shopDomain.parse(s.trim()));
   const appUrl = raw.APP_URL ?? `http://localhost:${port}`;
