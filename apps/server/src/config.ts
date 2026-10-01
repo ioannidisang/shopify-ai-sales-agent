@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import { shopDomain } from './security.js';
+import { previewCatalogSchema } from '../../../packages/shopify/src/preview-catalog.js';
 
 export const configSchema = z.object({
   shop: shopDomain, brand: z.string().min(1).max(80), locale: z.enum(['el', 'en']),
@@ -19,7 +20,9 @@ export const configSchema = z.object({
   }).strict().optional(),
   approvedImageUrls: z.array(z.url().refine(value => new URL(value).protocol === 'https:')).max(500),
   knowledgeVersion: z.string().max(80),
-}).strict();
+  previewCatalog: previewCatalogSchema.optional(),
+}).strict().refine(value => !value.previewCatalog || value.previewCatalog.shop === value.shop, 'Preview approval must belong to this tenant')
+  .refine(value => !value.previewCatalog || !value.experiment.enabled, 'Remove preview catalog approval before enabling an experiment');
 export const factSchema = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/), shop: shopDomain,
   productId: z.string().regex(/^gid:\/\/shopify\/Product\/\d+$/).nullable(),

@@ -18,12 +18,19 @@ export interface ApprovedFact {
   status: 'approved' | 'draft' | 'revoked'; expiresAt?: string | null;
   sourceVersion?: string; sourceHash?: string; retrievedAt?: string;
 }
+/** Explicit, temporary display permission for a closed-store preview, never proof of publication. */
+export interface PreviewCatalogApproval {
+  purpose: 'private_preview'; shop: string; version: string; approvedBy: string;
+  verifiedOn: string; expiresAt: string;
+  products: Array<{ id: string; handle: string; evidenceUrl: string }>;
+}
 export interface ShopConfig {
   shop: string; brand: string; locale: Locale; allowedCountries: string[]; enabled: boolean;
   experiment: { id: string; enabled: boolean; treatmentPercent: number; arms?: Array<{ id: ModelProvider | 'control'; weight: number }> };
   defaultProvider?: ModelProvider;
   conversation?: { version: string; instructions: string; examples: Array<{ user: string; assistant: string }>; approvedBy?: string; approvedAt?: string };
   approvedImageUrls: string[]; knowledgeVersion: string;
+  previewCatalog?: PreviewCatalogApproval;
 }
 export interface CatalogContext { country: string; locale: Locale; signal?: AbortSignal }
 export interface Catalog {

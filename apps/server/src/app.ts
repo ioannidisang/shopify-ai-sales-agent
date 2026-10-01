@@ -136,7 +136,8 @@ export async function buildApp(env: Environment, db: Database, services: Service
   function catalog(tenant: Tenant): Catalog {
     if (services.catalog) return services.catalog(tenant);
     const credentials = security!.decrypt<{ storefrontToken: string }>(tenant.credentials, tenant.config.shop);
-    return new ShopifyCatalog({ shop: tenant.config.shop, accessToken: credentials.storefrontToken, approvedImageUrls: tenant.config.approvedImageUrls });
+    return new ShopifyCatalog({ shop: tenant.config.shop, accessToken: credentials.storefrontToken, approvedImageUrls: tenant.config.approvedImageUrls,
+      previewCatalog: tenant.config.previewCatalog, experimentEnabled: tenant.config.experiment.enabled });
   }
   async function eraseLateAnalytics(shop: string, conversationId: string): Promise<void> {
     // Use a fresh statement snapshot after an analytics write. If revocation committed

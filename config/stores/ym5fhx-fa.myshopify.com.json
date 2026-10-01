@@ -14,6 +14,18 @@
         { "id": "control", "weight": 34 }
       ]
     },
+    "previewCatalog": {
+      "purpose": "private_preview",
+      "shop": "ym5fhx-fa.myshopify.com",
+      "version": "nutri-private-preview-2026-10-01-v1",
+      "approvedBy": "Codex: verified existing products for merchant-authorized private pilot, 2026-10-01",
+      "verifiedOn": "2026-10-01",
+      "expiresAt": "2026-10-08T00:00:00Z",
+      "products": [
+        { "id": "gid://shopify/Product/10744522768731", "handle": "hydro-whey-2kg", "evidenceUrl": "https://ym5fhx-fa.myshopify.com/products/hydro-whey-2kg" },
+        { "id": "gid://shopify/Product/10744529420635", "handle": "creatine-mono-300g", "evidenceUrl": "https://ym5fhx-fa.myshopify.com/products/creatine-mono-300g" }
+      ]
+    },
     "approvedImageUrls": [],
     "knowledgeVersion": "pending-merchant-approval-v1"
   },

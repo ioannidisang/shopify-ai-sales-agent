@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import type { Catalog, CatalogContext, Product, ProductVariant } from '../../core/src/types.js';
+import type { Catalog, CatalogContext, PreviewCatalogApproval, Product, ProductVariant } from '../../core/src/types.js';
 import { GET_MORE_VARIANTS, GET_PRODUCTS, GET_VARIANT, SEARCH_PRODUCTS } from './queries.js';
+import { previewCatalogSchema } from './preview-catalog.js';
 
 export const STOREFRONT_API_VERSION = '2026-07';
 const productId = /^gid:\/\/shopify\/Product\/\d+$/;
@@ -34,6 +35,7 @@ export class CatalogError extends Error {
 export interface ShopifyCatalogOptions {
   shop: string; accessToken: string; approvedImageUrls: string[];
   fetch?: typeof fetch; timeoutMs?: number;
+  previewCatalog?: PreviewCatalogApproval; experimentEnabled?: boolean; now?: () => number;
 }
 
 /** Build a bounded literal product search, never an LLM-authored Shopify query. */
@@ -48,6 +50,8 @@ export class ShopifyCatalog implements Catalog {
   private readonly requestFetch: typeof fetch;
   private readonly timeoutMs: number;
   private readonly approvedImages: Set<string>;
+  private readonly previewCatalog: PreviewCatalogApproval | undefined;
+  private readonly now: () => number;
 
   constructor(options: ShopifyCatalogOptions) {
     if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(options.shop) || !options.accessToken.trim()) throw new CatalogError('invalid_request');
@@ -55,9 +59,27 @@ export class ShopifyCatalog implements Catalog {
     this.accessToken = options.accessToken;
     this.requestFetch = options.fetch ?? fetch;
     this.timeoutMs = options.timeoutMs ?? 8000;
+    this.now = options.now ?? Date.now;
+    if (options.previewCatalog) {
+      const approval = previewCatalogSchema.safeParse(options.previewCatalog);
+      if (!approval.success || approval.data.shop !== options.shop || options.experimentEnabled !== false) throw new CatalogError('invalid_request');
+      this.previewCatalog = approval.data;
+    }
     this.approvedImages = new Set(options.approvedImageUrls.filter(url => {
       try { return new URL(url).protocol === 'https:'; } catch { return false; }
     }));
+  }
+
+  private canDisplay(raw: RawProduct): boolean {
+    if (raw.onlineStoreUrl !== null) return true;
+    // Password protection can also suppress this URL. Only a reviewed, expiring
+    // preview exception may display those products; it never overrides stock.
+    const approval = this.previewCatalog;
+    const now = this.now();
+    return Boolean(approval && Number.isFinite(now)
+      && now >= Date.parse(`${approval.verifiedOn}T00:00:00Z`)
+      && now < Date.parse(approval.expiresAt)
+      && approval.products.some(product => product.id === raw.id && product.handle === raw.handle));
   }
 
   private async query(query: string, variables: Record<string, unknown>, context: CatalogContext): Promise<unknown> {
@@ -101,8 +123,7 @@ export class ShopifyCatalog implements Catalog {
     try {
       const data = z.object({ products: z.object({ nodes: z.array(productSchema) }) }).parse(
         await this.query(SEARCH_PRODUCTS, { query: buildSearchQuery(query.slice(0, 160)) }, context));
-      // A null Online Store URL means this item is not published to the theme storefront.
-      return data.products.nodes.filter(product => product.onlineStoreUrl !== null).map(product => this.mapProduct(product));
+      return data.products.nodes.filter(product => this.canDisplay(product)).map(product => this.mapProduct(product));
     } catch (error) {
       if (error instanceof CatalogError) throw error;
       throw new CatalogError('invalid_response');
@@ -116,7 +137,7 @@ export class ShopifyCatalog implements Catalog {
       const data = z.object({ nodes: z.array(productSchema.nullable()) }).parse(await this.query(GET_PRODUCTS, { ids: [...new Set(ids)] }, context));
       const result: Product[] = [];
       for (const raw of data.nodes) {
-        if (!raw || !ids.includes(raw.id) || raw.onlineStoreUrl === null) continue;
+        if (!raw || !ids.includes(raw.id) || !this.canDisplay(raw)) continue;
         let pageInfo = raw.variants.pageInfo;
         const allVariants = [...raw.variants.nodes];
         const seenCursors = new Set<string>();
@@ -130,7 +151,7 @@ export class ShopifyCatalog implements Catalog {
           pageInfo = next.product.variants.pageInfo;
         }
         const uniqueVariants = [...new Map(allVariants.map(variant => [variant.id, variant])).values()];
-        result.push(this.mapProduct({ ...raw, variants: { nodes: uniqueVariants, pageInfo } }));
+        if (this.canDisplay(raw)) result.push(this.mapProduct({ ...raw, variants: { nodes: uniqueVariants, pageInfo } }));
       }
       return result;
     } catch (error) {
@@ -143,7 +164,7 @@ export class ShopifyCatalog implements Catalog {
     if (!variantId.test(id)) throw new CatalogError('invalid_request');
     try {
       const data = z.object({ node: variantSchema.extend({ product: productSchema }).nullable() }).parse(await this.query(GET_VARIANT, { id }, context));
-      if (!data.node || data.node.id !== id || data.node.product.onlineStoreUrl === null) return null;
+      if (!data.node || data.node.id !== id || !this.canDisplay(data.node.product)) return null;
       const { product, ...rawVariant } = data.node;
       const mappedProduct = this.mapProduct(product);
       const variant = this.mapVariant(rawVariant);

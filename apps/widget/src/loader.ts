@@ -3,7 +3,9 @@ import { WidgetConnection } from './connection.js';
 import { widgetModuleUrl } from './module-url.js';
 import type { WidgetHandle } from './index.js';
 
-const launcherStyles = `:host{all:initial;font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.launcher{font:inherit;position:fixed;right:24px;bottom:24px;z-index:2147483000;border:1px solid var(--sa-accent);border-radius:999px;background:var(--sa-accent);color:var(--sa-accent-ink);box-shadow:0 8px 32px #17171733;display:flex;align-items:center;gap:9px;padding:14px 20px;font-weight:650;min-height:44px;cursor:pointer;touch-action:manipulation}.launcher[hidden]{display:none}.launcher:disabled{cursor:wait;opacity:.55}.launcher:focus-visible{outline:3px solid var(--sa-ink);outline-offset:3px}.dot{width:8px;height:8px;background:var(--sa-accent-ink);border-radius:50%}@media(max-width:520px){.launcher{right:16px;bottom:16px}}`;
+// Shadow content leaves the light-DOM div empty. Override theme div:empty rules;
+// important shadow-host declarations also win against important outer-theme rules.
+const launcherStyles = `:host{all:initial;display:block!important;font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.launcher{font:inherit;position:fixed;right:24px;bottom:24px;z-index:2147483000;border:1px solid var(--sa-accent);border-radius:999px;background:var(--sa-accent);color:var(--sa-accent-ink);box-shadow:0 8px 32px #17171733;display:flex;align-items:center;gap:9px;padding:14px 20px;font-weight:650;min-height:44px;cursor:pointer;touch-action:manipulation}.launcher[hidden]{display:none}.launcher:disabled{cursor:wait;opacity:.55}.launcher:focus-visible{outline:3px solid var(--sa-ink);outline-offset:3px}.dot{width:8px;height:8px;background:var(--sa-accent-ink);border-radius:50%}@media(max-width:520px){.launcher{right:16px;bottom:16px}}`;
 
 export function mountLoader(host: HTMLElement): void {
   if (host.shadowRoot) return;
