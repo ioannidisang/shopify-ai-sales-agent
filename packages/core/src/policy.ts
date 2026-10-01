@@ -27,6 +27,10 @@ export function hasExplicitAddIntent(message: string): boolean {
   return /(?:\badd\b|\bput\b.{0,50}\bcart\b|προσθεσ|βαλε|βάλτε|προσθηκ)/u.test(text);
 }
 
+export function containsForbiddenClaim(text: string): boolean {
+  return /(?:\b(?:cures?|treats?|diagnoses?|prevents?\s+(?:disease|cancer|diabetes))\b|θεραπευ|διαγνωσ|ιαση)/u.test(normalizeInput(text));
+}
+
 export function usableFacts(facts: ApprovedFact[], shop: string, locale: Locale, now = Date.now()): ApprovedFact[] {
   const seen = new Set<string>();
   return facts.filter(fact => {
@@ -36,7 +40,7 @@ export function usableFacts(facts: ApprovedFact[], shop: string, locale: Locale,
       || !fact.source.trim() || !fact.text.trim() || fact.text.length > 2000 || !Number.isFinite(approvedAt)
       || approvedAt > now || Number.isNaN(expiresAt) || expiresAt <= now || seen.has(fact.id)) return false;
     // Approval is necessary, but medical/diagnostic marketing claims stay out.
-    if (/(?:\b(?:cures?|treats?|diagnoses?|prevents?\s+(?:disease|cancer|diabetes))\b|θεραπευ|διαγνωσ|ιαση)/u.test(normalizeInput(fact.text))) return false;
+    if (containsForbiddenClaim(fact.text)) return false;
     seen.add(fact.id);
     return true;
   }).slice(0, 100);

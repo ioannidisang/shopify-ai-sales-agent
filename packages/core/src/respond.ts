@@ -1,5 +1,7 @@
-import { planSchema } from './openai-planner.js';
+import { planSchema } from './model-protocol.js';
 import { hasExplicitAddIntent, isMedicalRequest, usableFacts } from './policy.js';
+import { currentSourceFacts, retrieveFacts } from './knowledge.js';
+import { composeGrounded, CompositionRejected } from './grounding.js';
 import type { AssistantResponse, Locale, RespondInput } from './types.js';
 
 const templates = {
@@ -39,19 +41,46 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
   const { shop, catalog, planner, locale, country } = input;
   if (!shop.enabled || !shop.allowedCountries.includes(country)) return policyResponse(locale, 'unavailable');
   if (isMedicalRequest(input.message, input.history)) return policyResponse(locale, 'medical');
-  const facts = usableFacts(input.facts, shop.shop, locale);
-  const base = { message: input.message, history: input.history.slice(-10), locale, facts };
+  const query = [...input.history.slice(-4).filter(turn => turn.role === 'user').map(turn => turn.content), input.message].join(' ');
+  const facts = input.composer ? retrieveFacts(input.facts, shop.shop, locale, query, undefined, 24) : usableFacts(input.facts, shop.shop, locale);
+  const configuredProfile = shop.conversation;
+  const profile = configuredProfile?.approvedBy?.trim() && configuredProfile.approvedAt
+    && Number.isFinite(Date.parse(configuredProfile.approvedAt)) && Date.parse(configuredProfile.approvedAt) <= Date.now() ? configuredProfile : undefined;
+  const base = { message: input.message, history: input.history.slice(-10), locale, facts,
+    ...(profile ? { guidance: { instructions: profile.instructions, examples: profile.examples } } : {}) };
+  const finish = async (result: AssistantResponse, intent: string): Promise<AssistantResponse> => {
+    // Legacy planner-only consumers keep their deterministic interface. Production always supplies a composer.
+    if (!input.composer) return result;
+    const text = await composeGrounded(input.composer, {
+      ...base, brand: shop.brand, products: result.products, facts: result.facts,
+      instructions: profile?.instructions ?? '', examples: profile?.examples ?? [], intent,
+      ...(result.pendingAction ? { pendingAction: result.pendingAction } : {}),
+    });
+    const selectedIds = new Set(result.facts.map(fact => fact.id));
+    const stillApproved = usableFacts(currentSourceFacts(input.facts, shop.shop).filter(fact => selectedIds.has(fact.id)), shop.shop, locale);
+    if (stillApproved.length !== selectedIds.size) throw new CompositionRejected();
+    return { ...result, text };
+  };
   try {
-    const initial = planSchema.parse(await planner.plan({ ...base, products: [] }));
+    const context = { country, locale, ...(input.signal ? { signal: input.signal } : {}) };
+    input.signal?.throwIfAborted();
+    // IDs are stored by the server in display order. Re-read them rather than trusting old prices.
+    const lastDisplay = input.history.slice().reverse().find(turn => turn.role === 'assistant' && turn.context?.productIds.length);
+    const rememberedIds = [...new Set(lastDisplay?.context?.productIds ?? [])].filter(id => /^gid:\/\/shopify\/Product\/\d+$/.test(id)).slice(0, 4);
+    const remembered = rememberedIds.length ? await catalog.getProducts(rememberedIds, context) : [];
+    const rememberedProducts = rememberedIds.flatMap(id => remembered.filter(product => product.id === id));
+    const initial = planSchema.parse(await planner.plan({ ...base, products: rememberedProducts }));
     if (initial.intent === 'medical') return policyResponse(locale, 'medical');
-    if (initial.intent === 'greeting' || initial.intent === 'unsupported') return policyResponse(locale, initial.intent);
-    const context = { country, locale };
-    const candidates = await catalog.search(initial.searchQuery, context);
+    if (initial.intent === 'greeting' || initial.intent === 'unsupported') return await finish(policyResponse(locale, initial.intent), initial.intent);
+    const searched = initial.searchQuery.trim() ? await catalog.search(initial.searchQuery, context) : [];
+    const candidates = [...new Map([...rememberedProducts, ...searched].map(product => [product.id, product])).values()].slice(0, 12);
     const allowedProductIds = new Set(candidates.map(product => product.id));
-    const scopedFacts = facts.filter(fact => fact.productId === null || allowedProductIds.has(fact.productId));
+    const scopedFacts = input.composer
+      ? retrieveFacts(input.facts, shop.shop, locale, query, [...allowedProductIds], 24)
+      : facts.filter(fact => fact.productId === null || allowedProductIds.has(fact.productId));
     const plan = planSchema.parse(await planner.plan({ ...base, facts: scopedFacts, products: candidates }));
     if (plan.intent === 'medical') return policyResponse(locale, 'medical');
-    if (plan.intent === 'unsupported' || plan.intent === 'greeting') return policyResponse(locale, plan.intent);
+    if (plan.intent === 'unsupported' || plan.intent === 'greeting') return await finish(policyResponse(locale, plan.intent), plan.intent);
     // Never fetch an arbitrary model-supplied ID; it must be a member of this shop's search result.
     const ids = [...new Set(plan.productIds)].filter(id => allowedProductIds.has(id)).slice(0, 4);
     const fresh = ids.length ? await catalog.getProducts(ids, context) : [];
@@ -88,9 +117,10 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
         }
       }
     }
-    return result;
-  } catch {
+    return await finish(result, result.pendingAction ? 'cart_confirmation_required' : plan.intent === 'add_to_cart' ? 'clarify' : plan.intent);
+  } catch (error) {
     // Never leak provider error bodies, credentials, or unsafe model output.
+    if (error instanceof CompositionRejected && error.medical) return policyResponse(locale, 'medical');
     return policyResponse(locale, 'unavailable');
   }
 }

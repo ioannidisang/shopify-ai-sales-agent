@@ -36,6 +36,13 @@ describe('minimal Shopify web pixel', () => {
     expect(events[1].assignment).toBe('control');
     expect(events[1].id).toBe('checkout-1');
   });
+  it.each(['openai', 'mistral', 'control'])('preserves %s assignment and emits only observed checkout amount and currency', assignment => {
+    const { subscriptions, fetcher } = pixel();
+    subscriptions.get('sales_agent_assignment')!({ id: 'exposure', clientId: 'browser-id', customData: { assignment, experimentId: 'abc-v1', conversationId: 'conversation-1' } });
+    subscriptions.get('checkout_completed')!({ id: 'completed', clientId: 'browser-id', data: { checkout: { email: 'private@example.com', order: { id: '123' }, totalPrice: { amount: 49.95, currencyCode: 'EUR' } } } });
+    const event = JSON.parse(fetcher.mock.calls[1]![1]!.body as string).event;
+    expect(event).toEqual({ id: 'completed', name: 'purchase', clientId: 'browser-id', orderId: '123', assignment, experimentId: 'abc-v1', conversationId: 'conversation-1', totalAmount: '49.95', currency: 'EUR' });
+  });
   it('stops immediately on consent withdrawal and aborts in-flight requests', () => {
     const { subscriptions, privacy, fetcher } = pixel();
     subscriptions.get('checkout_started')!({ id: 'checkout-1', clientId: 'browser-id' });

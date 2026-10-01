@@ -5,7 +5,15 @@
     "locale": "el",
     "allowedCountries": ["GR", "CY"],
     "enabled": true,
-    "experiment": { "id": "text-mvp-v1", "enabled": false, "treatmentPercent": 50 },
+    "defaultProvider": "openai",
+    "experiment": {
+      "id": "text-abc-natural-v1", "enabled": false, "treatmentPercent": 50,
+      "arms": [
+        { "id": "openai", "weight": 33 },
+        { "id": "mistral", "weight": 33 },
+        { "id": "control", "weight": 34 }
+      ]
+    },
     "approvedImageUrls": [],
     "knowledgeVersion": "pending-merchant-approval-v1"
   },

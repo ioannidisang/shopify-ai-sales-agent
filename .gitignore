@@ -10,3 +10,5 @@ test-results/
 playwright-report/
 *.log
 .DS_Store
+config/stores/*.json.lock
+config/stores/*.json.*.tmp

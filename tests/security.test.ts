@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { Security, type SessionClaims } from '../apps/server/src/security.js';
+import { Security, configurationFingerprint, type SessionClaims } from '../apps/server/src/security.js';
 
 describe('tenant security', () => {
   const security = new Security('secret'.repeat(8), randomBytes(32).toString('base64'));
@@ -33,5 +33,19 @@ describe('tenant security', () => {
     expect(changed).toBeGreaterThan(400);
     expect(security.assignment(claims.shop,'v1','any',0)).toBe('control');
     expect(security.assignment(claims.shop,'v1','any',100)).toBe('assistant');
+  });
+  it('keeps weighted three-arm assignments stable independent of configured arm order', () => {
+    const arms = [{ id: 'openai' as const, weight: 1 }, { id: 'mistral' as const, weight: 1 }, { id: 'control' as const, weight: 1 }];
+    const counts = { openai: 0, mistral: 0, control: 0 };
+    for (let index = 0; index < 3000; index++) {
+      const id = `visitor-${index}`;
+      const assigned = security.weightedAssignment(claims.shop, 'abc:fingerprint', id, arms);
+      expect(security.weightedAssignment(claims.shop, 'abc:fingerprint', id, [...arms].reverse())).toBe(assigned);
+      counts[assigned]++;
+    }
+    for (const count of Object.values(counts)) { expect(count).toBeGreaterThan(900); expect(count).toBeLessThan(1100); }
+    expect(() => security.weightedAssignment(claims.shop, 'abc', 'id', [{ id: 'openai', weight: 0 }])).toThrow();
+    expect(configurationFingerprint({ a: 1, b: { c: 2, d: 3 } })).toBe(configurationFingerprint({ b: { d: 3, c: 2 }, a: 1 }));
+    expect(configurationFingerprint({ weights: [1, 1, 1] })).not.toBe(configurationFingerprint({ weights: [2, 1, 1] }));
   });
 });

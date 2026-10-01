@@ -82,7 +82,14 @@ export class WidgetConnection {
       const session = await this.post<Bootstrap>('/bootstrap', {
         ...(id ? { visitorId: id } : {}), analyticsConsent: this.consent && !!id, country: this.country, locale: this.locale,
       });
-      if (generation !== this.generation) return;
+      if (generation !== this.generation) {
+        // Bootstrap may have enrolled the consented visitor before withdrawal reached
+        // the browser. Erase that discarded session's exposure as soon as its token arrives.
+        if (session.assignment !== 'untracked') {
+          try { await this.post('/consent', { token: session.token, analyticsConsent: false }); } catch { /* Local tracking remains stopped. */ }
+        }
+        return;
+      }
       this.session = session;
       this.notify();
       this.publishAssignment();

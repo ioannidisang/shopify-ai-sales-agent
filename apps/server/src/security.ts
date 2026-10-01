@@ -1,13 +1,29 @@
-import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 
 export const shopDomain = z.string().regex(/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/);
+export const assignmentSchema = z.enum(['assistant', 'openai', 'mistral', 'control', 'untracked']);
+export type Assignment = z.infer<typeof assignmentSchema>;
+export type Provider = 'openai' | 'mistral';
 export const tokenPayload = z.object({
   shop: shopDomain, sid: z.uuid(), exp: z.number().int(),
-  assignment: z.enum(['assistant', 'control', 'untracked']), experimentId: z.string().max(80),
+  assignment: assignmentSchema, experimentId: z.string().max(80),
+  provider: z.enum(['openai', 'mistral']).optional(),
+  configFingerprint: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  visitorHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   consent: z.boolean(), country: z.string().regex(/^[A-Z]{2}$/), locale: z.enum(['el', 'en']),
 }).strict();
 export type SessionClaims = z.infer<typeof tokenPayload>;
+
+/** Canonical non-secret experiment/config digest; JSON property order must not reassign shoppers. */
+export function configurationFingerprint(value: unknown): string {
+  function canonical(input: unknown): unknown {
+    if (Array.isArray(input)) return input.map(canonical);
+    if (input && typeof input === 'object') return Object.fromEntries(Object.entries(input).filter(([, item]) => item !== undefined).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)]));
+    return input;
+  }
+  return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
+}
 
 export function constantEqual(a: string, b: string): boolean {
   const x = Buffer.from(a); const y = Buffer.from(b);
@@ -48,6 +64,15 @@ export class Security {
   assignment(shop: string, experiment: string, visitorId: string, treatmentPercent: number): 'assistant' | 'control' {
     const value = Number.parseInt(this.mac(`experiment:${shop}:${experiment}:${visitorId}`).slice(0, 8), 16) / 0x100000000;
     return value < treatmentPercent / 100 ? 'assistant' : 'control';
+  }
+  weightedAssignment(shop: string, experiment: string, visitorId: string, arms: { id: Provider | 'control'; weight: number }[]): Provider | 'control' {
+    if (!arms.length || new Set(arms.map(arm => arm.id)).size !== arms.length || arms.some(arm => !Number.isFinite(arm.weight) || arm.weight <= 0)) throw new Error('Invalid experiment arms');
+    const ordered = [...arms].sort((a, b) => a.id.localeCompare(b.id));
+    const total = ordered.reduce((sum, arm) => sum + arm.weight, 0);
+    const point = Number.parseInt(this.mac(`experiment:${shop}:${experiment}:${visitorId}`).slice(0, 8), 16) / 0x100000000 * total;
+    let cumulative = 0;
+    for (const arm of ordered) { cumulative += arm.weight; if (point < cumulative) return arm.id; }
+    return ordered[ordered.length - 1]!.id;
   }
   pixelKey(shop: string): string { return this.mac(`public-pixel-collector:${shop}`); }
   hashClient(shop: string, clientId: string): string { return this.mac(`client:${shop}:${clientId}`); }

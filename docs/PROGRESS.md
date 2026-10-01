@@ -2,6 +2,30 @@
 
 1 Οκτωβρίου 2026, Europe/Athens.
 
+## Νέα κατεύθυνση: φυσική συνομιλία, γνώση και A/B/C
+
+Ο χρήστης ζήτησε να αντικατασταθούν τα κοινά προκαθορισμένα κείμενα με φυσικά γραμμένες απαντήσεις, με γνώση από το site και δική του εκπαίδευση, και ενέκρινε την υλοποίηση. Η νέα οδηγία υπερισχύει του προηγούμενου template-only περιορισμού· το `AGENTS.md` και η αρχιτεκτονική ενημερώθηκαν. Ο χρήστης επιβεβαίωσε ότι το Nutri Tiger είναι ακόμη κλειστό/υπό κατασκευή. Δεν έγινε εισαγωγή περιεχομένου από άσχετα δημόσια καταστήματα και δεν εγκρίθηκαν αυτόματα πληροφορίες προϊόντων.
+
+Υλοποιήθηκαν τοπικά:
+
+- Κοινό συμβόλαιο OpenAI/Mistral για planning, φυσική σύνθεση και ξεχωριστό έλεγχο τεκμηρίωσης. Οι πραγματικοί adapters συνδέονται με τη ροή του backend· δεν υπάρχει mock fallback στην εφαρμογή. Planner-only tests διατηρούν το παλιό deterministic interface. Κανονικός διάλογος παράγεται από τον πάροχο, ενώ medical/outage απαντήσεις παραμένουν σταθερές.
+- Έλεγχοι reference/tenant/source, αριθμητικών ισχυρισμών, απαγορευμένων claims, generated τιμών/links και υποτιθέμενων cart writes πριν την προβολή. Ακολουθεί πιθανοτικός semantic verifier· δεν πρόκειται για εγγύηση μηδενικής επινόησης. Τα product cards και οι αλλαγές καλαθιού εξακολουθούν να χρησιμοποιούν live Shopify και ρητή εντολή.
+- Τοπικός κύκλος import → draft → review → approve/revoke με source hashes, εκδόσεις και invalidation παλαιών εγκρίσεων. Υποστηρίζονται τοπικά UTF-8 κείμενα/Markdown/JSON με canonical δημόσια πηγή. Δεν έχει υλοποιηθεί crawler, PDF/OCR ή merchant graphical editor.
+- Οδηγίες και παραδείγματα συμπεριφοράς ανά κατάστημα με έγκριση/έκδοση, ανεξάρτητα από provider. Το `config/training/nutri-tiger-el-v1.draft.json` είναι προτεινόμενο προσχέδιο, **δεν έχει εγκριθεί ή συνδεθεί με το tenant**. Δεν γίνεται αυτόματη μάθηση από customer messages ούτε fine-tuning.
+- Bounded lexical retrieval με ελληνική κανονικοποίηση· μπορεί να χάσει κλιτές λέξεις, παραφράσεις ή Greeklish. Δομημένο, σύντομης διάρκειας ιστορικό IDs/σειράς καρτών για αναφορές «το δεύτερο», με νέα live ανάγνωση αντί αποθήκευσης τιμών.
+- A/B/C με server-side σταθερή κατανομή και αμετάβλητο fingerprint γνώσης, οδηγιών, protocol και μοντέλων. Pilot **ανενεργό**, προετοιμασμένα βάρη 33% OpenAI / 33% Mistral / 34% control. Αποτυχία παρόχου δεν αλλάζει σιωπηλά ομάδα. Συγκατάθεση, μοναδικοί επιλέξιμοι επισκέπτες, δομημένο ιστορικό, checkout deduplication και ανίχνευση αμφίβολης pixel ταυτότητας επεκτάθηκαν στις τρεις ομάδες.
+- Συγκεντρωτική χρήση tokens/κλήσεων/χρόνου ανά πάροχο, μοντέλο και έκδοση, χωρίς μηνύματα ή visitor/session IDs. Άγνωστη χρήση αναφέρεται χωριστά. Οι αναφορές παραμένουν περιγραφικές: checkout completion ≠ εξοφλημένη αγορά και δεν υπάρχει ακόμη αυτόματη στατιστική επιλογή νικητή/ROI ή σκληρό χρηματικό cutoff.
+- Κοινό δικτυακό όριο 25 δευτερολέπτων ανά turn και 6 ανά model call, χωρίς αυτόματο retry. Μια συνηθισμένη αναζήτηση έχει πλέον τέσσερις κλήσεις AI, άρα οι παλιές εκτιμήσεις δύο κλήσεων χρειάζονται επανυπολογισμό μετά από πραγματικές μετρήσεις.
+- Schema **v2** για πειράματα/usage με συγκεκριμένα runtime grants. Η απομακρυσμένη Render βάση παραμένει στην προηγούμενη εγκατεστημένη έκδοση· **δεν εκτελέστηκε migration v2, runtime bootstrap, deployment, config sync ή Shopify publication** σε αυτή τη φάση.
+
+Ο επανέλεγχος περιβάλλοντος επιβεβαίωσε Node 24.19.0, pnpm 11.25.0, Git 2.53.0 και Shopify CLI 4.8.3. Υπάρχουν τοπικά Shopify credentials και τα ανεξάρτητα server keys· **δεν υπάρχουν API keys OpenAI ή Mistral**, ούτε local production DATABASE_URL. Το ignored τοπικό `.env` προετοιμάστηκε μόνο με τα μη απόρρητα model IDs `gpt-4.1-mini-2025-04-14` και `mistral-small-2603`.
+
+Ο τελικός ολοκληρωμένος έλεγχος `pnpm check` πέρασε **typecheck, 224 tests σε 17 suites και production build**. Καλύπτει και ανάκληση γνώσης ενώ παράγεται απάντηση, merchant guidance, provider cancellation/usage, A/B/C και race regressions στη συγκατάθεση. Οι δοκιμές analytics concurrency προσομοιώνουν συγκεκριμένες σειρές interleaving με test adapter· δεν αντικαθιστούν πραγματική δοκιμή σε PostgreSQL με παράλληλες συνδέσεις. Το `git diff --check` πέρασε. Το πραγματικό `pnpm ai:smoke openai` σταμάτησε όπως αναμενόταν πριν από το δίκτυο, επειδή λείπει το API key· η συμπεριφορά αυτή και η πλήρης ροή με ελεγχόμενα HTTP responses καλύπτονται και από tests. **Δεν έγινε πραγματική επιτυχής κλήση AI, χρέωση ή αξιολόγηση ποιότητας Ελληνικών.** Παραμένει η γνωστή μη λειτουργική προειδοποίηση Fastify για το παλιό option request logging.
+
+Το τελικό **`shopify app build` πέρασε επίσης**, με επιτυχή bundling του ενημερωμένου analytics pixel, Theme Check, theme extension και web/backend build. Δεν έγινε deploy ή εγκατάσταση. Οι ρυθμίσεις και η νέα υλοποίηση είναι έτοιμες για review στο υπάρχον development branch.
+
+Επόμενες εξωτερικές εξαρτήσεις: ιδιωτική ρύθμιση billing/keys για τους δύο παρόχους και πραγματικό AI smoke test· έγκριση οδηγιών/πηγών· migration v2 και οι ήδη εκκρεμείς εγκρίσεις hosting/credentials· Shopify installation και unpublished preview· πραγματικό checkout attribution και συγκριτική ελληνική αξιολόγηση πριν από ενεργό A/B/C.
+
 ## Στόχος και συνέχεια
 
 Ανακτήθηκε το chat «AI πωλητής Shopify»: η προηγούμενη εργασία ήταν σχεδιασμός, χωρίς υπάρχον κώδικα agent. Το παρόν repo ξεκίνησε κενό και βρίσκεται στο branch `codex/shopify-ai-sales-agent`.
@@ -40,19 +64,19 @@
 
 - TypeScript/Fastify backend, official Shopify SDK OAuth, storefront token/pixel provisioning, encrypted credentials.
 - Shopify app proxy signature/freshness, shop allowlist, signed conversation tokens, tenant-scoped PostgreSQL/PGlite, concurrency και shared limits.
-- OpenAI structured planner με μηδενικό ελεύθερο factual prose. Fixed templates, verified live product IDs και approved fact IDs.
+- OpenAI/Mistral structured planner, φυσική σύνθεση και έλεγχος τεκμηρίωσης, όπως περιγράφεται στην τελευταία επέκταση παραπάνω. Verified live product IDs και approved fact IDs· τα fixed templates αφορούν medical/outage fallbacks και παλιά planner-only tests.
 - Tenant/locale/approval filtering, ιατρικό όριο, short-lived encrypted context και medical-context marker.
 - Live Storefront queries API 2026-07 με country/language, variants, τιμές, availability, backorder, selling plans/components και quantity rules.
 - EL/EN theme app embed/widget, προϊόντα, επιλογή variant/ποσότητας και υπάρχον Shopify Ajax cart. Ρητές εντολές, revalidation, χωρίς αυτόματο retry αμφίβολων mutations.
 - Lazy loading του widget: loader **6,628 bytes**, ξεχωριστό UI bundle **27,482 bytes**. Το UI φορτώνεται μόνο όταν ανοίξει ο assistant και δεν φορτώνεται στο control arm.
-- Analytics events, web pixel checkout_started/checkout_completed→purchase, deterministic consented A/B assignment, revocation και deduplication. A/B off στο pilot μέχρι πραγματικό attribution test.
+- Analytics events, web pixel checkout_started/checkout_completed→purchase, deterministic consented A/B/C assignment, revocation και deduplication. Το πείραμα παραμένει off στο pilot μέχρι πραγματικό attribution test.
 - Privacy/uninstall webhooks, retention cleanup, scripts περιβάλλοντος/config/report, CI και Dockerfile.
 - Voice/avatar interfaces μόνο· δεν υπάρχει ενεργό live voice ή avatar στο MVP.
 - Nutri Tiger facts και media allowlist κενά. Οι παλιές μακέτες περιέχουν μη εγκεκριμένα claims και δεν φορτώνονται στον agent.
 
 ## Αποδεικτικά ελέγχου
 
-- Το πιο πρόσφατο ολοκληρωμένο τοπικό `pnpm check` πέρασε **typecheck, 119 tests σε 12 suites και production build**, περιλαμβάνοντας lazy widget, διαχωρισμό migrator/runtime, έλεγχο σωστής βάσης και one-time runtime-role bootstrap. Οι έλεγχοι SQL ρόλων έγιναν σε τοπικό PGlite μέσω test adapter· δεν υποκαθιστούν δοκιμή στην πραγματική hosted PostgreSQL.
+- Πριν την επέκταση φυσικής συνομιλίας/A/B/C, το τοπικό `pnpm check` είχε περάσει **typecheck, 119 tests σε 12 suites και production build**, περιλαμβάνοντας lazy widget, διαχωρισμό migrator/runtime, έλεγχο σωστής βάσης και one-time runtime-role bootstrap. Η τελευταία επαλήθευση των 224 tests καταγράφεται παραπάνω. Οι έλεγχοι SQL ρόλων έγιναν σε τοπικό PGlite μέσω test adapter· δεν υποκαθιστούν δοκιμή στην πραγματική hosted PostgreSQL.
 - Το νεότερο GitHub CI run `36834938015` στο pushed commit `b8e9182` ολοκληρώθηκε επιτυχώς με **119 tests και Docker build**, καλύπτοντας και τις αλλαγές lazy widget. Το προηγούμενο run `36823678292` στο `86262b7` είχε επίσης περάσει με 106 tests και Docker build.
 - Το πρώτο Render build του migrator στο `86262b7` απέτυχε με **105/106 tests**: ένα PGlite test υπερέβη το timeout των 5,000 ms. Το timeout μόνο του συγκεκριμένου cold-start test αυξήθηκε σε 15 δευτερόλεπτα. Μετά τη διόρθωση, το root `pnpm check` πέρασε με **119 tests σε 12 suites, typecheck και build**, σε περίπου 13.7 δευτερόλεπτα.
 - Το Render migrator build `bld-dav1c4h7lnhs73ad41o0` στο `b8e9182` πέτυχε σε **46.8 δευτερόλεπτα** και ακολούθησε επιτυχής εκτέλεση πραγματικών migrations στις **11:14:59 Europe/Athens, 1 Οκτωβρίου 2026**. Το επόμενο build της bootstrap configuration, `bld-dav1eed9fdbs73araog0`, πέτυχε σε περίπου **47 δευτερόλεπτα**, αλλά η εντολή δημιουργίας runtime role δεν εκτελέστηκε.

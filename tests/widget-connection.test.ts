@@ -47,7 +47,7 @@ describe('connection shared by launcher and lazy shopping UI', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['assistant', 'control'] as const)('records %s exposure before UI load, exactly once', async assignment => {
+  it.each(['assistant', 'openai', 'mistral', 'control'] as const)('records %s exposure before UI load, exactly once', async assignment => {
     const { connection, fetcher, publish } = fixture();
     fetcher.mockImplementation(async path => String(path).endsWith('/bootstrap') ? Response.json(session(assignment)) : Response.json({}));
     await connection.initialize();
@@ -72,6 +72,8 @@ describe('connection shared by launcher and lazy shopping UI', () => {
     expect(connection.session?.token).toBe('new-session');
     expect(publish).not.toHaveBeenCalled();
     expect(storage.removeItem).toHaveBeenCalled();
+    const revocation = fetcher.mock.calls.find(([path]) => String(path).endsWith('/consent'));
+    expect(JSON.parse(revocation![1]!.body as string)).toEqual({ token: 'old-session', analyticsConsent: false });
   });
 
   it('aborts an in-flight event when consent is revoked and omits all later events', async () => {
@@ -95,6 +97,22 @@ describe('connection shared by launcher and lazy shopping UI', () => {
     const revocation = fetcher.mock.calls.find(([path]) => String(path).endsWith('/consent'));
     expect(JSON.parse(revocation![1]!.body as string)).toEqual({ token: 'before', analyticsConsent: false });
     expect(publish).toHaveBeenCalledTimes(1);
+  });
+  it('revokes an abandoned consented bootstrap even when consent was quickly granted again', async () => {
+    const { connection, fetcher, consent } = fixture(); const old = deferred<Response>(); let bootstraps = 0;
+    fetcher.mockImplementation(async path => {
+      if (!String(path).endsWith('/bootstrap')) return Response.json({});
+      bootstraps++;
+      if (bootstraps === 1) return old.promise;
+      return Response.json(session(bootstraps === 2 ? 'untracked' : 'mistral', `session-${bootstraps}`));
+    });
+    const first = connection.initialize(); await vi.waitFor(() => expect(bootstraps).toBe(1));
+    consent.allowed = false; await connection.consentChanged();
+    consent.allowed = true; await connection.consentChanged();
+    old.resolve(Response.json(session('openai', 'abandoned'))); await first;
+    expect(connection.session?.token).toBe('session-3'); expect(connection.session?.assignment).toBe('mistral');
+    const revocations = fetcher.mock.calls.filter(([path]) => String(path).endsWith('/consent')).map(([, init]) => JSON.parse(init!.body as string));
+    expect(revocations).toContainEqual({ token: 'abandoned', analyticsConsent: false });
   });
 
   it('renews an expired session without retrying its operation, and ignores a stale 401 for a different session', async () => {

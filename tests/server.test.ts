@@ -9,7 +9,7 @@ import type { ShopConfig, Planner, Catalog } from '../packages/core/src/types.js
 const shop = 'ym5fhx-fa.myshopify.com';
 const secondShop = 'second.myshopify.com';
 const apiSecret = 'shopify-test-secret'.repeat(3);
-const env = { port: 3000, appUrl: 'https://test.example', allowedShops: [shop,secondShop], apiKey: 'test-client-key', apiSecret, sessionSecret: 'session-secret'.repeat(4), encryptionKey: randomBytes(32).toString('base64'), openaiKey: undefined, openaiModel: undefined, databaseUrl: undefined };
+const env = { port: 3000, appUrl: 'https://test.example', allowedShops: [shop,secondShop], apiKey: 'test-client-key', apiSecret, sessionSecret: 'session-secret'.repeat(4), encryptionKey: randomBytes(32).toString('base64'), openaiKey: undefined, openaiModel: undefined, mistralKey: undefined, mistralModel: undefined, databaseUrl: undefined };
 const security = new Security(env.sessionSecret,env.encryptionKey);
 const config: ShopConfig = { shop, brand:'Nutri Tiger',locale:'el',allowedCountries:['GR','CY'],enabled:true,experiment:{id:'v1',enabled:true,treatmentPercent:100},approvedImageUrls:[],knowledgeVersion:'empty-v1' };
 const planner: Planner = { plan: async () => ({intent:'greeting',searchQuery:'',productIds:[],factIds:[],variantId:null,quantity:null}) };

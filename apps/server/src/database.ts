@@ -14,7 +14,7 @@ export interface DatabaseOptions {
   queryTimeoutMs?: number;
 }
 
-export const DATABASE_SCHEMA_VERSION = 1;
+export const DATABASE_SCHEMA_VERSION = 2;
 
 function boundedInteger(name: string, value: string | number | undefined, fallback: number, min: number, max: number): number {
   const parsed = value === undefined || value === '' ? fallback : Number(value);
@@ -41,6 +41,8 @@ export async function verifyDatabaseReady(db: Database): Promise<void> {
     if (!role.rows.length || role.rows[0]!.elevated) throw new Error('Runtime role must be restricted');
     const result = await db.query<{ version: number }>('SELECT version FROM sales_agent.schema_migrations WHERE version=$1', [DATABASE_SCHEMA_VERSION]);
     if (!result.rows.length) throw new Error('Schema version missing');
+    const access = await db.query<{ ready: boolean }>(`SELECT bool_and(has_table_privilege(current_user,'sales_agent.'||table_name,'SELECT') AND has_table_privilege(current_user,'sales_agent.'||table_name,'INSERT') AND has_table_privilege(current_user,'sales_agent.'||table_name,'UPDATE') AND has_table_privilege(current_user,'sales_agent.'||table_name,'DELETE')) AS ready FROM unnest(ARRAY['shops','conversations','usage_buckets','events','pixel_assignments','webhooks','experiment_specs','eligible_exposures','model_usage']) AS table_name`);
+    if (!access.rows[0]?.ready) throw new Error('Runtime grants missing');
   } catch {
     throw new Error('sales_agent schema is not ready or runtime role is not restricted; verify scoped grants and run the separate migration deployment first');
   }
@@ -103,18 +105,29 @@ export async function migrate(db: Database): Promise<void> {
     `CREATE TABLE IF NOT EXISTS shops (shop TEXT PRIMARY KEY, config JSONB NOT NULL, credentials TEXT NOT NULL, facts JSONB NOT NULL DEFAULT '[]', active BOOLEAN NOT NULL DEFAULT true, installed_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
     `CREATE TABLE IF NOT EXISTS conversations (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, id UUID NOT NULL, history TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, turns INTEGER NOT NULL DEFAULT 0, busy_until TIMESTAMPTZ, consent BOOLEAN NOT NULL, assignment TEXT NOT NULL, experiment_id TEXT NOT NULL, PRIMARY KEY(shop,id))`,
     `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS visitor_hash TEXT`,
+    `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS config_fingerprint TEXT`,
+    `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS provider TEXT`,
     `CREATE TABLE IF NOT EXISTS usage_buckets (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, bucket TEXT NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(shop,bucket))`,
     `CREATE TABLE IF NOT EXISTS events (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, id TEXT NOT NULL, name TEXT NOT NULL, source TEXT NOT NULL, conversation_id UUID, client_hash TEXT, experiment_id TEXT, assignment TEXT, metadata JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(shop,source,id))`,
     `CREATE TABLE IF NOT EXISTS pixel_assignments (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, client_hash TEXT NOT NULL, experiment_id TEXT NOT NULL, assignment TEXT NOT NULL, conversation_id UUID NOT NULL, expires_at TIMESTAMPTZ NOT NULL, PRIMARY KEY(shop,client_hash,experiment_id))`,
+    `ALTER TABLE events ADD COLUMN IF NOT EXISTS visitor_hash TEXT`,
+    `ALTER TABLE pixel_assignments ADD COLUMN IF NOT EXISTS visitor_hash TEXT`,
+    `ALTER TABLE pixel_assignments ADD COLUMN IF NOT EXISTS ambiguous BOOLEAN NOT NULL DEFAULT false`,
+    `CREATE TABLE IF NOT EXISTS experiment_specs (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, experiment_id TEXT NOT NULL, config_fingerprint TEXT NOT NULL, specification JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(shop,experiment_id))`,
+    `CREATE TABLE IF NOT EXISTS eligible_exposures (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, experiment_id TEXT NOT NULL, visitor_hash TEXT NOT NULL, assignment TEXT NOT NULL, config_fingerprint TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(shop,experiment_id,visitor_hash))`,
+    `CREATE TABLE IF NOT EXISTS model_usage (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, day DATE NOT NULL, experiment_id TEXT NOT NULL, assignment TEXT NOT NULL, provider TEXT NOT NULL, model TEXT NOT NULL, knowledge_version TEXT NOT NULL, config_fingerprint TEXT NOT NULL, operation TEXT NOT NULL, requests INTEGER NOT NULL DEFAULT 0, successful_requests INTEGER NOT NULL DEFAULT 0, input_tokens BIGINT NOT NULL DEFAULT 0, output_tokens BIGINT NOT NULL DEFAULT 0, unknown_token_requests INTEGER NOT NULL DEFAULT 0, duration_ms BIGINT NOT NULL DEFAULT 0, PRIMARY KEY(shop,day,experiment_id,assignment,provider,model,knowledge_version,config_fingerprint,operation))`,
     `CREATE TABLE IF NOT EXISTS webhooks (shop TEXT NOT NULL, id TEXT NOT NULL, received_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(shop,id))`,
     `CREATE INDEX IF NOT EXISTS events_experiment ON events(shop,experiment_id,assignment,name)`,
     `CREATE INDEX IF NOT EXISTS conversations_expiry ON conversations(expires_at)`,
     `CREATE INDEX IF NOT EXISTS conversations_visitor ON conversations(shop,visitor_hash)`,
     `CREATE INDEX IF NOT EXISTS events_expiry ON events(created_at)`,
+    `CREATE INDEX IF NOT EXISTS events_visitor ON events(shop,visitor_hash)`,
+    `CREATE INDEX IF NOT EXISTS eligible_exposures_expiry ON eligible_exposures(created_at)`,
     `CREATE INDEX IF NOT EXISTS pixel_assignments_expiry ON pixel_assignments(expires_at)`,
     `CREATE INDEX IF NOT EXISTS pixel_assignments_conversation ON pixel_assignments(shop,conversation_id)`,
     `CREATE INDEX IF NOT EXISTS webhooks_expiry ON webhooks(received_at)`,
     `CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+    `DO $$ BEGIN IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='sales_agent_runtime') THEN GRANT SELECT,INSERT,UPDATE,DELETE ON sales_agent.experiment_specs,sales_agent.eligible_exposures,sales_agent.model_usage TO sales_agent_runtime; END IF; END $$`,
     `INSERT INTO schema_migrations(version) VALUES(${DATABASE_SCHEMA_VERSION}) ON CONFLICT DO NOTHING`,
   ];
   for (const sql of statements) await db.query(sql);
@@ -130,6 +143,8 @@ export async function purgeExpired(db: Database): Promise<void> {
   await db.query('DELETE FROM conversations WHERE expires_at < now()');
   await db.query('DELETE FROM pixel_assignments WHERE expires_at < now()');
   await db.query("DELETE FROM events WHERE created_at < now() - interval '90 days'");
+  await db.query("DELETE FROM eligible_exposures WHERE created_at < now() - interval '90 days'");
+  await db.query("DELETE FROM model_usage WHERE day < current_date - 90");
   await db.query("DELETE FROM webhooks WHERE received_at < now() - interval '7 days'");
   // Buckets are prefixed with UTC date. Keep two days for diagnostics.
   await db.query("DELETE FROM usage_buckets WHERE left(bucket,10) < to_char(now() - interval '2 days','YYYY-MM-DD')");

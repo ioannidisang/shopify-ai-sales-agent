@@ -20,7 +20,9 @@
     "doctor": "node scripts/doctor.mjs",
     "env:init": "node scripts/init-env.mjs",
     "config:sync": "tsx --env-file-if-exists=.env scripts/sync-config.ts",
-    "analytics:report": "tsx --env-file-if-exists=.env scripts/analytics-report.ts"
+    "analytics:report": "tsx --env-file-if-exists=.env scripts/analytics-report.ts",
+    "knowledge": "tsx scripts/knowledge.ts",
+    "ai:smoke": "tsx --env-file-if-exists=.env scripts/ai-smoke.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.8",

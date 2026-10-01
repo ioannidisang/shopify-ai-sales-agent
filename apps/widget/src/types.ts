@@ -23,7 +23,7 @@ export interface Product {
 export interface Bootstrap {
   token: string;
   conversationId: string;
-  assignment: 'assistant' | 'control' | 'untracked';
+  assignment: 'assistant' | 'openai' | 'mistral' | 'control' | 'untracked';
   experimentId: string;
   brand: string | { name: string };
   enabled: boolean;

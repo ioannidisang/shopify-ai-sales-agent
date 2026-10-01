@@ -10,7 +10,7 @@ register(({ analytics, settings, init, customerPrivacy }) => {
   let allowed = init.customerPrivacy.analyticsProcessingAllowed;
   let generation = 0;
   const requests = new Set<AbortController>();
-  let assignment: { assignment: 'assistant' | 'control'; experimentId: string; conversationId: string } | undefined;
+  let assignment: { assignment: 'assistant' | 'openai' | 'mistral' | 'control'; experimentId: string; conversationId: string } | undefined;
   customerPrivacy.subscribe('visitorConsentCollected', event => {
     allowed = event.customerPrivacy.analyticsProcessingAllowed;
     generation++;
@@ -20,7 +20,7 @@ register(({ analytics, settings, init, customerPrivacy }) => {
       requests.clear();
     }
   });
-  async function send(event: { id: string; name: string; clientId: string; orderId?: string; assignment?: string; experimentId?: string; conversationId?: string }): Promise<void> {
+  async function send(event: { id: string; name: string; clientId: string; orderId?: string; totalAmount?: string; currency?: string; assignment?: string; experimentId?: string; conversationId?: string }): Promise<void> {
     if (!allowed || !event.clientId || !event.id) return;
     const currentGeneration = generation;
     const controller = new AbortController();
@@ -37,7 +37,7 @@ register(({ analytics, settings, init, customerPrivacy }) => {
   analytics.subscribe('sales_agent_assignment', event => {
     if (!allowed) return;
     const data = event.customData;
-    if (!data || (data.assignment !== 'assistant' && data.assignment !== 'control') || typeof data.experimentId !== 'string' || typeof data.conversationId !== 'string') return;
+    if (!data || (data.assignment !== 'assistant' && data.assignment !== 'openai' && data.assignment !== 'mistral' && data.assignment !== 'control') || typeof data.experimentId !== 'string' || typeof data.conversationId !== 'string') return;
     assignment = { assignment: data.assignment, experimentId: data.experimentId, conversationId: data.conversationId };
     void send({ id: event.id, name: 'experiment_exposure', clientId: event.clientId, ...assignment });
   });
@@ -46,6 +46,7 @@ register(({ analytics, settings, init, customerPrivacy }) => {
   });
   analytics.subscribe('checkout_completed', event => {
     const orderId = event.data.checkout.order?.id;
-    void send({ id: event.id, name: 'purchase', clientId: event.clientId, ...(orderId ? { orderId } : {}), ...assignment });
+    const total = event.data.checkout.totalPrice;
+    void send({ id: event.id, name: 'purchase', clientId: event.clientId, ...(orderId ? { orderId } : {}), ...(total ? { totalAmount: String(total.amount), currency: total.currencyCode } : {}), ...assignment });
   });
 });

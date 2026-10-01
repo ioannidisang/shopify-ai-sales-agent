@@ -20,7 +20,7 @@ beforeAll(async () => {
   await migrate({ query: (sql, params) => engine.query(sql, params), close: async () => {} });
   await engine.exec(`CREATE ROLE sales_agent_runtime NOLOGIN;
     GRANT USAGE ON SCHEMA sales_agent TO sales_agent_runtime;
-    GRANT SELECT,INSERT,UPDATE,DELETE ON shops,conversations,usage_buckets,events,pixel_assignments,webhooks TO sales_agent_runtime;
+    GRANT SELECT,INSERT,UPDATE,DELETE ON shops,conversations,usage_buckets,events,pixel_assignments,webhooks,experiment_specs,eligible_exposures,model_usage TO sales_agent_runtime;
     GRANT SELECT ON schema_migrations TO sales_agent_runtime`);
 });
 afterAll(async () => { await engine.close(); });

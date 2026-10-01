@@ -2,3 +2,5 @@ export * from './types.js';
 export * from './respond.js';
 export * from './openai-planner.js';
 export * from './policy.js';
+export * from './conversation.js';
+export * from './knowledge.js';

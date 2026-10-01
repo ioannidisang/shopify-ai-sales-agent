@@ -1,4 +1,5 @@
 export type Locale = 'el' | 'en';
+export type ModelProvider = 'openai' | 'mistral';
 export interface Money { amount: string; currencyCode: string }
 export interface ProductVariant {
   id: string; legacyId: string; title: string; price: Money;
@@ -15,19 +16,26 @@ export interface ApprovedFact {
   id: string; shop: string; productId: string | null; locale: Locale;
   text: string; source: string; approvedBy: string; approvedAt: string;
   status: 'approved' | 'draft' | 'revoked'; expiresAt?: string | null;
+  sourceVersion?: string; sourceHash?: string; retrievedAt?: string;
 }
 export interface ShopConfig {
   shop: string; brand: string; locale: Locale; allowedCountries: string[]; enabled: boolean;
-  experiment: { id: string; enabled: boolean; treatmentPercent: number };
+  experiment: { id: string; enabled: boolean; treatmentPercent: number; arms?: Array<{ id: ModelProvider | 'control'; weight: number }> };
+  defaultProvider?: ModelProvider;
+  conversation?: { version: string; instructions: string; examples: Array<{ user: string; assistant: string }>; approvedBy?: string; approvedAt?: string };
   approvedImageUrls: string[]; knowledgeVersion: string;
 }
-export interface CatalogContext { country: string; locale: Locale }
+export interface CatalogContext { country: string; locale: Locale; signal?: AbortSignal }
 export interface Catalog {
   search(query: string, context: CatalogContext): Promise<Product[]>;
   getProducts(ids: string[], context: CatalogContext): Promise<Product[]>;
   getVariant(id: string, context: CatalogContext): Promise<{ product: Product; variant: ProductVariant } | null>;
 }
-export interface HistoryMessage { role: 'user' | 'assistant'; content: string }
+export interface HistoryMessage {
+  role: 'user' | 'assistant'; content: string;
+  /** Display order only: never persist prices or availability as later evidence. */
+  context?: { productIds: string[]; factIds: string[] };
+}
 export interface Plan {
   intent: 'search' | 'facts' | 'add_to_cart' | 'clarify' | 'greeting' | 'medical' | 'unsupported';
   searchQuery: string; productIds: string[]; factIds: string[];
@@ -35,6 +43,7 @@ export interface Plan {
 }
 export interface PlannerInput {
   message: string; history: HistoryMessage[]; locale: Locale; products: Product[]; facts: ApprovedFact[];
+  guidance?: { instructions: string; examples: Array<{ user: string; assistant: string }> };
 }
 export interface Planner { plan(input: PlannerInput): Promise<Plan> }
 export interface PendingAction { kind: 'add'; variantId: string; quantity: number }
@@ -46,5 +55,7 @@ export interface AssistantResponse {
 }
 export interface RespondInput {
   shop: ShopConfig; facts: ApprovedFact[]; catalog: Catalog; planner: Planner;
+  composer?: import('./conversation.js').ConversationModel;
+  signal?: AbortSignal;
   message: string; history: HistoryMessage[]; country: string; locale: Locale;
 }

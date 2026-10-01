@@ -67,7 +67,7 @@ export class ShopifyCatalog implements Catalog {
         method: 'POST', redirect: 'error',
         headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': this.accessToken },
         body: JSON.stringify({ query, variables: { ...variables, country: context.country, language: context.locale.toUpperCase() } }),
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: context.signal ? AbortSignal.any([context.signal, AbortSignal.timeout(this.timeoutMs)]) : AbortSignal.timeout(this.timeoutMs),
       });
       if (!response.ok) throw new CatalogError();
       const returnedVersion = response.headers.get('x-shopify-api-version');
