@@ -11,6 +11,8 @@ The pilot uses an independent assistant web service, its own PostgreSQL instance
 | Private repository | `https://github.com/ioannidisang/shopify-ai-sales-agent` |
 | Release branch | `codex/shopify-ai-sales-agent` |
 | Web service | `shopify-ai-sales-agent` |
+| Verified web resource ID | `srv-dav36517lnhs73akj8fg` |
+| Assigned HTTPS origin | `https://shopify-ai-sales-agent-smka.onrender.com` |
 | Migrator | `shopify-ai-sales-agent-migrator` |
 | Verified migrator resource ID | `crn-dav1af7pn0mc739l6cf0` |
 | Existing Render database | `shopify-ai-sales-agent-db` |

@@ -1,7 +1,7 @@
-# Linked pilot app; replace the backend placeholder before any deploy.
+# Linked pilot app and verified Render service origin; live theme publication is separate.
 client_id = "780164aa2eacd46fa59c4ae3275643a6"
 name = "Nutri Tiger Sales Pilot"
-application_url = "https://replace-with-your-backend.example"
+application_url = "https://shopify-ai-sales-agent-smka.onrender.com"
 embedded = false
 
 [access_scopes]
@@ -9,7 +9,7 @@ scopes = "unauthenticated_read_product_listings,read_pixels,write_pixels,read_cu
 use_legacy_install_flow = true
 
 [auth]
-redirect_urls = ["https://replace-with-your-backend.example/auth/callback"]
+redirect_urls = ["https://shopify-ai-sales-agent-smka.onrender.com/auth/callback"]
 
 [webhooks]
 api_version = "2026-07"
