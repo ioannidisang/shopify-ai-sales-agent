@@ -25,6 +25,10 @@ const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url || '/', 'http://127.0.0.1:3101');
     const path = url.pathname;
+    if (request.method === 'GET' && path === '/__fixture/mobile') {
+      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      response.end(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>TEST FIXTURE · 390 × 844 viewport</title><style>body{margin:24px;background:#eceee9;color:#213e2d;font:16px/1.5 system-ui,sans-serif}h1{font-size:22px}iframe{display:block;width:390px;height:844px;border:0;background:white;box-shadow:0 0 0 1px #a8b6a5}a{color:#174c38}</style></head><body><h1>TEST FIXTURE · Fixed 390 × 844 viewport</h1><p>Synthetic catalog only. No Shopify connection or real purchases. The inner frame uses the actual storefront widget.</p><p><a href="/">Full-size fixture</a></p><iframe id="mobile-fixture" title="Synthetic mobile storefront fixture" width="390" height="844" src="/?locale=el"></iframe></body></html>`); return;
+    }
     if (request.method === 'GET' && path === '/sales-assistant.js') {
       counters.loader++;
       response.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }); response.end(await readFile(asset)); return;
