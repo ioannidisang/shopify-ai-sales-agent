@@ -35,6 +35,28 @@ beforeAll(async()=>{
 afterAll(async()=>{await app.close();await db.close();});
 
 describe('server integration with real PostgreSQL engine and Shopify HMAC verification',()=>{
+  it('bridges an allowlisted application-url launch into secure OAuth without forwarding other parameters',async()=>{
+    const launch=await app.inject(`/?shop=${shop}&return_to=https://untrusted.example&hmac=untrusted`);
+    expect(launch.statusCode).toBe(302);
+    expect(launch.headers.location).toBe(`/auth?shop=${shop}`);
+    const auth=await app.inject({url:launch.headers.location!,headers:{'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36'}});
+    expect(auth.statusCode).toBe(302);
+    expect(new URL(auth.headers.location!).origin).toBe(`https://${shop}`);
+    expect(auth.cookies.some(cookie=>cookie.name==='shopify_app_state'&&cookie.secure)).toBe(true);
+    expect((await app.inject('/')).statusCode).toBe(200);
+    expect((await app.inject('/?shop=unknown.myshopify.com')).statusCode).toBe(403);
+    expect((await app.inject(`/?shop=${shop}&shop=${secondShop}`)).statusCode).toBe(400);
+    expect((await app.inject('/?shop=https://untrusted.example')).statusCode).toBe(400);
+  });
+  it('keeps provider health checks available after a client exhausts its traffic bucket',async()=>{
+    const isolated=await buildApp(env,db,{planner,catalog:()=>catalog});
+    try {
+      for(let i=0;i<240;i++) expect((await isolated.inject('/')).statusCode).toBe(200);
+      expect((await isolated.inject('/')).statusCode).toBe(429);
+      expect((await isolated.inject('/healthz')).statusCode).toBe(200);
+      expect((await isolated.inject('/readyz')).statusCode).toBe(200);
+    } finally { await isolated.close(); }
+  });
   it('runs health but rejects unsigned, stale, duplicated and uninstalled proxy shops',async()=>{
     expect((await app.inject('/healthz')).statusCode).toBe(200);
     const payload={analyticsConsent:false,country:'GR',locale:'el'};

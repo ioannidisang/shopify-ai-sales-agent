@@ -55,12 +55,25 @@ export async function buildApp(env: Environment, db: Database, services: Service
   const sdk = env.apiKey && env.apiSecret ? shopifyApi({ apiKey: env.apiKey, apiSecretKey: env.apiSecret, scopes: scopeList, hostName: new URL(env.appUrl).host, hostScheme: new URL(env.appUrl).protocol === 'https:' ? 'https' : 'http', apiVersion: ApiVersion.July26, isEmbeddedApp: false, logger: { level: LogSeverity.Error, log: () => {} } }) : null;
   const planner = services.planner ?? (env.openaiKey && env.openaiModel ? new OpenAIPlanner({ apiKey: env.openaiKey, model: env.openaiModel, timeoutMs: 12000 }) : null);
 
-  app.get('/healthz', async () => ({ status: 'ok' }));
-  app.get('/readyz', async (_req, reply) => {
+  // Provider probes must not inherit a traffic burst's rate-limit bucket.
+  app.get('/healthz', { config: { rateLimit: false } }, async () => ({ status: 'ok' }));
+  app.get('/readyz', { config: { rateLimit: false } }, async (_req, reply) => {
     await db.query('SELECT 1');
     return reply.code(ready ? 200 : 503).send({ ready });
   });
-  app.get('/', async (_req, reply) => reply.type('text/html').send(`<!doctype html><html lang="el"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Shopify AI Sales Agent</title><body style="font:18px system-ui;max-width:760px;margin:10vh auto;padding:24px;background:#111;color:#eee"><p style="color:#f4d538">NUTRI TIGER · AI SALES PLATFORM</p><h1>Shopify AI Sales Agent</h1><p>${ready ? 'Το backend είναι ρυθμισμένο. Η εγκατάσταση στο Shopify και η ενεργοποίηση στο draft theme ολοκληρώνουν τη σύνδεση.' : 'Το backend λειτουργεί. Εκκρεμούν τα Shopify app credentials, το OpenAI API και η σύνδεση του καταστήματος.'}</p><p>Text · Live product cards · Existing Shopify cart</p><p>Οι οδηγίες εγκατάστασης βρίσκονται στο repo, στο docs/INSTALLATION.md.</p></body></html>`));
+  app.get('/', async (req, reply) => {
+    const launchShops = new URL(req.url, env.appUrl).searchParams.getAll('shop');
+    if (launchShops.length) {
+      if (launchShops.length !== 1) throw new HttpError(400, 'Ambiguous launch shop');
+      const shop = shopDomain.parse(launchShops[0]);
+      if (!env.allowedShops.includes(shop)) throw new HttpError(403, 'Shop not permitted');
+      if (!sdk || !security) throw new HttpError(503, 'Installation not configured');
+      // Shopify opens application_url for installation. Start the existing OAuth flow,
+      // forwarding only the allowlisted shop; the callback authenticates before writes.
+      return reply.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
+    }
+    return reply.type('text/html').send(`<!doctype html><html lang="el"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Shopify AI Sales Agent</title><body style="font:18px system-ui;max-width:760px;margin:10vh auto;padding:24px;background:#111;color:#eee"><p style="color:#f4d538">NUTRI TIGER · AI SALES PLATFORM</p><h1>Shopify AI Sales Agent</h1><p>${ready ? 'Το backend είναι ρυθμισμένο. Η εγκατάσταση στο Shopify και η ενεργοποίηση στο draft theme ολοκληρώνουν τη σύνδεση.' : 'Το backend λειτουργεί. Εκκρεμούν τα Shopify app credentials, το OpenAI API και η σύνδεση του καταστήματος.'}</p><p>Text · Live product cards · Existing Shopify cart</p><p>Οι οδηγίες εγκατάστασης βρίσκονται στο repo, στο docs/INSTALLATION.md.</p></body></html>`);
+  });
 
   const requireSecurity = () => { if (!security || !ready || !planner) throw new HttpError(503, 'Not configured'); return security; };
   async function tenantFromProxy(req: FastifyRequest): Promise<Tenant> {
