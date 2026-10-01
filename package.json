@@ -1,0 +1,45 @@
+{
+  "name": "shopify-ai-sales-agent",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "dev": "tsx --env-file-if-exists=.env apps/server/src/index.ts",
+    "start": "node --env-file-if-exists=.env dist/apps/server/src/index.js",
+    "db:migrate": "node --env-file-if-exists=.env dist/apps/server/src/migrate.js",
+    "build": "tsc -p tsconfig.build.json && node scripts/build-widget.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "shopify": "shopify",
+    "doctor": "node scripts/doctor.mjs",
+    "env:init": "node scripts/init-env.mjs",
+    "config:sync": "tsx --env-file-if-exists=.env scripts/sync-config.ts",
+    "analytics:report": "tsx --env-file-if-exists=.env scripts/analytics-report.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@fastify/cookie": "11.1.2",
+    "@fastify/helmet": "13.1.1",
+    "@fastify/rate-limit": "11.2.0",
+    "@shopify/shopify-api": "15.0.0",
+    "fastify": "5.12.5",
+    "openai": "7.25.0",
+    "pg": "8.23.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@shopify/cli": "4.8.3",
+    "@shopify/web-pixels-extension": "2.18.0",
+    "@types/node": "26.6.3",
+    "@types/pg": "8.23.1",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.0.2"
+  }
+}

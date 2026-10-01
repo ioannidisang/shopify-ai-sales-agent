@@ -1,0 +1,27 @@
+name = "Sales Assistant Analytics"
+type = "web_pixel_extension"
+runtime_context = "strict"
+
+[customer_privacy]
+analytics = true
+marketing = false
+preferences = false
+sale_of_data = "disabled"
+
+[settings]
+type = "object"
+
+[settings.fields.endpoint]
+name = "Collector URL"
+description = "HTTPS backend URL ending in /api/pixel/events"
+type = "single_line_text_field"
+
+[settings.fields.shop]
+name = "Shop domain"
+description = "Installed myshopify.com domain"
+type = "single_line_text_field"
+
+[settings.fields.ingestKey]
+name = "Public collector key"
+description = "Scoped ingestion key; grants no store or customer access"
+type = "single_line_text_field"

@@ -1,0 +1,13 @@
+{
+  "config": {
+    "shop": "ym5fhx-fa.myshopify.com",
+    "brand": "Nutri Tiger",
+    "locale": "el",
+    "allowedCountries": ["GR", "CY"],
+    "enabled": true,
+    "experiment": { "id": "text-mvp-v1", "enabled": false, "treatmentPercent": 50 },
+    "approvedImageUrls": [],
+    "knowledgeVersion": "pending-merchant-approval-v1"
+  },
+  "facts": []
+}

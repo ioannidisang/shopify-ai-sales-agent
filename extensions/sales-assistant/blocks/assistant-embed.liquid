@@ -1,0 +1,25 @@
+{% assign assistant_root = routes.root_url | append: '/' | replace: '//', '/' %}
+<div
+  data-sales-agent
+  data-endpoint="{{ assistant_root | append: 'apps/sales-agent' | escape }}"
+  data-root="{{ assistant_root | escape }}"
+  data-country="{{ localization.country.iso_code | escape }}"
+  data-locale="{{ request.locale.iso_code | escape }}"
+  data-color-header="{{ block.settings.header_color | color_to_hex | escape }}"
+  data-color-surface="{{ block.settings.surface_color | color_to_hex | escape }}"
+  data-color-accent="{{ block.settings.accent_color | color_to_hex | escape }}"
+  {{ block.shopify_attributes }}
+></div>
+
+{% schema %}
+{
+  "name": "t:assistant.name",
+  "target": "body",
+  "javascript": "sales-assistant.js",
+  "settings": [
+    { "type": "color", "id": "header_color", "label": "t:assistant.header_color", "default": "#171717" },
+    { "type": "color", "id": "surface_color", "label": "t:assistant.surface_color", "default": "#faf9f2" },
+    { "type": "color", "id": "accent_color", "label": "t:assistant.accent_color", "default": "#f4d538" }
+  ]
+}
+{% endschema %}

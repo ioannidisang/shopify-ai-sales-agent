@@ -1,0 +1,95 @@
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
+# LOCAL EXAMPLE ONLY. This file does not provision or bind any Render resources.
+# Replace every REPLACE_/replace- value and review the resource creation plan.
+# Use new assistant resource names; never substitute a Loyalty resource name.
+# Render does not interpolate shell variables in this YAML.
+
+services:
+  - type: web
+    name: replace-ai-sales-agent-production
+    runtime: docker
+    repo: https://github.com/REPLACE_OWNER/REPLACE_ASSISTANT_REPOSITORY
+    branch: REPLACE_APPROVED_RELEASE_BRANCH
+    region: frankfurt
+    plan: starter
+    numInstances: 1
+    autoDeployTrigger: "off"
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: node dist/apps/server/src/index.js
+    healthCheckPath: /readyz
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: APP_URL
+        sync: false
+      - key: ALLOWED_SHOPS
+        value: ym5fhx-fa.myshopify.com
+      - key: SCOPES
+        value: unauthenticated_read_product_listings,read_pixels,write_pixels,read_customer_events,write_app_proxy
+      - key: SHOPIFY_API_KEY
+        sync: false
+      - key: SHOPIFY_API_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_POOL_MAX
+        value: "2"
+      - key: DB_CONNECTION_TIMEOUT_MS
+        value: "5000"
+      - key: DB_QUERY_TIMEOUT_MS
+        value: "10000"
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+
+  - type: cron
+    name: replace-ai-sales-agent-migrator
+    runtime: docker
+    repo: https://github.com/REPLACE_OWNER/REPLACE_ASSISTANT_REPOSITORY
+    branch: REPLACE_APPROVED_RELEASE_BRANCH
+    region: frankfurt
+    plan: starter
+    autoDeployTrigger: "off"
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: node dist/apps/server/src/migrate.js
+    # Render requires a schedule. This is NOT a manual-only setting.
+    # Suspend scheduled runs after provisioning; intentionally trigger migrations
+    # before a release, then suspend again. See docs/RENDER-DEPLOYMENT.md.
+    schedule: "0 0 1 1 *"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MIGRATION_DATABASE_URL
+        fromDatabase:
+          name: replace-ai-sales-agent-postgres
+          property: connectionString
+      - key: MIGRATION_EXPECTED_DATABASE
+        value: replace_sales_agent_production
+      - key: DB_POOL_MAX
+        value: "1"
+      - key: DB_CONNECTION_TIMEOUT_MS
+        value: "5000"
+      - key: DB_QUERY_TIMEOUT_MS
+        value: "10000"
+
+databases:
+  - name: replace-ai-sales-agent-postgres
+    databaseName: replace_sales_agent_production
+    user: replace_sales_agent_owner
+    region: frankfurt
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+    diskSizeGB: 1
+    storageAutoscalingEnabled: false
+    connectionPool: none
+    ipAllowList: []

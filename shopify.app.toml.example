@@ -1,0 +1,29 @@
+# Example only: link a real Shopify developer app before creating shopify.app.toml.
+# No client_id is invented here. Add the real public client ID after linking.
+name = "AI Sales Agent"
+application_url = "https://replace-with-your-backend.example"
+embedded = false
+
+[access_scopes]
+scopes = "unauthenticated_read_product_listings,read_pixels,write_pixels,read_customer_events,write_app_proxy"
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = ["https://replace-with-your-backend.example/auth/callback"]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/webhooks"
+
+[app_proxy]
+url = "/proxy"
+prefix = "apps"
+subpath = "sales-agent"
+
+[build]
+automatically_update_urls_on_dev = false
+dev_store_url = "ym5fhx-fa.myshopify.com"
