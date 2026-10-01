@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import { openDatabase, migrate, purgeExpired } from '../apps/server/src/database.js';
 
 describe('dedicated application database schema', () => {
+  // This test includes the cold PostgreSQL WASM startup, which can exceed Vitest's
+  // five-second default on the Render build CPU. Keep a bounded integration timeout.
   it('creates application tables only in sales_agent on an empty local database', async () => {
     const db = await openDatabase(undefined, 'memory://');
     try {
@@ -15,7 +17,7 @@ describe('dedicated application database schema', () => {
       );
       expect(schemas.rows[0]).toEqual({ current: 'sales_agent', public_shops: null, public_events: null, app_shops: 'shops' });
     } finally { await db.close(); }
-  });
+  }, 15000);
 
   it('preserves pre-existing public tables and marker data through initialization, migration and retention', async () => {
     const temporaryRoot = resolve(tmpdir());

@@ -4,10 +4,11 @@ import { fileURLToPath } from 'node:url';
 
 // Test-only browser fixture. No Shopify/OpenAI requests, credentials, or purchases.
 const asset = fileURLToPath(new URL('../../extensions/sales-assistant/assets/sales-assistant.js', import.meta.url));
+const uiAsset = fileURLToPath(new URL('../../extensions/sales-assistant/assets/sales-assistant-ui.js', import.meta.url));
 let price = '20.00';
 let quantity = 0;
 let consentRevocations = 0;
-const counters = { bootstrap: 0, chat: 0, verify: 0, add: 0, change: 0 };
+const counters = { loader: 0, uiModule: 0, bootstrap: 0, chat: 0, verify: 0, add: 0, change: 0 };
 const events = [];
 const sessions = new Map();
 const variant = () => ({ id: 'gid://shopify/ProductVariant/123', legacyId: '123', title: 'Test size · 30 units', price: { amount: price, currencyCode: 'EUR' }, availableForSale: true, currentlyNotInStock: false, quantityRule: { minimum: 1, maximum: 20, increment: 1 } });
@@ -25,7 +26,12 @@ const server = createServer(async (request, response) => {
     const url = new URL(request.url || '/', 'http://127.0.0.1:3101');
     const path = url.pathname;
     if (request.method === 'GET' && path === '/sales-assistant.js') {
+      counters.loader++;
       response.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }); response.end(await readFile(asset)); return;
+    }
+    if (request.method === 'GET' && path === '/sales-assistant-ui.js') {
+      counters.uiModule++;
+      response.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }); response.end(await readFile(uiAsset)); return;
     }
     if (request.method === 'GET' && path === '/__fixture/state') {
       send(response, { counters, cartQuantity: quantity, livePrice: price, consentRevocations, eventNames: events }); return;
@@ -91,7 +97,7 @@ document.getElementById('refresh').onclick=evidence;
 document.getElementById('reset').onclick=async()=>{await fetch('/__fixture/reset',{method:'POST'});location.reload();};
 document.getElementById('price').onclick=async()=>{await fetch('/__fixture/price',{method:'POST'});await evidence();};
 document.addEventListener('sales-agent:cart-updated',evidence);setInterval(evidence,1500);evidence();
-</script><div data-sales-agent data-endpoint="/apps/sales-agent${control ? '-control' : ''}" data-root="${greek ? '/el/' : '/'}" data-country="GR" data-locale="${greek ? 'el' : 'en'}"></div><script src="/sales-assistant.js" defer></script></body></html>`); return;
+</script><div data-sales-agent data-ui-url="/sales-assistant-ui.js" data-endpoint="/apps/sales-agent${control ? '-control' : ''}" data-root="${greek ? '/el/' : '/'}" data-country="GR" data-locale="${greek ? 'el' : 'en'}"></div><script src="/sales-assistant.js" defer></script></body></html>`); return;
     }
     send(response, { error: 'unknown fixture route' }, 404);
   } catch { send(response, { error: 'fixture request failed' }, 500); }

@@ -1,18 +1,30 @@
 # Shopify distribution and pilot registration
 
-Research verified on 1 October 2026 against Shopify's official documentation. This document records a recommendation; it does not create apps, select distribution, install an app or publish a theme.
+Updated 1 October 2026. The pilot app registration has been created through Shopify CLI and verified in the Dev Dashboard. Distribution has not been selected; extensions have not been deployed and the app has not been installed on the store.
+
+## Verified pilot registration
+
+| Field | Value |
+| --- | --- |
+| App name | Nutri Tiger Sales Pilot |
+| Client ID | `780164aa2eacd46fa59c4ae3275643a6` |
+| Dev Dashboard organization | `227248842` — KOOQIE IKE |
+| App ID | `430277591041` |
+| Dashboard | [Nutri Tiger Sales Pilot](https://dev.shopify.com/dashboard/227248842/apps/430277591041) |
+
+The same Dev Dashboard organization contains the existing Kooqie Loyalty app. This is a separate Sales Pilot registration. The earlier `5058807` value is a legacy Partner identifier; it is not the verified Dev Dashboard organization ID, and using it in a Dev Dashboard organization URL returned 403. Do not use it to identify this app's verified ownership.
 
 ## Decision
 
 Keep one reusable codebase and tenant architecture. For an immediate pilot on the actual Nutri Tiger store, use a **separate custom-distributed pilot app registration**. The eventual registration that independent merchants install must use **public distribution** and pass Shopify review. A custom registration cannot later be converted into a public one. [Distribution capabilities](https://shopify.dev/docs/apps/launch/distribution)
 
-Recommended ownership: create new Sales Agent registrations under the existing Partner organization `5058807`, independently of the Kooqie Loyalty app. Organization `236813359` is the merchant organization observed in the session; using its identity is not required for a partner-owned app. This ownership choice is our architecture recommendation, not a claim that merchant organizations cannot develop apps. Both organization types support developer roles; collaborator access to a store and permission to manage apps in an organization are different. [Dev Dashboard permissions](https://shopify.dev/docs/apps/build/dev-dashboard/user-permissions)
+The pilot registration is owned by the verified KOOQIE IKE Dev Dashboard organization above. Organization `236813359` is the merchant organization observed in the session; its identity was not used for this registration. Collaborator access to a store and permission to manage apps in an organization are distinct. [Dev Dashboard permissions](https://shopify.dev/docs/apps/build/dev-dashboard/user-permissions)
 
 ## Registration choices
 
 | Registration | Distribution | Intended installation |
 | --- | --- | --- |
-| Sales Agent — Nutri Tiger Pilot | Custom | `ym5fhx-fa.myshopify.com` only; real storefront pilot after integration verification |
+| Nutri Tiger Sales Pilot — created | Not selected; Custom recommended | `ym5fhx-fa.myshopify.com` only; real storefront pilot after integration verification |
 | Sales Agent platform | Public | Owned dev store before review; independent merchant stores after approval |
 | Development identity, if needed | Development only | Isolated dev store and development environment |
 
@@ -40,4 +52,4 @@ When the public app is approved, moving Nutri Tiger is a planned new installatio
 
 Before public submission, complete merchant-facing onboarding/configuration, fresh-install and reinstall behavior, theme-extension activation instructions, privacy/support material and review test instructions. The reviewer must be able to evaluate a finished application. This repository's manually configured pilot and successful local tests do not by themselves establish public-review readiness. Run the Shopify App Store review skill when preparing that submission; review the current requirements again then. [Preparing for app review](https://shopify.dev/docs/apps/launch/app-store-review/pass-app-review)
 
-The immediate next registration action is the clearly named custom Nutri Tiger pilot in the Partner organization. The public identity can be created separately when its development/review workflow starts. This preserves the user's reusable-platform goal without waiting for public approval to conduct the authorized single-store pilot.
+The pilot registration already exists. Remaining steps are selecting its distribution, replacing the CLI scaffold defaults after the real HTTPS backend is available, deploying configuration/extensions, and completing the store installation and unpublished-theme verification. The public identity can be created separately when its development/review workflow starts; the same reusable platform code and per-store configuration remain the basis for both registrations.

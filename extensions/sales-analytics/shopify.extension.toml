@@ -1,6 +1,7 @@
 name = "Sales Assistant Analytics"
 type = "web_pixel_extension"
 runtime_context = "strict"
+uid = "cf80051d-738b-118b-d80d-eebad45da897d5af0a6e"
 
 [customer_privacy]
 analytics = true

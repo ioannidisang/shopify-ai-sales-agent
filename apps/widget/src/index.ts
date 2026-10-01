@@ -1,8 +1,8 @@
 import { ThemeCart, CartError, localeRoot, validQuantity, type Cart } from './cart.js';
-import { analyticsAllowed, loadConsent, visitorId } from './consent.js';
+import type { WidgetConnection, EventDetail } from './connection.js';
 import { styles } from './styles.js';
-import { brandVariables, lockPageScroll } from './appearance.js';
-import type { AnalyticsEventName, Bootstrap, ChatResponse, Product, Variant } from './types.js';
+import { lockPageScroll } from './appearance.js';
+import type { AnalyticsEventName, ChatResponse, Product, Variant } from './types.js';
 
 const copy = {
   en: {
@@ -64,7 +64,6 @@ class SalesAssistant {
   private readonly locale: string;
   private readonly country: string;
   private readonly root: string;
-  private readonly endpoint: string;
   private readonly t: typeof copy.en | typeof copy.el;
   private readonly cart: ThemeCart;
   private readonly launcher: HTMLButtonElement;
@@ -74,42 +73,38 @@ class SalesAssistant {
   private readonly input = node('textarea');
   private readonly send: HTMLButtonElement;
   private readonly title = node('h1');
-  private session?: Bootstrap;
-  private bootstrapPromise?: Promise<void>;
-  private consent = false;
-  private generation = 0;
+  private get session() { return this.connection.session; }
+  private get generation() { return this.connection.generation; }
   private chatPending = false;
   private started = false;
-  private exposed = false;
   private openTracked = false;
-  private readonly analyticsRequests = new Set<AbortController>();
   private cartView?: HTMLElement;
   private built = false;
   private restoreScroll?: () => void;
 
-  constructor(private readonly host: HTMLElement) {
+  constructor(private readonly host: HTMLElement, private readonly connection: WidgetConnection, launcher: HTMLButtonElement) {
     this.locale = host.dataset.locale || 'en';
     this.country = host.dataset.country || 'GR';
     this.root = localeRoot(host.dataset.root || window.Shopify?.routes?.root || '/');
-    this.endpoint = host.dataset.endpoint || '/apps/sales-agent';
-    if (!/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?apps\/[a-z0-9-]+$/.test(this.endpoint)) throw new Error('Invalid assistant endpoint');
     this.t = this.locale.toLowerCase().startsWith('el') ? copy.el : copy.en;
-    this.shadow = host.attachShadow({ mode: 'open' });
-    for (const [name, value] of Object.entries(brandVariables({ header: host.dataset.colorHeader, surface: host.dataset.colorSurface, accent: host.dataset.colorAccent }))) host.style.setProperty(name, value);
+    this.shadow = host.shadowRoot!;
     this.cart = new ThemeCart(this.root, async id => {
       await this.ensureSession();
       const result = await this.post<{ variant: Variant; requiresSellingPlan?: boolean }>('/variants/verify', { token: this.session!.token, variantId: id, country: this.country, locale: this.locale });
       return { ...result.variant, requiresSellingPlan: result.requiresSellingPlan };
     });
-    this.launcher = button(this.t.launch, () => this.open(), 'launcher');
-    this.launcher.prepend(node('span', undefined, 'dot'));
-    this.launcher.hidden = true;
-    this.launcher.setAttribute('aria-haspopup', 'dialog');
-    this.launcher.setAttribute('aria-expanded', 'false');
+    this.launcher = launcher;
     this.send = button(this.t.send, () => this.chat(), 'primary');
-    this.shadow.append(node('style', styles), this.launcher);
-    document.addEventListener('visitorConsentCollected', () => { if (this.host.isConnected) void this.onConsentChanged(); });
-    void this.initialize();
+    this.shadow.replaceChildren(node('style', styles), this.launcher);
+    let previousSession = this.session?.conversationId;
+    const update = () => {
+      const session = this.session;
+      if (session?.conversationId !== previousSession) { this.started = false; this.openTracked = false; previousSession = session?.conversationId; }
+      if (session) this.title.textContent = typeof session.brand === 'string' ? session.brand : session.brand.name;
+      if ((!session?.enabled || session.assignment === 'control') && this.dialog.open) this.dialog.close();
+    };
+    connection.subscribe(update);
+    update();
   }
 
   private build(): void {
@@ -154,89 +149,11 @@ class SalesAssistant {
     this.shadow.append(this.dialog);
   }
 
-  private async post<T>(path: string, body: unknown, controller?: AbortController): Promise<T> {
-    const response = await fetch(`${this.endpoint}${path}`, {
-      method: 'POST', credentials: 'same-origin', cache: 'no-store',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body),
-      signal: controller ? AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
-    });
-    if (!response.ok) {
-      if (response.status === 401) this.session = undefined;
-      throw new Error('Assistant request unavailable');
-    }
-    if (response.status === 204) return undefined as T;
-    return response.json() as Promise<T>;
-  }
+  private post<T>(path: string, body: unknown): Promise<T> { return this.connection.post<T>(path, body); }
+  private ensureSession(): Promise<void> { return this.connection.ensureSession(); }
+  private track(name: AnalyticsEventName, detail: EventDetail = {}): Promise<void> { return this.connection.track(name, detail); }
 
-  private async initialize(): Promise<void> {
-    await loadConsent();
-    this.consent = analyticsAllowed();
-    try { await this.ensureSession(); } catch { this.launcher.hidden = false; }
-  }
-
-  private async onConsentChanged(): Promise<void> {
-    const allowed = analyticsAllowed();
-    if (allowed === this.consent) return;
-    const previousToken = this.session?.token;
-    this.consent = allowed;
-    this.generation++;
-    this.session = undefined;
-    this.bootstrapPromise = undefined;
-    this.exposed = false;
-    this.started = false;
-    this.openTracked = false;
-    for (const controller of this.analyticsRequests) controller.abort();
-    this.analyticsRequests.clear();
-    try { visitorId(false, window.localStorage); } catch { /* Storage may be disabled. */ }
-    if (!allowed && previousToken) {
-      try { await this.post('/consent', { token: previousToken, analyticsConsent: false }); } catch { /* Tracking remains stopped in this page. */ }
-    }
-    try { await this.ensureSession(); } catch { this.status.textContent = this.t.unavailable; }
-  }
-
-  private async ensureSession(): Promise<void> {
-    if (this.session) return;
-    if (this.bootstrapPromise) return this.bootstrapPromise;
-    const generation = this.generation;
-    this.bootstrapPromise = (async () => {
-      let id: string | undefined;
-      try { id = visitorId(this.consent, window.localStorage); } catch { /* No persisted analytics identity. */ }
-      const session = await this.post<Bootstrap>('/bootstrap', {
-        ...(id ? { visitorId: id } : {}), analyticsConsent: this.consent && !!id, country: this.country, locale: this.locale,
-      });
-      if (generation !== this.generation) return;
-      this.session = session;
-      this.title.textContent = typeof session.brand === 'string' ? session.brand : session.brand.name;
-      const shown = session.enabled && session.assignment !== 'control';
-      this.launcher.hidden = !shown;
-      if (!shown && this.dialog.open) this.dialog.close();
-      this.publishAssignment();
-    })();
-    try { await this.bootstrapPromise; } finally { if (generation === this.generation) this.bootstrapPromise = undefined; }
-  }
-
-  private publishAssignment(): void {
-    const session = this.session;
-    if (!session || !session.enabled || !this.consent || !analyticsAllowed() || session.assignment === 'untracked' || this.exposed) return;
-    this.exposed = true;
-    void this.track('experiment_exposure');
-    try {
-      window.Shopify?.analytics?.publish('sales_agent_assignment', {
-        assignment: session.assignment, experimentId: session.experimentId, conversationId: session.conversationId,
-      });
-    } catch { /* Tracking failure must not block shopping. */ }
-  }
-
-  private async track(name: AnalyticsEventName, detail: { productId?: string; variantId?: string; quantity?: number } = {}): Promise<void> {
-    const session = this.session;
-    if (!session || !this.consent || !analyticsAllowed() || session.assignment === 'untracked') return;
-    const controller = new AbortController();
-    this.analyticsRequests.add(controller);
-    try { await this.post('/events', { token: session.token, events: [{ id: crypto.randomUUID(), name, ...detail }] }, controller); } catch { /* No queue, message content, or retry persistence. */ }
-    finally { this.analyticsRequests.delete(controller); }
-  }
-
-  private async open(): Promise<void> {
+  async open(): Promise<void> {
     this.build();
     this.launcher.disabled = true;
     try {
@@ -421,10 +338,7 @@ class SalesAssistant {
   }
 }
 
-function mount(): void {
-  const host = document.querySelector<HTMLElement>('[data-sales-agent]');
-  if (!host || host.shadowRoot) return;
-  try { new SalesAssistant(host); } catch { /* A failed embed must not interrupt the storefront. */ }
+export interface WidgetHandle { open(): Promise<void> }
+export function mount(host: HTMLElement, connection: WidgetConnection, launcher: HTMLButtonElement): WidgetHandle {
+  return new SalesAssistant(host, connection, launcher);
 }
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true }); else mount();
-document.addEventListener('shopify:section:load', mount);

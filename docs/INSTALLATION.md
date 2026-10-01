@@ -1,6 +1,8 @@
 # Installation and preview runbook
 
-The checked-in app configuration is an example. It deliberately has no active client ID. No Shopify app has been linked, deployed or installed by these files. The pilot allowlist contains only `ym5fhx-fa.myshopify.com`; the merchant connector is unrelated and must never be used for this pilot.
+Shopify CLI has created **Nutri Tiger Sales Pilot**, client ID `780164aa2eacd46fa59c4ae3275643a6`, app ID `430277591041`, in the verified Dev Dashboard organization `227248842` (KOOQIE IKE). Open the [pilot app](https://dev.shopify.com/dashboard/227248842/apps/430277591041). The same organization contains the existing Kooqie Loyalty app; the pilot is a separate registration.
+
+Distribution is still unselected. No theme/web pixel extension deployment or store installation has completed. The linked configuration now contains the required scopes, non-embedded OAuth flow, proxy and webhooks; its backend URL remains an explicit placeholder that must be replaced before deployment. `shopify app config validate --json` passed with no issues against this linked app. Validation does not establish endpoint readiness. The reusable `.example` configuration remains a template. The pilot allowlist contains only `ym5fhx-fa.myshopify.com`; the merchant connector is unrelated and must never be used for this pilot. The earlier `5058807` identifier is a legacy Partner ID, not this app's verified Dev Dashboard organization ID.
 
 ## Local environment
 
@@ -16,9 +18,11 @@ On the new dedicated `sales_agent_production` database, provision the initial `s
 
 Shopify CLI deploy uploads app configuration and extensions. **It does not host the Node API or database.** A CLI development tunnel exists only while the developer process runs and cannot serve a production installation. Use distinct developer/staging and production app credentials. Backend and tunnel URLs, OAuth redirect URLs, app proxy destination and pixel endpoint must refer to the same environment.
 
-## Link and configure the developer app
+## Configure the created pilot app
 
-Link or create the reusable app through Shopify CLI/Developer Dashboard, then create `shopify.app.toml` using the real app identity and the checked-in example. Keep `embedded = false`. Configure the authorization-code flow using `/auth` and `/auth/callback`. This implementation explicitly uses the supported legacy installation flow because it exchanges a browser OAuth code with the official SDK; it does not use embedded-app session-token exchange.
+Use the existing Nutri Tiger Sales Pilot identity above rather than creating another pilot app. Follow `DISTRIBUTION.md` to select the intended pilot distribution; a future public platform registration remains separate from a custom pilot registration while reusing the same codebase. Once the backend has a real HTTPS origin, replace the CLI draft's application URL, redirect URLs, app-proxy destination and remaining scaffold settings using the checked-in example as the implementation contract. Confirm the client ID remains `780164aa2eacd46fa59c4ae3275643a6`.
+
+Keep `embedded = false` and configure the authorization-code flow using `/auth` and `/auth/callback`. This implementation explicitly uses the supported legacy installation flow because it exchanges a browser OAuth code with the official SDK; it does not use embedded-app session-token exchange. App creation alone does not verify those settings or the OAuth flow.
 
 Required scopes are `unauthenticated_read_product_listings`, `read_pixels`, `write_pixels`, `read_customer_events`, `write_app_proxy`. `write_pixels` implies pixel reads; the explicit read entry documents the lookup. Product inventory quantity scopes are unnecessary when only `availableForSale` is used. No order/customer Admin API read or product/theme write scopes are required. Adding a scope requires a deliberate configuration change and merchant reauthorization.
 
