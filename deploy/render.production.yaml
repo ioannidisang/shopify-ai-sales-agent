@@ -28,7 +28,9 @@ services:
       - key: APP_URL
         sync: false
       - key: ALLOWED_SHOPS
-        value: ym5fhx-fa.myshopify.com
+        value: bionera-gr.myshopify.com
+      - key: SHOPIFY_AUTH_CALLBACK_PATH
+        value: /auth/bionera/callback
       - key: SCOPES
         value: unauthenticated_read_product_listings,read_pixels,write_pixels,read_customer_events,write_app_proxy
       - key: SHOPIFY_API_KEY

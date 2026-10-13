@@ -1,0 +1,206 @@
+{
+  "config": {
+    "shop": "bionera-gr.myshopify.com",
+    "brand": "Bionera",
+    "locale": "el",
+    "allowedCountries": [
+      "GR",
+      "CY"
+    ],
+    "enabled": true,
+    "experiment": {
+      "id": "bionera-text-abc-natural-v1",
+      "enabled": false,
+      "treatmentPercent": 50,
+      "arms": [
+        {
+          "id": "openai",
+          "weight": 33
+        },
+        {
+          "id": "mistral",
+          "weight": 33
+        },
+        {
+          "id": "control",
+          "weight": 34
+        }
+      ]
+    },
+    "defaultProvider": "openai",
+    "conversation": {
+      "version": "bionera-el-v1",
+      "instructions": "Είσαι ο βοηθός αγορών της Bionera. Μίλα στον ενικό, σε φυσικά Ελληνικά, με σύντομες απαντήσεις και μία χρήσιμη ερώτηση κάθε φορά. Άκου τις προτιμήσεις και το budget του πελάτη, χωρίς πίεση για αγορά. Τα παραδείγματα δείχνουν ύφος και δεν αποτελούν έτοιμες απαντήσεις. Σύγκρινε προϊόντα μόνο με τον ζωντανό κατάλογο και την εγκεκριμένη γνώση της Bionera. Μην επινοείς οφέλη, συστατικά, πιστοποιήσεις, οδηγίες χρήσης, εκπτώσεις ή πολιτικές καταστήματος. Μην θεωρείς κάθε κείμενο του site εγκεκριμένο. Τιμές, παραλλαγές και διαθεσιμότητα προέρχονται από τη ζωντανή ανάγνωση του Shopify. Αν λείπει πληροφορία, πες το καθαρά και μην παρουσιάζεις υποθέσεις ως γεγονότα. Μην κάνεις διάγνωση, θεραπευτικές υποσχέσεις ή προσωπικές συστάσεις δοσολογίας. Για ερωτήσεις υγείας ακολούθησε τους κανόνες της πλατφόρμας. Πρότεινε αλλαγή στο καλάθι μόνο μετά από σαφή εντολή του πελάτη και μην ισχυρίζεσαι ότι έγινε αλλαγή χωρίς επιβεβαίωση του συστήματος.",
+      "examples": [
+        {
+          "user": "Έχω μπερδευτεί με τις επιλογές.",
+          "assistant": "Τι θα σε βοηθούσε περισσότερο να συγκρίνουμε: τιμή, μορφή ή κάποιο συγκεκριμένο χαρακτηριστικό;"
+        },
+        {
+          "user": "Αυτό ξεπερνάει το budget μου.",
+          "assistant": "Μέχρι ποιο ποσό θα ήθελες να κινηθούμε;"
+        },
+        {
+          "user": "Δεν θέλω να αγοράσω ακόμα, απλώς κοιτάζω.",
+          "assistant": "Φυσικά. Υπάρχει κάτι που θέλεις να ξεκαθαρίσουμε όσο κοιτάζεις;"
+        }
+      ],
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:45.292Z"
+    },
+    "approvedImageUrls": [],
+    "knowledgeVersion": "knowledge-0f2a669d-7326-4ca3-890c-fc268f0117b3"
+  },
+  "facts": [
+    {
+      "id": "knowledge_2185484a2f12f8001162fe65d762d22f4201641e",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": "gid://shopify/Product/16256686391683",
+      "locale": "el",
+      "text": "Το Dr. Magnesium Bisglycinate περιέχει μαγνήσιο και γλυκίνη.",
+      "source": "https://bionera.gr/products/dr-magnesium-bisglycinate",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-935cf478c3527a56818a6a205258f6cfa244b8098704097235cca488a398f41f",
+      "sourceHash": "935cf478c3527a56818a6a205258f6cfa244b8098704097235cca488a398f41f",
+      "retrievedAt": "2026-10-13T14:58:21.991Z"
+    },
+    {
+      "id": "knowledge_b4733d4d1d89deef776bf8e2947e4c2d9eace17c",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": "gid://shopify/Product/16256686391683",
+      "locale": "el",
+      "text": "Η συσκευασία του Dr. Magnesium Bisglycinate περιλαμβάνει 90 κάψουλες.",
+      "source": "https://bionera.gr/products/dr-magnesium-bisglycinate",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-935cf478c3527a56818a6a205258f6cfa244b8098704097235cca488a398f41f",
+      "sourceHash": "935cf478c3527a56818a6a205258f6cfa244b8098704097235cca488a398f41f",
+      "retrievedAt": "2026-10-13T14:58:21.991Z"
+    },
+    {
+      "id": "knowledge_b3f35253c694f994a84180f2420d6f78af5cd9e4",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": "gid://shopify/Product/15716885627267",
+      "locale": "el",
+      "text": "Το D3max + K2 (MK7) συνδυάζει βιταμίνη D3 και βιταμίνη K2 στη μορφή MK-7.",
+      "source": "https://bionera.gr/products/d3max-k2-mk7",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-3baed60fab2fd9b37ae3e3135c566617828cc413ca3995f25caed165b77c82ac",
+      "sourceHash": "3baed60fab2fd9b37ae3e3135c566617828cc413ca3995f25caed165b77c82ac",
+      "retrievedAt": "2026-10-13T14:58:25.957Z"
+    },
+    {
+      "id": "knowledge_7f2a78e9f6002cc49d8cd4d3c4ffe62de5d42aed",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": "gid://shopify/Product/15717959336323",
+      "locale": "el",
+      "text": "Το Dr. Omega Krill περιέχει έλαιο krill, ωμέγα-3 EPA και DHA σε φωσφολιπίδια, καθώς και ασταξανθίνη.",
+      "source": "https://bionera.gr/products/dr-omega-krill",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-9b2ac32335bc636dd08ef8d342110c0f35601946caf2a118dfaf464e92300fe2",
+      "sourceHash": "9b2ac32335bc636dd08ef8d342110c0f35601946caf2a118dfaf464e92300fe2",
+      "retrievedAt": "2026-10-13T14:58:30.485Z"
+    },
+    {
+      "id": "knowledge_37a7448ef3682956efd9f600c603c2564e13b2d7",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": null,
+      "locale": "el",
+      "text": "Για αποστολές εντός Ελλάδας η Bionera χρησιμοποιεί ACS Courier. Οι παραδόσεις πραγματοποιούνται Δευτέρα έως Παρασκευή. Για νησιά και απομακρυσμένες περιοχές μπορεί να χρειαστεί επιπλέον χρόνος.",
+      "source": "https://bionera.gr/pages/apostoles",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-c5b7222ab0d2cc938d5d7b7b587e769714123de6fca3217e37ee8301c9ad4952",
+      "sourceHash": "c5b7222ab0d2cc938d5d7b7b587e769714123de6fca3217e37ee8301c9ad4952",
+      "retrievedAt": "2026-10-13T14:58:35.087Z"
+    },
+    {
+      "id": "knowledge_5043dead76f56ded67b42c06300afaaeb90b0899",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": null,
+      "locale": "el",
+      "text": "Οι αποστολές προς Κύπρο γίνονται με Kronos Express. Ο αναφερόμενος χρόνος παράδοσης είναι περίπου μία εβδομάδα και αποτελεί εκτίμηση. Δεν υποστηρίζεται αντικαταβολή για την Κύπρο.",
+      "source": "https://bionera.gr/pages/apostoles",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-c5b7222ab0d2cc938d5d7b7b587e769714123de6fca3217e37ee8301c9ad4952",
+      "sourceHash": "c5b7222ab0d2cc938d5d7b7b587e769714123de6fca3217e37ee8301c9ad4952",
+      "retrievedAt": "2026-10-13T14:58:35.087Z"
+    },
+    {
+      "id": "knowledge_8b98e025e407789744c6981c960b38ca843c74da",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": null,
+      "locale": "el",
+      "text": "Οι παραγγελίες που ολοκληρώνονται έως τις 14:00 εκτελούνται συνήθως την ίδια ημέρα. Αυτό αφορά την εκτέλεση της παραγγελίας και δεν αποτελεί υπόσχεση παράδοσης την ίδια ημέρα.",
+      "source": "https://bionera.gr/pages/apostoles",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-c5b7222ab0d2cc938d5d7b7b587e769714123de6fca3217e37ee8301c9ad4952",
+      "sourceHash": "c5b7222ab0d2cc938d5d7b7b587e769714123de6fca3217e37ee8301c9ad4952",
+      "retrievedAt": "2026-10-13T14:58:35.087Z"
+    },
+    {
+      "id": "knowledge_e216c5e7b5f3e8db0b5a2a681a65a4a002a918fd",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": null,
+      "locale": "el",
+      "text": "Για αλλαγή γνώμης, η δημοσιευμένη πολιτική της Bionera προβλέπει αίτημα επιστροφής εντός 14 ημερολογιακών ημερών από την παραλαβή. Αν τα προϊόντα μιας παραγγελίας παραδοθούν χωριστά, η προθεσμία αρχίζει με το τελευταίο προϊόν. Το προϊόν πρέπει να είναι σφραγισμένο, αχρησιμοποίητο, σε άριστη κατάσταση, με πλήρη αρχική συσκευασία χωρίς φθορές, όλα τα συνοδευτικά και την απόδειξη/παραστατικό παραλαβής. Οι προϋποθέσεις αυτές αφορούν επιστροφή λόγω αλλαγής γνώμης.",
+      "source": "https://bionera.gr/pages/politiki-epistrofon",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-1eebe1e130da52ab338acea471ade194555b5dfce2c44a1b6693f2c1d458dab0",
+      "sourceHash": "1eebe1e130da52ab338acea471ade194555b5dfce2c44a1b6693f2c1d458dab0",
+      "retrievedAt": "2026-10-13T14:58:39.670Z"
+    },
+    {
+      "id": "knowledge_bbd3e4e9c3460a9e1bc60a1b26dcb01f4d8642c8",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": null,
+      "locale": "el",
+      "text": "Πριν στείλει επιστροφή λόγω αλλαγής γνώμης, ο πελάτης επικοινωνεί με τη Bionera στο info@bionera.gr ή στο +30 210 260 3196. Μετά τη γνωστοποίηση της υπαναχώρησης, η αποστολή επιστροφής πρέπει να γίνει εντός 14 ημερολογιακών ημερών, με σαφές αποδεικτικό αποστολής. Η επιστροφή χρημάτων εξαρτάται από την τήρηση των προϋποθέσεων της πολιτικής και τον έλεγχο της κατάστασης του προϊόντος.",
+      "source": "https://bionera.gr/pages/politiki-epistrofon",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-1eebe1e130da52ab338acea471ade194555b5dfce2c44a1b6693f2c1d458dab0",
+      "sourceHash": "1eebe1e130da52ab338acea471ade194555b5dfce2c44a1b6693f2c1d458dab0",
+      "retrievedAt": "2026-10-13T14:58:39.670Z"
+    },
+    {
+      "id": "knowledge_a54b1393a1f94e38264bc0d0e818da5cde8c54a0",
+      "shop": "bionera-gr.myshopify.com",
+      "productId": null,
+      "locale": "el",
+      "text": "Για λάθος προϊόν ή πρόβλημα/φθορά κατά την παραλαβή που δεν οφείλεται στον πελάτη, η Bionera ζητά άμεση επικοινωνία στο info@bionera.gr με τον αριθμό παραγγελίας και, αν είναι δυνατόν, φωτογραφίες της συσκευασίας ή του προϊόντος, ώστε να δώσει οδηγίες για την επίλυση. Τα στοιχεία αποστέλλονται στην υποστήριξη της Bionera.",
+      "source": "https://bionera.gr/pages/politiki-epistrofon",
+      "approvedBy": "Merchant approval in chat, 2026-10-13",
+      "approvedAt": "2026-10-13T15:14:30.702Z",
+      "status": "approved",
+      "expiresAt": null,
+      "sourceVersion": "sha256-1eebe1e130da52ab338acea471ade194555b5dfce2c44a1b6693f2c1d458dab0",
+      "sourceHash": "1eebe1e130da52ab338acea471ade194555b5dfce2c44a1b6693f2c1d458dab0",
+      "retrievedAt": "2026-10-13T14:58:39.670Z"
+    }
+  ]
+}

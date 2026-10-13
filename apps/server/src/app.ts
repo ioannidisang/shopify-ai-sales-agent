@@ -99,7 +99,7 @@ export async function buildApp(env: Environment, db: Database, services: Service
       // forwarding only the allowlisted shop; the callback authenticates before writes.
       return reply.redirect(`/auth?shop=${encodeURIComponent(shop)}`);
     }
-    return reply.type('text/html').send(`<!doctype html><html lang="el"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Shopify AI Sales Agent</title><body style="font:18px system-ui;max-width:760px;margin:10vh auto;padding:24px;background:#111;color:#eee"><p style="color:#f4d538">NUTRI TIGER · AI SALES PLATFORM</p><h1>Shopify AI Sales Agent</h1><p>${ready ? 'Το backend είναι ρυθμισμένο. Η εγκατάσταση στο Shopify και η ενεργοποίηση στο draft theme ολοκληρώνουν τη σύνδεση.' : 'Το backend λειτουργεί. Εκκρεμούν τα Shopify app credentials, το OpenAI API και η σύνδεση του καταστήματος.'}</p><p>Text · Live product cards · Existing Shopify cart</p><p>Οι οδηγίες εγκατάστασης βρίσκονται στο repo, στο docs/INSTALLATION.md.</p></body></html>`);
+    return reply.type('text/html').send(`<!doctype html><html lang="el"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Shopify AI Sales Agent</title><body style="font:18px system-ui;max-width:760px;margin:10vh auto;padding:24px;background:#111;color:#eee"><p style="color:#f4d538">SHOPIFY AI SALES PLATFORM</p><h1>Shopify AI Sales Agent</h1><p>${ready ? 'Το backend είναι ρυθμισμένο. Η εγκατάσταση στο Shopify και η ενεργοποίηση στο draft theme ολοκληρώνουν τη σύνδεση.' : 'Το backend λειτουργεί. Εκκρεμούν τα Shopify app credentials, το OpenAI API και η σύνδεση του καταστήματος.'}</p><p>Text · Live product cards · Existing Shopify cart</p><p>Οι οδηγίες εγκατάστασης βρίσκονται στο repo, στο docs/INSTALLATION.md.</p></body></html>`);
   });
 
   const requireSecurity = () => { if (!security || !sdk) throw new HttpError(503, 'Not configured'); return security; };
@@ -346,7 +346,7 @@ export async function buildApp(env: Environment, db: Database, services: Service
   });
 
   if (sdk && security) registerInstallation(app, {
-    apiKey: env.apiKey!, apiSecret: env.apiSecret!, appUrl: env.appUrl, scopes: scopeList, allowedShops: env.allowedShops,
+    apiKey: env.apiKey!, apiSecret: env.apiSecret!, appUrl: env.appUrl, callbackPath: env.authCallbackPath, scopes: scopeList, allowedShops: env.allowedShops,
     pixelIngestKey: shop => security.pixelKey(shop),
     saveInstallation: async data => {
       const { config, facts } = await readTenantFiles(data.shop);

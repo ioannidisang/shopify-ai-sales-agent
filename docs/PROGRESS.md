@@ -1,5 +1,47 @@
 # Πρόοδος — Shopify AI Sales Agent
 
+## 13 Οκτωβρίου 2026 — έγκριση και δημιουργία Bionera app
+
+Ο χρήστης ενέκρινε ρητά τη νέα Bionera registration, permanent single-store custom distribution, release των extensions, εγκατάσταση με catalog/app proxy και store-wide consent-gated pixel, ιδιωτική αποθήκευση των νέων credentials στο υπάρχον Render service και widget μόνο στο unpublished `200088715651`. Ενέκρινε ξεχωριστά τα ακριβή 10 κείμενα του `BIONERA-KNOWLEDGE-REVIEW.md` και το ελληνικό προφίλ. Δεν χρειάζεται νέα έγκριση για αυτά τα ίδια βήματα.
+
+Τα 10 facts εγκρίθηκαν με `approvedBy: Merchant approval in chat, 2026-10-13`, στις 15:14:30 UTC, και το ακριβές προφίλ εισήχθη στις 15:14:45 UTC. Το Bionera config έχει `enabled:true`, experiment disabled, άδεια approved image allowlist. Επαληθεύτηκαν exact-text/profile equality, 10 usable/current/retrievable facts και μηδενική διαρροή σε Nutri tenant retrieval. Δεν έχουν συγχρονιστεί ακόμη στη hosted βάση· θα φορτωθούν από τη νέα εγκατάσταση.
+
+Ο αυτόματος έλεγχος έγκρισης απέρριψε την πρώτη δημιουργία λόγω κοινής callback διαδρομής με το Nutri. Η ασφαλέστερη επανυποβολή χρησιμοποίησε νέο `/auth/bionera/callback`, αφού προστέθηκε `SHOPIFY_AUTH_CALLBACK_PATH`, strict canonical-path validation και ακριβώς ένα ενεργό callback ανά deployment. Οι πραγματικοί SDK tests επιβεβαιώνουν redirect, signed state-cookie path, HMAC/state rejection, επιτυχή provisioning/persistence και απουσία του παλιού callback όταν είναι ενεργό το Bionera. Το default `/auth/callback` διατηρεί legacy συμβατότητα. Δεν προστέθηκε multi-app routing.
+
+Πλήρες `pnpm check` πέρασε στις 18:20 Europe/Athens: **304 tests / 20 suites, typecheck και production build**. Η Fastify deprecation warning παραμένει μη ανασταλτική. Δεν έγιναν νέες AI κλήσεις.
+
+Η διορθωμένη δημιουργία ολοκληρώθηκε: **Bionera Sales Pilot**, app **`435011715073`**, οργανισμός **`227248842`**, αρχική active version **`bionera-sales-pilot-1` / `1165595017217`**. Απόδειξη: ignored `.data/evidence/bionera-registration-created-2026-10-13.png`. Αυτή η αρχική έκδοση περιέχει app settings· τα extensions, custom distribution και installation εκκρεμούν. Δεν έχουν ληφθεί ακόμη Bionera credentials ή αλλάξει το Render.
+
+Η σύνδεση του Chrome διακόπηκε κατά την ανάγνωση App settings μετά την επιτυχή δημιουργία. Ζητήθηκε επανασύνδεση του ίδιου browser. Τα καταγεγραμμένα app/theme IDs επιτρέπουν συνέχεια χωρίς δεύτερη δημιουργία. Η προηγούμενη ενότητα προετοιμασίας παραμένει ως ιστορικό.
+
+Η σύνδεση επανήλθε. Επιλέχθηκε το εγκεκριμένο permanent custom distribution και δημιουργήθηκε ιδιωτικός install link **μόνο για `bionera-gr.myshopify.com`**, με Plus multi-store unchecked. Τα credentials αποθηκεύτηκαν μόνο στο ignored `.env.bionera` και στο συγκεκριμένο Render service μέσω UI, με έλεγχο ότι άλλαξαν μόνο `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `ALLOWED_SHOPS`, `SHOPIFY_AUTH_CALLBACK_PATH` και Save only. Η ενεργοποίηση απαιτεί το νέο deployment.
+
+Το Bionera staging workspace συνδέθηκε με client `6eba3e1d30cecfb04b13698e8b055416`. Shopify config validation: `valid:true`, no issues. Theme check, pixel bundle και staged-asset build πέρασαν. Το εγκεκριμένο release **`bionera-sales-pilot-2` / `1165610844161`** ολοκληρώθηκε και επαληθεύτηκε Active στο Dev Dashboard, με τα δύο extensions, app proxy, privacy webhooks και Bionera callback. Απόδειξη: ignored `.data/evidence/bionera-extension-release-2026-10-13.png`.
+
+Η CLI παρήγαγε τα ίδια extension UIDs από τα κοινά handles. Η επίσημη τεκμηρίωση και η εγκατεστημένη CLI 4.8.3 επιβεβαιώνουν ότι είναι deterministic, app-scoped logical identifiers που μπορούν να μοιράζονται διαφορετικά app instances, όχι απόδειξη cross-app εγκατάστασης. Ελέγχθηκαν explicit Bionera client ID και staging-only environment discovery. Το reusable staging script και το δημόσιο registration manifest διατηρούν αυτά τα UIDs, απορρίπτουν διαφορετικό client ID και δεν διαβάζουν ή αντιγράφουν secrets. [Shopify UID semantics](https://shopify.dev/docs/apps/build/dev-dashboard/migrate-from-partners).
+
+## 13 Οκτωβρίου 2026 — προετοιμασία Bionera ως ενεργού pilot
+
+Ο χρήστης ζήτησε να δοκιμάσουμε πρώτα στο ήδη λειτουργικό **bionera.gr** και επέλεξε ρητά **«Bionera τώρα, Nutri Tiger αργότερα — ίδια υποδομή»**. Η παρούσα ενότητα υπερισχύει της ιστορικής κατάστασης της 1ης Οκτωβρίου παρακάτω. Δεν έγινε ακόμη αλλαγή της ενεργής Shopify identity στο Render ή εγκατάσταση στο Bionera.
+
+Δημόσια ανάγνωση επιβεβαίωσε Shopify και canonical shop **`bionera-gr.myshopify.com`**. Ο δημόσιος κατάλογος επέστρεψε **12 προϊόντα**, με πραγματικά product/variant IDs, χωρίς αποθήκευση customer reviews. Τα snapshots κρατήθηκαν μόνο στον ignored `.data/bionera` και δεν χρησιμοποιούνται ως runtime τιμές/απόθεμα. Βρέθηκαν FAQ, πληροφορίες αποστολών και πολιτική επιστροφών. Τα κείμενα του site δεν αντιμετωπίστηκαν ως ήδη εγκεκριμένα facts.
+
+Στο Shopify Admin επαληθεύτηκε το live theme `199350681987` και δημιουργήθηκε ξεχωριστό **unpublished** αντίγραφο **Bionera AI Sales Preview 2026-10-13**, ID **`200088715651`**. Η μετονομασία αποθηκεύτηκε και επαληθεύτηκε στη λίστα Draft themes. Δεν πατήθηκε Publish, δεν ενεργοποιήθηκε widget και δεν άλλαξαν προϊόντα, απόθεμα, παραγγελίες ή checkout. Απόδειξη: ignored `.data/evidence/bionera-preview-created-2026-10-13.png`.
+
+Προστέθηκαν η απενεργοποιημένη Bionera tenant configuration, ανεξάρτητο draft ελληνικού ύφους, μη συνδεδεμένο παράδειγμα Shopify configuration και runbook `docs/BIONERA-PILOT.md`. Το backend homepage έγινε brand-neutral. Τα root Nutri TOMLs, extension UIDs, tenant configuration και credentials διατηρήθηκαν. Δεν υλοποιήθηκε ταυτόχρονο routing διαφορετικών Shopify app identities· η επιλογή του χρήστη επιτρέπει μία ενεργή identity ανά deployment. Μελλοντική ταυτόχρονη λειτουργία custom apps χρειάζεται χωριστή υλοποίηση/έλεγχο ταυτότητας σε OAuth, proxies, webhooks και αποθηκευμένα credentials.
+
+Εισήχθησαν **10 draft facts** από 5 επιλεγμένα source snapshots: βασική σύνθεση/συσκευασία για 3 προϊόντα και συνθήκες αποστολών/επιστροφών. Καμία έγκριση δεν αποδόθηκε στον χρήστη. Έλεγχος πραγματικών schemas και retrieval: **10 drafts, 0 approved, 0 usable, 0 retrieved**. Το `docs/BIONERA-KNOWLEDGE-REVIEW.md` περιέχει ακριβή κείμενα/IDs/πηγές και εξηγεί ότι τα hashes αφορούν τα επιλεγμένα snapshots. Το προφίλ συνομιλίας δεν εισήχθη ως approved. Health benefits, θεραπευτικοί/απόλυτοι ισχυρισμοί, πιστοποιήσεις, κριτικές, τιμές/stock και εικόνες δεν εγκρίθηκαν.
+
+Ο read-only Render connector έλεγχος επιβεβαίωσε το υπάρχον `srv-dav36517lnhs73akj8fg` μη suspended, Frankfurt, auto-deploy off, με τελευταίο deploy **`dep-dav3qfm0tbcc73dftvp0`**, commit **`9e02af672c90228c6405442815f8b1415b9e22a3`**, status **live**. Αυτό δεν αποτελεί νέα επαλήθευση API credit ή runtime OAuth/readiness. Δεν δημιουργήθηκε νέα χρεώσιμη υπηρεσία και δεν άλλαξαν περιβαλλοντικές μεταβλητές. Το merchant Shopify connector δεν χρησιμοποιήθηκε.
+
+Στο Dev Dashboard της KOOQIE IKE προετοιμάστηκε αλλά **δεν υποβλήθηκε** η φόρμα **Bionera Sales Pilot**, version `bionera-sales-pilot-1`, ίδιο backend origin, standalone managed installation, callback `/auth/callback`, API version 2026-07 και scopes catalog/pixels/customer events/app proxy. Απόδειξη χωρίς secrets: ignored `.data/evidence/bionera-app-registration-review-2026-10-13.png`. Δεν υπάρχει ακόμη Bionera app/client ID ή secret. Πριν από δημιουργία/σύνδεση θα ζητηθεί μία συγκεκριμένη έγκριση για τη νέα registration/custom distribution, την ιδιωτική αποθήκευση credentials στο υπάρχον Render service, release/extensions και εγκατάσταση. Η έγκριση πρέπει να αναφέρει ότι το consent-gated pixel έχει εμβέλεια καταστήματος, ενώ το widget παραμένει μόνο στο unpublished preview. Τα facts/ύφος χρειάζονται ξεχωριστή συγκεκριμένη έγκριση του προετοιμασμένου υλικού.
+
+Περιβάλλον: Node **24.19.0**, Git **2.53.0**, Shopify CLI **4.8.3**, τοπικά OpenAI credentials παρόντα, Mistral απόντα. Η πρώτη εκτέλεση ελέγχων μέσα στο Windows sandbox απέτυχε σε προσωρινά αρχεία Vitest και PGlite. Επανάληψη έξω από το sandbox αποκάλυψε ανταγωνισμό πόρων στην παράλληλη εκκίνηση ανεξάρτητων PostgreSQL WASM engines. Προστέθηκε `vitest.config.ts` με **maxWorkers:2**, διατηρώντας όλα τα tests, assertions και υπάρχοντα timeouts. Ο τελικός πλήρης **`pnpm check` πέρασε: typecheck, 274 tests / 20 suites, production build**, 13 Οκτωβρίου, έναρξη tests 18:03:42 Europe/Athens, διάρκεια tests 20.32s. Παραμένει η προϋπάρχουσα Fastify deprecation warning. Δεν έγιναν χρεώσιμες AI κλήσεις ή πραγματικές Bionera chat/cart δοκιμές.
+
+Επόμενα εξωτερικά βήματα: έγκριση συγκεκριμένης σύνδεσης και γνώσης, νέα Shopify identity/extension identities, backend cutover και config activation, OAuth/token/pixel provisioning, πραγματική δοκιμή στο `200088715651`, έλεγχος διαθέσιμου OpenAI credit και λήξης key, consent/cart/checkout attribution, Mistral και συγκριτική ελληνική αξιολόγηση πριν από A/B/C. Το live Bionera παραμένει χωρίς τον δικό μας assistant. Η ιστορική ιδιωτική εξαίρεση καταλόγου Nutri έληξε **8 Οκτωβρίου** και δεν ανανεώθηκε.
+
+## Ιστορικό Nutri Tiger — 1 Οκτωβρίου 2026
+
 1 Οκτωβρίου 2026, Europe/Athens.
 
 ## Τρέχουσα εγκατάσταση pilot — πραγματικό AI και Shopify release

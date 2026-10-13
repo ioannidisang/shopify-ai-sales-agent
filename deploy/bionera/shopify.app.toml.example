@@ -1,0 +1,30 @@
+# Shared pilot settings; stage-shopify-pilot.mjs supplies the public Bionera client ID.
+# Verified registration and app-scoped extension UIDs are in registration.json.
+# Never use the Nutri Tiger app client ID for this pilot.
+name = "Bionera Sales Pilot"
+application_url = "https://shopify-ai-sales-agent-smka.onrender.com"
+embedded = false
+
+[access_scopes]
+scopes = "unauthenticated_read_product_listings,read_pixels,write_pixels,read_customer_events,write_app_proxy"
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = ["https://shopify-ai-sales-agent-smka.onrender.com/auth/bionera/callback"]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/webhooks"
+
+[app_proxy]
+url = "/proxy"
+prefix = "apps"
+subpath = "sales-agent"
+
+[build]
+automatically_update_urls_on_dev = false
+dev_store_url = "bionera-gr.myshopify.com"

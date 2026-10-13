@@ -1,6 +1,7 @@
 import '@shopify/shopify-api/adapters/node';
 import { ApiVersion, LogSeverity, shopifyApi, type GraphqlClient } from '@shopify/shopify-api';
 import type { FastifyInstance } from 'fastify';
+import { authCallbackPathSchema } from './config.js';
 
 export const REQUIRED_SHOPIFY_SCOPES = [
   'unauthenticated_read_product_listings', 'read_pixels', 'write_pixels',
@@ -11,6 +12,7 @@ export interface InstallationOptions {
   apiKey: string;
   apiSecret: string;
   appUrl: string;
+  callbackPath?: string;
   scopes: string[];
   allowedShops: string[];
   saveInstallation: (data: {
@@ -122,6 +124,7 @@ async function provisionPixel(client: GraphqlClient, settings: Record<string, st
 }
 
 export function registerInstallation(app: FastifyInstance, options: InstallationOptions): void {
+  const callbackPath = authCallbackPathSchema.parse(options.callbackPath ?? '/auth/callback');
   const origin = new URL(options.appUrl);
   if (origin.protocol !== 'https:' || origin.username || origin.password || origin.search || origin.hash || origin.pathname !== '/') {
     throw new Error('APP_URL must be an HTTPS origin without a path or credentials');
@@ -155,7 +158,7 @@ export function registerInstallation(app: FastifyInstance, options: Installation
     reply.raw.setHeader('Referrer-Policy', 'no-referrer');
     reply.hijack();
     try {
-      await shopify.auth.begin({ shop, callbackPath: '/auth/callback', isOnline: false, rawRequest: req.raw, rawResponse: reply.raw });
+      await shopify.auth.begin({ shop, callbackPath, isOnline: false, rawRequest: req.raw, rawResponse: reply.raw });
     } catch {
       if (!reply.raw.headersSent) {
         reply.raw.statusCode = 503;
@@ -165,7 +168,7 @@ export function registerInstallation(app: FastifyInstance, options: Installation
     }
   });
 
-  app.get('/auth/callback', async (req, reply) => {
+  app.get(callbackPath, async (req, reply) => {
     reply.header('Cache-Control', 'no-store').header('Referrer-Policy', 'no-referrer');
     const shop = permittedShop(req.query);
     if (!shop) return reply.code(403).send({ error: 'Shop is not permitted for this pilot' });

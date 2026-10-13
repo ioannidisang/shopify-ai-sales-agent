@@ -1,0 +1,27 @@
+{
+  "format": 1,
+  "pilot": "bionera",
+  "shop": "bionera-gr.myshopify.com",
+  "appName": "Bionera Sales Pilot",
+  "organizationId": "227248842",
+  "appId": "435011715073",
+  "clientId": "6eba3e1d30cecfb04b13698e8b055416",
+  "callbackUrl": "https://shopify-ai-sales-agent-smka.onrender.com/auth/bionera/callback",
+  "verifiedOn": "2026-10-13",
+  "version": {
+    "name": "bionera-sales-pilot-2",
+    "id": "1165610844161"
+  },
+  "extensions": {
+    "sales-assistant": {
+      "type": "theme",
+      "uid": "5a62595f-e2e0-42c5-370d-1ee264e5462a7da03a8d",
+      "verifiedVersionId": "1165610844161"
+    },
+    "sales-analytics": {
+      "type": "web_pixel_extension",
+      "uid": "cf80051d-738b-118b-d80d-eebad45da897d5af0a6e",
+      "verifiedVersionId": "1165610844161"
+    }
+  }
+}

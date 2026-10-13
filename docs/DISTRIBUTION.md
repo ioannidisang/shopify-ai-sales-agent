@@ -1,6 +1,6 @@
 # Shopify distribution and pilot registration
 
-Updated 1 October 2026. The pilot app registration has been created through Shopify CLI and verified in the Dev Dashboard. Distribution has not been selected; extensions have not been deployed and the app has not been installed on the store.
+Updated 13 October 2026. Nutri Tiger Sales Pilot was custom-distributed to its single store, released with extensions and successfully installed on 1 October. Its widget was enabled only in an unpublished theme. The merchant has selected Bionera as the active pilot on the same backend/database, with Nutri Tiger retained for later. Bionera's separate registration and extension release are complete; backend cutover and installation remain pending. See `BIONERA-PILOT.md` and the latest entry in `PROGRESS.md`.
 
 ## Verified pilot registration
 
@@ -24,11 +24,14 @@ The pilot registration is owned by the verified KOOQIE IKE Dev Dashboard organiz
 
 | Registration | Distribution | Intended installation |
 | --- | --- | --- |
-| Nutri Tiger Sales Pilot — created | Not selected; Custom recommended | `ym5fhx-fa.myshopify.com` only; real storefront pilot after integration verification |
+| Nutri Tiger Sales Pilot — installed | Custom; single-store, Plus multi-store off | `ym5fhx-fa.myshopify.com`; unpublished preview verified on 1 October |
+| Bionera Sales Pilot — created and released | Custom; single-store, Plus multi-store off | `bionera-gr.myshopify.com`; unpublished theme `200088715651`; installation pending |
 | Sales Agent platform | Public | Owned dev store before review; independent merchant stores after approval |
 | Development identity, if needed | Development only | Isolated dev store and development environment |
 
-Custom distribution permits one merchant store, or stores belonging to one Plus organization, and needs no App Store approval. It cannot use Shopify app billing. This is not a shortcut for one custom app to serve unrelated merchants. In the pilot's custom installation settings, restrict the target to Nutri Tiger and leave the Plus multi-store option disabled. Shopify's current flow is the app's Distribution card in the Dev Dashboard, followed by generation of the store-specific installation link. [Select distribution](https://shopify.dev/docs/apps/launch/distribution/select-distribution-method)
+Custom distribution permits one merchant store, or stores belonging to one Plus organization, and needs no App Store approval. It cannot use Shopify app billing. This is not a shortcut for one custom app to serve unrelated merchants. Each pilot registration is restricted to its own target store with Plus multi-store disabled. Shopify's current flow is the app's Distribution card in the Dev Dashboard, followed by generation of the store-specific installation link. [Select distribution](https://shopify.dev/docs/apps/launch/distribution/select-distribution-method)
+
+Bionera's verified app ID is `435011715073`, client ID `6eba3e1d30cecfb04b13698e8b055416`, in Dev Dashboard organization `227248842`. Version `bionera-sales-pilot-2` / `1165610844161` is active with the shared theme and pixel extensions. Its callback is `/auth/bionera/callback`. The store-specific install link and client secret remain private and ignored.
 
 Do not select custom distribution on an app identity intended to become the public platform. The choice is permanent. The older unreviewed “unpublished public app” route is deprecated, and new legacy admin-created custom apps are unavailable. [Distribution capabilities](https://shopify.dev/docs/apps/launch/distribution)
 
@@ -52,4 +55,4 @@ When the public app is approved, moving Nutri Tiger is a planned new installatio
 
 Before public submission, complete merchant-facing onboarding/configuration, fresh-install and reinstall behavior, theme-extension activation instructions, privacy/support material and review test instructions. The reviewer must be able to evaluate a finished application. This repository's manually configured pilot and successful local tests do not by themselves establish public-review readiness. Run the Shopify App Store review skill when preparing that submission; review the current requirements again then. [Preparing for app review](https://shopify.dev/docs/apps/launch/app-store-review/pass-app-review)
 
-The pilot registration already exists. Remaining steps are selecting its distribution, replacing the CLI scaffold defaults after the real HTTPS backend is available, deploying configuration/extensions, and completing the store installation and unpublished-theme verification. The public identity can be created separately when its development/review workflow starts; the same reusable platform code and per-store configuration remain the basis for both registrations.
+Nutri Tiger's registration, distribution, deployment and unpublished-preview installation have already been verified. Bionera requires a new registration and its own extension identities; do not relink or overwrite the Nutri identity. The merchant chose one active pilot at a time, so the Bionera cutover will change the existing service's app credentials and explicit shop allowlist only after authorization. It will make the Nutri preview unavailable without deleting its configuration or installation records. The public identity can be created separately when its development/review workflow starts; the same reusable platform code and per-store configuration remain the basis for all registrations.

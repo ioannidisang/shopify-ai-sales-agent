@@ -4,6 +4,13 @@ import { z } from 'zod';
 import { shopDomain } from './security.js';
 import { previewCatalogSchema } from '../../../packages/shopify/src/preview-catalog.js';
 
+// One active registration chooses one canonical local OAuth route. No URL normalization
+// is allowed here: encoded separators, query strings and alternate paths must fail closed.
+export const authCallbackPathSchema = z.string().regex(
+  /^\/auth\/(?:[a-z][a-z0-9-]{0,39}\/)?callback(?![\s\S])/,
+  'Shopify callback must be /auth/callback or /auth/<safe alias>/callback',
+);
+
 export const configSchema = z.object({
   shop: shopDomain, brand: z.string().min(1).max(80), locale: z.enum(['el', 'en']),
   allowedCountries: z.array(z.string().regex(/^[A-Z]{2}$/)).min(1).max(50), enabled: z.boolean(),
@@ -45,7 +52,24 @@ export async function readTenantFiles(shop: string, root = 'config/stores') {
   return parsed;
 }
 
-export function readEnv() {
+export interface RuntimeEnvironment {
+  port: number;
+  appUrl: string;
+  allowedShops: string[];
+  // Optional for injected environments; installation defaults to the legacy route.
+  authCallbackPath?: string;
+  databaseUrl: string | undefined;
+  apiKey: string | undefined;
+  apiSecret: string | undefined;
+  sessionSecret: string | undefined;
+  encryptionKey: string | undefined;
+  openaiKey: string | undefined;
+  openaiModel: string | undefined;
+  mistralKey: string | undefined;
+  mistralModel: string | undefined;
+}
+
+export function readEnv(): RuntimeEnvironment {
   const raw = process.env;
   if (raw.NODE_ENV === 'production' && raw.MIGRATION_DATABASE_URL) throw new Error('Production runtime must not receive MIGRATION_DATABASE_URL');
   if (raw.NODE_ENV === 'production' && (raw.RUNTIME_DATABASE_PASSWORD || raw.RUNTIME_ROLE_BOOTSTRAP === 'true')) throw new Error('Production runtime must not receive role bootstrap secrets or mode');
@@ -56,6 +80,7 @@ export function readEnv() {
   if (raw.NODE_ENV === 'production' && (parsedUrl.protocol !== 'https:' || !raw.DATABASE_URL)) throw new Error('Production requires HTTPS APP_URL and PostgreSQL DATABASE_URL');
   return {
     port, appUrl, allowedShops, databaseUrl: raw.DATABASE_URL,
+    authCallbackPath: authCallbackPathSchema.parse(raw.SHOPIFY_AUTH_CALLBACK_PATH ?? '/auth/callback'),
     apiKey: raw.SHOPIFY_API_KEY, apiSecret: raw.SHOPIFY_API_SECRET,
     sessionSecret: raw.SESSION_SECRET, encryptionKey: raw.ENCRYPTION_KEY,
     openaiKey: raw.OPENAI_API_KEY, openaiModel: raw.OPENAI_MODEL,
