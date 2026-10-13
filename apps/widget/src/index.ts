@@ -18,6 +18,7 @@ const copy = {
     rejected: 'Shopify could not complete the request. Refresh your cart to check its current contents.',
     boundary: 'Product information only. For health advice, consult a qualified healthcare professional.',
     privacy: 'Messages are sent to our AI provider to process your request. Avoid personal or health details.', sources: 'Approved information',
+    cookiePreferences: 'Cookie preferences', cookiePreferencesUnavailable: 'Cookie preferences could not be opened. Please try again.',
     live: 'Price and availability checked with Shopify. Final totals at checkout.', noVariant: 'Open the product page for available options.',
   },
   el: {
@@ -33,6 +34,7 @@ const copy = {
     rejected: 'Το Shopify δεν ολοκλήρωσε το αίτημα. Ανανέωσε το καλάθι για να ελέγξεις το περιεχόμενό του.',
     boundary: 'Μόνο πληροφορίες προϊόντων. Για θέματα υγείας, συμβουλέψου επαγγελματία υγείας.',
     privacy: 'Τα μηνύματα αποστέλλονται στον πάροχο AI για επεξεργασία. Απόφυγε προσωπικά δεδομένα ή στοιχεία υγείας.', sources: 'Εγκεκριμένες πληροφορίες',
+    cookiePreferences: 'Ρυθμίσεις cookies', cookiePreferencesUnavailable: 'Δεν άνοιξαν οι ρυθμίσεις cookies. Δοκίμασε ξανά.',
     live: 'Τιμή και διαθεσιμότητα από Shopify. Το τελικό σύνολο εμφανίζεται στην ολοκλήρωση.', noVariant: 'Δες τη σελίδα του προϊόντος για διαθέσιμες επιλογές.',
   },
 } as const;
@@ -81,6 +83,7 @@ class SalesAssistant {
   private cartView?: HTMLElement;
   private built = false;
   private restoreScroll?: () => void;
+  private cookiePreferences?: HTMLButtonElement;
 
   constructor(private readonly host: HTMLElement, private readonly connection: WidgetConnection, launcher: HTMLButtonElement) {
     this.locale = host.dataset.locale || 'en';
@@ -144,6 +147,9 @@ class SalesAssistant {
     composer.addEventListener('submit', event => { event.preventDefault(); void this.chat(); });
     composer.append(this.input, this.send);
     const privacy = node('p', `${this.t.boundary} ${this.t.privacy}`, 'footnote');
+    this.cookiePreferences = button(this.t.cookiePreferences, () => this.showCookiePreferences(), 'cookie-preferences');
+    this.cookiePreferences.hidden = typeof window.privacyBanner?.showPreferences !== 'function';
+    privacy.append(this.cookiePreferences);
     shell.append(header, intro, this.log, toolbar, this.status, composer, privacy);
     this.dialog.append(shell);
     this.shadow.append(this.dialog);
@@ -171,9 +177,37 @@ class SalesAssistant {
   }
 
   private showModal(): void {
+    if (this.cookiePreferences) this.cookiePreferences.hidden = typeof window.privacyBanner?.showPreferences !== 'function';
     if (this.dialog.open) return;
     this.dialog.showModal();
     this.restoreScroll = lockPageScroll();
+  }
+
+  private async showCookiePreferences(): Promise<void> {
+    const banner = window.privacyBanner;
+    if (!this.cookiePreferences) return;
+    if (typeof banner?.showPreferences !== 'function') { this.cookiePreferences.hidden = true; return; }
+    this.cookiePreferences.disabled = true;
+    let failed = false;
+    try {
+      // Release our modal's inert/focus/scroll state before Shopify opens its own UI.
+      if (this.dialog.open) {
+        const closed = new Promise<void>(resolve => this.dialog.addEventListener('close', () => resolve(), { once: true }));
+        this.dialog.close();
+        await closed;
+      }
+      // Only open the merchant's existing first-party preferences. Consent is set
+      // exclusively by the shopper interacting with that UI.
+      await banner.showPreferences();
+    } catch {
+      failed = true;
+      this.showModal();
+      this.launcher.setAttribute('aria-expanded', 'true');
+      this.status.textContent = this.t.cookiePreferencesUnavailable;
+    } finally {
+      this.cookiePreferences.disabled = false;
+      if (failed) this.cookiePreferences.focus();
+    }
   }
 
   private message(text: string, shopper = false): void {

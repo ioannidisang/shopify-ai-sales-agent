@@ -45,7 +45,10 @@ export interface ShopifyBrowser {
 }
 
 declare global {
-  interface Window { Shopify?: ShopifyBrowser }
+  interface Window {
+    Shopify?: ShopifyBrowser;
+    privacyBanner?: { showPreferences(): void | Promise<void> };
+  }
 }
 
 export type AnalyticsEventName = 'assistant_open' | 'conversation_started' | 'recommendation_shown' | 'product_clicked' | 'add_to_cart' | 'cart_updated' | 'experiment_exposure';

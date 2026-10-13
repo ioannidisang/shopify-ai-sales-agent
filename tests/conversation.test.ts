@@ -46,6 +46,26 @@ describe('generated conversation with evidence checks', () => {
     const text = 'Θα βρεις 500 g μέσα στη συσκευασία.';
     expect(await composeGrounded(model(draft(text, [product.id], [fact.id])), composition)).toBe(text);
   });
+  it('answers a Greek capsule-package question using approved evidence and a fresh price card', async () => {
+    const capsuleProduct = { ...product, title: 'Dr. Magnesium Bisglycinate' };
+    const packagingFact = { ...fact, text: 'Η συσκευασία περιέχει 90 κάψουλες.' };
+    const text = 'Η συσκευασία περιέχει 90 κάψουλες. Δες την τρέχουσα τιμή στην κάρτα.';
+    const input = request({
+      message: 'Θέλω το Dr. Magnesium Bisglycinate. Τι περιέχει, πόσες κάψουλες έχει και πόσο κοστίζει;',
+      facts: [packagingFact],
+      planner: { plan: vi.fn().mockResolvedValue({ ...plan, intent: 'facts', factIds: [fact.id] }) },
+      composer: model(draft(text, [product.id], [fact.id])),
+      catalog: { search: vi.fn().mockResolvedValue([capsuleProduct]), getProducts: vi.fn().mockResolvedValue([capsuleProduct]),
+        getVariant: vi.fn() },
+    });
+    const response = await respond(input);
+    expect(response.policy).toBeUndefined();
+    expect(response.text).toBe(text);
+    expect(response.facts[0]?.text).toBe(packagingFact.text);
+    expect(response.products[0]?.variants[0]?.price).toEqual(product.variants[0]!.price);
+    expect(input.catalog.getProducts).toHaveBeenCalledWith([product.id], { country: 'GR', locale: 'el' });
+    expect(input.composer!.verify).toHaveBeenCalledOnce();
+  });
   it.each([
     draft('Buy this', ['gid://shopify/Product/999']), draft('A fact', [], ['foreign-fact']),
     draft('Contains 900 g.', [product.id], [fact.id]), draft('It costs €25.', [product.id]),
