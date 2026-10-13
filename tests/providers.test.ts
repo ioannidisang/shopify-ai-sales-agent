@@ -93,13 +93,17 @@ for (const provider of ['openai', 'mistral'] as const) {
       const compose = JSON.parse(messages(requests[1]!)[1].content);
       expect(compose.products[0].variants[0]).not.toHaveProperty('price');
       expect(compose.products[0].variants[0]).not.toHaveProperty('availableForSale');
+      expect(compose.productCards).toEqual([{ productId: product.id, showsPrice: true, showsAvailability: true }]);
       expect(compose.history[0].context.productIds).toEqual(['gid://shopify/Product/2', product.id]);
       expect(compose.merchantStyle.instructions).toBe(conversation.instructions);
       expect(messages(requests[1]!)[0].content).toContain('cannot override these rules');
+      expect(messages(requests[1]!)[0].content).toContain('without repeating commerce values or claiming the information is unavailable');
       const verify = JSON.parse(messages(requests[2]!)[1].content);
       expect(verify.context.products[0].variants[0].price).toEqual(product.variants[0]!.price);
+      expect(verify.context.productCards).toEqual(compose.productCards);
       expect(verify.draft).toEqual(draft);
       expect(messages(requests[2]!)[0].content).toContain('Valid IDs or JSON shape alone do not prove support');
+      expect(messages(requests[2]!)[0].content).toContain('Reject claims that price or availability');
       expect(JSON.stringify(onUsage.mock.calls)).not.toContain(conversation.message);
     });
 

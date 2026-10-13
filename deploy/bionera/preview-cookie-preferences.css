@@ -1,0 +1,15 @@
+/* Draft theme 200088715651 only: isolate Shopify preferences from the theme header layout. */
+#shopify-pc__prefs__dialog > header {
+  display: block;
+  flex: 0 0 auto;
+  height: auto;
+}
+#shopify-pc__prefs__dialog .shopify-pc__prefs__scrollable {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+#shopify-pc__prefs__dialog .shopify-pc__prefs__header-actions {
+  flex-wrap: wrap;
+  max-width: 100%;
+}

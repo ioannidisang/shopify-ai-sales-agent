@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { respond } from '../packages/core/src/respond.js';
 import { composeGrounded } from '../packages/core/src/grounding.js';
+import { conversationContext } from '../packages/core/src/model-protocol.js';
 import type { ConversationDraft, ConversationInput, ConversationModel } from '../packages/core/src/conversation.js';
 import type { ApprovedFact, Plan, Product, RespondInput, ShopConfig } from '../packages/core/src/types.js';
 
@@ -45,6 +46,29 @@ describe('generated conversation with evidence checks', () => {
   it('permits a supported paraphrase with the correct product and fact references', async () => {
     const text = 'Θα βρεις 500 g μέσα στη συσκευασία.';
     expect(await composeGrounded(model(draft(text, [product.id], [fact.id])), composition)).toBe(text);
+  });
+  it('permits natural price-card guidance with a product reference and no invented price or fact', async () => {
+    const text = 'Την τρέχουσα τιμή και τη διαθεσιμότητα θα τις δεις στην κάρτα του προϊόντος.';
+    const composer = model(draft(text, [product.id]));
+    expect(await composeGrounded(composer, { ...composition, facts: [] })).toBe(text);
+    expect(composer.verify).toHaveBeenCalledOnce();
+  });
+  it('distinguishes commerce shown in the current card from values omitted from prose context', () => {
+    const composing = conversationContext(composition);
+    const verifying = conversationContext(composition, true);
+    expect(composing.productCards).toEqual([{ productId: product.id, showsPrice: true, showsAvailability: true }]);
+    expect(verifying.productCards).toEqual(composing.productCards);
+    expect(composing.products[0]!.variants[0]).not.toHaveProperty('price');
+    expect(composing.products[0]!.variants[0]).not.toHaveProperty('availableForSale');
+    expect(verifying.products[0]!.variants[0]!.price).toEqual(product.variants[0]!.price);
+  });
+  it('never represents historical cards or non-purchasable card branches as currently showing prices', () => {
+    const history = [{ role: 'assistant' as const, content: 'A previous choice', context: { productIds: [product.id], factIds: [] } }];
+    expect(conversationContext({ ...composition, products: [], history }).productCards).toEqual([]);
+    for (const unavailableCard of [{ ...product, requiresSellingPlan: true }, { ...product, variants: [] }]) {
+      expect(conversationContext({ ...composition, products: [unavailableCard] }).productCards)
+        .toEqual([{ productId: product.id, showsPrice: false, showsAvailability: false }]);
+    }
   });
   it('answers a Greek capsule-package question using approved evidence and a fresh price card', async () => {
     const capsuleProduct = { ...product, title: 'Dr. Magnesium Bisglycinate' };
