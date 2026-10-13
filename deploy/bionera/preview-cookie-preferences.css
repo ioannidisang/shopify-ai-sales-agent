@@ -13,3 +13,8 @@
   flex-wrap: wrap;
   max-width: 100%;
 }
+#shopify-pc__prefs__dialog .shopify-pc__prefs__header-actions button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
