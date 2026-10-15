@@ -28,6 +28,7 @@ export interface Bootstrap {
   brand: string | { name: string };
   enabled: boolean;
   knowledgeVersion: string;
+  avatar?: { provider: 'tavus'; previewOnly: true; maxDurationSeconds: number };
 }
 
 export interface ChatResponse {

@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url';
 import { DATABASE_SCHEMA_VERSION, openDatabase, readDatabaseOptions, type Database } from './database.js';
 
 export const RUNTIME_ROLE = 'sales_agent_runtime';
-const appTables = ['shops', 'conversations', 'usage_buckets', 'events', 'pixel_assignments', 'webhooks', 'experiment_specs', 'eligible_exposures', 'model_usage'];
+const appTables = ['shops', 'conversations', 'usage_buckets', 'events', 'pixel_assignments', 'webhooks', 'experiment_specs', 'eligible_exposures', 'model_usage', 'avatar_sessions'];
 
 /** PostgreSQL SCRAM-SHA-256 verifier. Restrict generated passwords to URL-safe ASCII to avoid SASLprep ambiguity. */
 export function createScramVerifier(password: string, salt = randomBytes(16)): string {

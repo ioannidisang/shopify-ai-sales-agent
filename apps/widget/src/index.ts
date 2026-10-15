@@ -2,7 +2,9 @@ import { ThemeCart, CartError, localeRoot, validQuantity, type Cart } from './ca
 import type { WidgetConnection, EventDetail } from './connection.js';
 import { styles } from './styles.js';
 import { lockPageScroll } from './appearance.js';
+import { avatarModuleUrl } from './module-url.js';
 import type { AnalyticsEventName, ChatResponse, Product, Variant } from './types.js';
+import type { TavusPilot, PilotState, PilotOptions } from './tavus.js';
 
 const copy = {
   en: {
@@ -20,6 +22,9 @@ const copy = {
     privacy: 'Messages are sent to our AI provider to process your request. Avoid personal or health details.', sources: 'Approved information',
     cookiePreferences: 'Cookie preferences', cookiePreferencesUnavailable: 'Cookie preferences could not be opened. Please try again.',
     live: 'Price and availability checked with Shopify. Final totals at checkout.', noVariant: 'Open the product page for available options.',
+    avatar: 'Private trial · AI digital assistant', avatarNotice: 'In this trial, your text and microphone audio are sent to Tavus and our AI provider. Your camera stays off. Avoid personal or health details.',
+    avatarCode: 'Private trial access code', avatarStart: 'Start avatar · microphone off', avatarStarting: 'Connecting the digital assistant…', avatarReady: 'Connected. Type below or enable the microphone.', avatarEnd: 'End avatar · continue in text', avatarStopping: 'Ending the trial…', avatarFailed: 'The avatar is unavailable. You can continue in text.',
+    avatarMicOn: 'Turn microphone on', avatarMicOff: 'Mute microphone', avatarInterrupt: 'Stop speaking', avatarPlay: 'Play sound and video', avatarCaption: 'Checked answer',
   },
   el: {
     launch: 'Βοηθός αγορών', subtitle: 'AI βοηθός · Πληροφορίες προϊόντων', hello: 'Βρες αυτό που ψάχνεις.',
@@ -36,6 +41,9 @@ const copy = {
     privacy: 'Τα μηνύματα αποστέλλονται στον πάροχο AI για επεξεργασία. Απόφυγε προσωπικά δεδομένα ή στοιχεία υγείας.', sources: 'Εγκεκριμένες πληροφορίες',
     cookiePreferences: 'Ρυθμίσεις cookies', cookiePreferencesUnavailable: 'Δεν άνοιξαν οι ρυθμίσεις cookies. Δοκίμασε ξανά.',
     live: 'Τιμή και διαθεσιμότητα από Shopify. Το τελικό σύνολο εμφανίζεται στην ολοκλήρωση.', noVariant: 'Δες τη σελίδα του προϊόντος για διαθέσιμες επιλογές.',
+    avatar: 'Ιδιωτική δοκιμή · AI ψηφιακός βοηθός', avatarNotice: 'Στη δοκιμή, το κείμενο και ο ήχος του μικροφώνου σου αποστέλλονται στο Tavus και στον πάροχο AI μας. Η κάμερά σου παραμένει κλειστή. Απόφυγε προσωπικά δεδομένα ή στοιχεία υγείας.',
+    avatarCode: 'Κωδικός ιδιωτικής δοκιμής', avatarStart: 'Έναρξη προσώπου · μικρόφωνο κλειστό', avatarStarting: 'Συνδέεται ο ψηφιακός βοηθός…', avatarReady: 'Συνδέθηκε. Γράψε παρακάτω ή άνοιξε το μικρόφωνο.', avatarEnd: 'Τέλος προσώπου · συνέχεια γραπτά', avatarStopping: 'Τερματίζεται η δοκιμή…', avatarFailed: 'Το πρόσωπο δεν είναι διαθέσιμο. Μπορείς να συνεχίσεις γραπτά.',
+    avatarMicOn: 'Άνοιγμα μικροφώνου', avatarMicOff: 'Σίγαση μικροφώνου', avatarInterrupt: 'Σταμάτα την ομιλία', avatarPlay: 'Αναπαραγωγή ήχου και εικόνας', avatarCaption: 'Ελεγμένη απάντηση',
   },
 } as const;
 
@@ -84,6 +92,22 @@ class SalesAssistant {
   private built = false;
   private restoreScroll?: () => void;
   private cookiePreferences?: HTMLButtonElement;
+  private avatarPanel?: HTMLDetailsElement;
+  private avatar?: TavusPilot;
+  private avatarLoading = false;
+  private avatarAttempt = 0;
+  private avatarCode?: HTMLInputElement;
+  private avatarStart?: HTMLButtonElement;
+  private avatarEnd?: HTMLButtonElement;
+  private avatarMic?: HTMLButtonElement;
+  private avatarInterrupt?: HTMLButtonElement;
+  private avatarVideo?: HTMLVideoElement;
+  private avatarPlay?: HTMLButtonElement;
+  private avatarStatus?: HTMLElement;
+  private avatarCaption?: HTMLElement;
+  private avatarTyped: string[] = [];
+  private avatarStopping?: Promise<void>;
+  private avatarPlaybackPaused = false;
 
   constructor(private readonly host: HTMLElement, private readonly connection: WidgetConnection, launcher: HTMLButtonElement) {
     this.locale = host.dataset.locale || 'en';
@@ -102,9 +126,10 @@ class SalesAssistant {
     let previousSession = this.session?.conversationId;
     const update = () => {
       const session = this.session;
-      if (session?.conversationId !== previousSession) { this.started = false; this.openTracked = false; previousSession = session?.conversationId; }
+      if (session?.conversationId !== previousSession) { this.started = false; this.openTracked = false; previousSession = session?.conversationId; void this.stopAvatar(); }
       if (session) this.title.textContent = typeof session.brand === 'string' ? session.brand : session.brand.name;
       if ((!session?.enabled || session.assignment === 'control') && this.dialog.open) this.dialog.close();
+      if (this.avatarPanel) this.avatarPanel.hidden = !this.avatarAllowed();
     };
     connection.subscribe(update);
     update();
@@ -124,6 +149,7 @@ class SalesAssistant {
     header.append(heading, close);
     this.dialog.setAttribute('aria-labelledby', this.title.id);
     this.dialog.addEventListener('close', () => {
+      void this.stopAvatar();
       this.restoreScroll?.(); this.restoreScroll = undefined;
       this.launcher.setAttribute('aria-expanded', 'false'); this.launcher.focus({ preventScroll: true });
     });
@@ -150,9 +176,117 @@ class SalesAssistant {
     this.cookiePreferences = button(this.t.cookiePreferences, () => this.showCookiePreferences(), 'cookie-preferences');
     this.cookiePreferences.hidden = typeof window.privacyBanner?.showPreferences !== 'function';
     privacy.append(this.cookiePreferences);
-    shell.append(header, intro, this.log, toolbar, this.status, composer, privacy);
+    shell.append(header, intro, this.buildAvatar(), this.log, toolbar, this.status, composer, privacy);
     this.dialog.append(shell);
     this.shadow.append(this.dialog);
+    window.addEventListener('pagehide', () => { void this.stopAvatar(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) void this.stopAvatar(); });
+  }
+
+  private avatarAllowed(): boolean {
+    return this.host.dataset.themeRole === 'unpublished' && !!this.session?.enabled && this.session.assignment !== 'control' && this.session.avatar?.provider === 'tavus' && this.session.avatar.previewOnly === true;
+  }
+
+  private buildAvatar(): HTMLDetailsElement {
+    const panel = node('details', undefined, 'avatar-panel');
+    panel.hidden = !this.avatarAllowed();
+    panel.append(node('summary', this.t.avatar), node('p', this.t.avatarNotice, 'avatar-notice'));
+    const code = node('input'); code.type = 'password'; code.autocomplete = 'off'; code.maxLength = 160; code.placeholder = this.t.avatarCode; code.setAttribute('aria-label', this.t.avatarCode);
+    const start = button(this.t.avatarStart, () => this.startAvatar(), 'primary');
+    const video = node('video'); video.playsInline = true; video.autoplay = false; video.setAttribute('aria-label', this.t.avatar); video.hidden = true;
+    const play = button(this.t.avatarPlay, async () => { try { await video.play(); this.avatarPlaybackPaused = false; play.hidden = true; } catch { /* Keep the explicit playback option available. */ } }); play.hidden = true;
+    const microphone = button(this.t.avatarMicOn, () => this.avatar?.toggleMicrophone()); microphone.hidden = true; microphone.setAttribute('aria-pressed', 'false');
+    const interrupt = button(this.t.avatarInterrupt, () => { this.avatarPlaybackPaused = true; video.pause(); this.avatar?.interrupt(); play.hidden = false; }); interrupt.hidden = true;
+    const end = button(this.t.avatarEnd, () => this.stopAvatar()); end.hidden = true;
+    const controls = node('div', undefined, 'avatar-controls'); controls.append(microphone, interrupt, end);
+    const status = node('p', '', 'avatar-status'); status.setAttribute('role', 'status');
+    const caption = node('p', '', 'avatar-caption'); caption.hidden = true; caption.setAttribute('aria-label', this.t.avatarCaption);
+    panel.append(code, start, video, play, caption, controls, status);
+    this.avatarPanel = panel; this.avatarCode = code; this.avatarStart = start; this.avatarVideo = video; this.avatarPlay = play; this.avatarMic = microphone; this.avatarInterrupt = interrupt; this.avatarEnd = end; this.avatarStatus = status; this.avatarCaption = caption;
+    return panel;
+  }
+
+  private avatarState(state: PilotState): void {
+    const active = state === 'active';
+    const busy = state === 'starting' || state === 'stopping';
+    if (this.avatarStart) { this.avatarStart.hidden = active || busy; this.avatarStart.disabled = busy; }
+    if (this.avatarCode) { this.avatarCode.hidden = active || busy; this.avatarCode.value = ''; }
+    if (this.avatarMic) {
+      this.avatarMic.hidden = !active;
+      if (!active) { this.avatarMic.textContent = this.t.avatarMicOn; this.avatarMic.setAttribute('aria-pressed', 'false'); }
+    }
+    if (this.avatarInterrupt) this.avatarInterrupt.hidden = !active;
+    if (this.avatarEnd) { this.avatarEnd.hidden = !active && state !== 'starting'; this.avatarEnd.disabled = state === 'stopping'; }
+    if (this.avatarVideo) this.avatarVideo.hidden = !active;
+    if (this.avatarStatus) this.avatarStatus.textContent = state === 'starting' ? this.t.avatarStarting : state === 'active' ? this.t.avatarReady : state === 'stopping' ? this.t.avatarStopping : state === 'failed' ? this.t.avatarFailed : '';
+    this.send.disabled = state === 'starting' || this.chatPending;
+    if (!active && this.avatarPlay) this.avatarPlay.hidden = true;
+    if (!active && this.avatarCaption) { this.avatarCaption.textContent = ''; this.avatarCaption.hidden = true; }
+  }
+
+  private async startAvatar(): Promise<void> {
+    if (!this.avatarAllowed() || !this.dialog.open || this.avatarLoading || this.chatPending || !this.avatarCode?.value.trim()) return;
+    let accessCode = this.avatarCode.value; this.avatarCode.value = '';
+    const generation = this.generation;
+    const attempt = ++this.avatarAttempt;
+    this.avatarPlaybackPaused = false;
+    this.avatarTyped = [];
+    this.avatarLoading = true; this.avatarState('starting');
+    try {
+      const moduleUrl = avatarModuleUrl(this.host.dataset.avatarUrl || '', location.origin);
+      const module = await import(moduleUrl) as { createTavusPilot(options: PilotOptions): TavusPilot };
+      if (attempt !== this.avatarAttempt || generation !== this.generation || !this.dialog.open || !this.avatarAllowed()) return;
+      const current = () => attempt === this.avatarAttempt && generation === this.generation && this.dialog.open;
+      this.avatar = module.createTavusPilot({
+        token: this.session!.token, maxDurationSeconds: this.session!.avatar!.maxDurationSeconds,
+        post: (path, body, controller) => this.connection.post(path, body, controller),
+        onState: state => { if (current()) this.avatarState(state); },
+        onMicrophone: enabled => {
+          if (!current() || !this.avatarMic) return;
+          this.avatarMic.textContent = enabled ? this.t.avatarMicOff : this.t.avatarMicOn;
+          this.avatarMic.setAttribute('aria-pressed', String(enabled));
+        },
+        onTracks: tracks => {
+          if (!current() || !this.avatarVideo) return;
+          const video = this.avatarVideo;
+          if (!tracks.length) { video.pause(); video.srcObject = null; return; }
+          const previous = video.srcObject instanceof MediaStream ? video.srcObject.getTracks() : [];
+          if (tracks.length === previous.length && tracks.every(track => previous.includes(track))) return;
+          video.srcObject = new MediaStream(tracks);
+          if (!this.avatarPlaybackPaused) void video.play().catch(() => { if (current() && this.avatarPlay) this.avatarPlay.hidden = false; });
+        },
+        onResult: result => {
+          if (!current()) return;
+          if (result.userText) {
+            const typed = this.avatarTyped.indexOf(result.userText);
+            if (typed >= 0) this.avatarTyped.splice(typed, 1); else this.message(result.userText, true);
+          }
+          if (result.response) {
+            if (!this.started) { this.started = true; void this.track('conversation_started'); }
+            this.renderResponse(result.response);
+            if (this.avatarCaption) { this.avatarCaption.textContent = result.response.text; this.avatarCaption.hidden = false; }
+          }
+        },
+      });
+      await this.avatar.start(accessCode);
+    } catch { if (attempt === this.avatarAttempt) this.avatarState('failed'); }
+    finally { accessCode = ''; if (attempt === this.avatarAttempt) this.avatarLoading = false; }
+  }
+
+  private stopAvatar(): Promise<void> {
+    if (this.avatarStopping) return this.avatarStopping;
+    ++this.avatarAttempt; this.avatarLoading = false; this.avatarTyped = [];
+    const avatar = this.avatar; this.avatar = undefined;
+    if (this.avatarCode) this.avatarCode.value = '';
+    if (this.avatarVideo) { this.avatarVideo.pause(); this.avatarVideo.srcObject = null; }
+    if (this.avatarCaption) { this.avatarCaption.textContent = ''; this.avatarCaption.hidden = true; }
+    this.avatarState(avatar ? 'stopping' : 'idle');
+    this.avatarStopping = (async () => {
+      await avatar?.stop();
+      this.avatarState('idle');
+      this.avatarStopping = undefined;
+    })();
+    return this.avatarStopping;
   }
 
   private post<T>(path: string, body: unknown): Promise<T> { return this.connection.post<T>(path, body); }
@@ -227,12 +361,26 @@ class SalesAssistant {
       await this.ensureSession();
       const session = this.session;
       if (!session?.enabled || session.assignment === 'control') return;
+      if (this.avatarLoading || this.avatar?.state === 'starting') return;
+      if (this.avatar?.state === 'active') {
+        if (this.avatar.sendText(text)) {
+          this.input.value = ''; this.message(text, true); this.avatarTyped.push(text); this.avatarTyped = this.avatarTyped.slice(-10);
+          if (!this.started) { this.started = true; void this.track('conversation_started'); }
+        } else this.status.textContent = this.t.avatarFailed;
+        return;
+      }
       this.input.value = '';
       this.message(text, true);
       if (!this.started) { this.started = true; void this.track('conversation_started'); }
       const generation = this.generation;
       const response = await this.post<ChatResponse>('/chat', { token: session.token, message: text, country: this.country, locale: this.locale });
       if (generation !== this.generation) return;
+      this.renderResponse(response);
+    } catch { this.status.textContent = this.t.unavailable; }
+    finally { this.chatPending = false; this.send.disabled = this.avatarLoading || this.avatar?.state === 'starting'; this.input.focus(); }
+  }
+
+  private renderResponse(response: ChatResponse): void {
       this.message(response.text);
       const cards = node('div', undefined, 'cards');
       for (const product of response.products.slice(0, 6)) {
@@ -248,8 +396,6 @@ class SalesAssistant {
       }
       this.status.textContent = '';
       this.log.scrollTop = this.log.scrollHeight;
-    } catch { this.status.textContent = this.t.unavailable; }
-    finally { this.chatPending = false; this.send.disabled = false; this.input.focus(); }
   }
 
   private money(amount: string | number, currency: string): string {

@@ -25,6 +25,7 @@
     "ai:smoke": "tsx --env-file-if-exists=.env scripts/ai-smoke.ts"
   },
   "dependencies": {
+    "@daily-co/daily-js": "0.93.0",
     "@electric-sql/pglite": "0.5.8",
     "@fastify/cookie": "11.1.2",
     "@fastify/helmet": "13.1.1",

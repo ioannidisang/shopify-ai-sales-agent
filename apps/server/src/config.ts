@@ -67,6 +67,8 @@ export interface RuntimeEnvironment {
   openaiModel: string | undefined;
   mistralKey: string | undefined;
   mistralModel: string | undefined;
+  tavus?: { apiKey: string; faceId: string; pilotShop: string; accessCodeHash: string };
+  tavusApiKey?: string;
 }
 
 export function readEnv(): RuntimeEnvironment {
@@ -77,6 +79,11 @@ export function readEnv(): RuntimeEnvironment {
   const allowedShops = (raw.ALLOWED_SHOPS ?? 'ym5fhx-fa.myshopify.com').split(',').map(s => shopDomain.parse(s.trim()));
   const appUrl = raw.APP_URL ?? `http://localhost:${port}`;
   const parsedUrl = new URL(appUrl);
+  const tavus = raw.TAVUS_ENABLED === 'true' ? z.object({
+    apiKey: z.string().min(16).max(512), faceId: z.string().regex(/^[a-zA-Z0-9_-]{3,100}$/),
+    pilotShop: shopDomain, accessCodeHash: z.string().regex(/^[a-f0-9]{64}$/),
+  }).parse({ apiKey: raw.TAVUS_API_KEY, faceId: raw.TAVUS_FACE_ID, pilotShop: raw.TAVUS_PILOT_SHOP, accessCodeHash: raw.TAVUS_PREVIEW_CODE_SHA256 }) : undefined;
+  if (tavus && (parsedUrl.protocol !== 'https:' || !allowedShops.includes(tavus.pilotShop))) throw new Error('Tavus requires HTTPS and an allowlisted pilot shop');
   if (raw.NODE_ENV === 'production' && (parsedUrl.protocol !== 'https:' || !raw.DATABASE_URL)) throw new Error('Production requires HTTPS APP_URL and PostgreSQL DATABASE_URL');
   return {
     port, appUrl, allowedShops, databaseUrl: raw.DATABASE_URL,
@@ -85,5 +92,7 @@ export function readEnv(): RuntimeEnvironment {
     sessionSecret: raw.SESSION_SECRET, encryptionKey: raw.ENCRYPTION_KEY,
     openaiKey: raw.OPENAI_API_KEY, openaiModel: raw.OPENAI_MODEL,
     mistralKey: raw.MISTRAL_API_KEY, mistralModel: raw.MISTRAL_MODEL,
+    ...(tavus ? { tavus } : {}),
+    ...(raw.TAVUS_API_KEY ? { tavusApiKey: raw.TAVUS_API_KEY } : {}),
   };
 }

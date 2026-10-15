@@ -14,7 +14,7 @@ export interface DatabaseOptions {
   queryTimeoutMs?: number;
 }
 
-export const DATABASE_SCHEMA_VERSION = 2;
+export const DATABASE_SCHEMA_VERSION = 3;
 
 function boundedInteger(name: string, value: string | number | undefined, fallback: number, min: number, max: number): number {
   const parsed = value === undefined || value === '' ? fallback : Number(value);
@@ -41,7 +41,7 @@ export async function verifyDatabaseReady(db: Database): Promise<void> {
     if (!role.rows.length || role.rows[0]!.elevated) throw new Error('Runtime role must be restricted');
     const result = await db.query<{ version: number }>('SELECT version FROM sales_agent.schema_migrations WHERE version=$1', [DATABASE_SCHEMA_VERSION]);
     if (!result.rows.length) throw new Error('Schema version missing');
-    const access = await db.query<{ ready: boolean }>(`SELECT bool_and(has_table_privilege(current_user,'sales_agent.'||table_name,'SELECT') AND has_table_privilege(current_user,'sales_agent.'||table_name,'INSERT') AND has_table_privilege(current_user,'sales_agent.'||table_name,'UPDATE') AND has_table_privilege(current_user,'sales_agent.'||table_name,'DELETE')) AS ready FROM unnest(ARRAY['shops','conversations','usage_buckets','events','pixel_assignments','webhooks','experiment_specs','eligible_exposures','model_usage']) AS table_name`);
+    const access = await db.query<{ ready: boolean }>(`SELECT bool_and(has_table_privilege(current_user,'sales_agent.'||table_name,'SELECT') AND has_table_privilege(current_user,'sales_agent.'||table_name,'INSERT') AND has_table_privilege(current_user,'sales_agent.'||table_name,'UPDATE') AND has_table_privilege(current_user,'sales_agent.'||table_name,'DELETE')) AS ready FROM unnest(ARRAY['shops','conversations','usage_buckets','events','pixel_assignments','webhooks','experiment_specs','eligible_exposures','model_usage','avatar_sessions']) AS table_name`);
     if (!access.rows[0]?.ready) throw new Error('Runtime grants missing');
   } catch {
     throw new Error('sales_agent schema is not ready or runtime role is not restricted; verify scoped grants and run the separate migration deployment first');
@@ -107,6 +107,9 @@ export async function migrate(db: Database): Promise<void> {
     `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS visitor_hash TEXT`,
     `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS config_fingerprint TEXT`,
     `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS provider TEXT`,
+    `CREATE TABLE IF NOT EXISTS avatar_sessions (id UUID PRIMARY KEY, shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, conversation_id UUID NOT NULL, claims JSONB NOT NULL, credential_hash TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('starting','active','ending','ended','failed')), expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), provider_pal_id TEXT, provider_conversation_id TEXT, result TEXT, sequence INTEGER NOT NULL DEFAULT 0, last_request_hash TEXT, busy_until TIMESTAMPTZ)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS avatar_one_active_shop ON avatar_sessions(shop) WHERE state IN ('starting','active','ending')`,
+    `CREATE INDEX IF NOT EXISTS avatar_expiry ON avatar_sessions(expires_at)`,
     `CREATE TABLE IF NOT EXISTS usage_buckets (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, bucket TEXT NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(shop,bucket))`,
     `CREATE TABLE IF NOT EXISTS events (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, id TEXT NOT NULL, name TEXT NOT NULL, source TEXT NOT NULL, conversation_id UUID, client_hash TEXT, experiment_id TEXT, assignment TEXT, metadata JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY(shop,source,id))`,
     `CREATE TABLE IF NOT EXISTS pixel_assignments (shop TEXT NOT NULL REFERENCES shops(shop) ON DELETE CASCADE, client_hash TEXT NOT NULL, experiment_id TEXT NOT NULL, assignment TEXT NOT NULL, conversation_id UUID NOT NULL, expires_at TIMESTAMPTZ NOT NULL, PRIMARY KEY(shop,client_hash,experiment_id))`,
@@ -127,7 +130,7 @@ export async function migrate(db: Database): Promise<void> {
     `CREATE INDEX IF NOT EXISTS pixel_assignments_conversation ON pixel_assignments(shop,conversation_id)`,
     `CREATE INDEX IF NOT EXISTS webhooks_expiry ON webhooks(received_at)`,
     `CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
-    `DO $$ BEGIN IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='sales_agent_runtime') THEN GRANT SELECT,INSERT,UPDATE,DELETE ON sales_agent.experiment_specs,sales_agent.eligible_exposures,sales_agent.model_usage TO sales_agent_runtime; END IF; END $$`,
+    `DO $$ BEGIN IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='sales_agent_runtime') THEN GRANT SELECT,INSERT,UPDATE,DELETE ON sales_agent.experiment_specs,sales_agent.eligible_exposures,sales_agent.model_usage,sales_agent.avatar_sessions TO sales_agent_runtime; END IF; END $$`,
     `INSERT INTO schema_migrations(version) VALUES(${DATABASE_SCHEMA_VERSION}) ON CONFLICT DO NOTHING`,
   ];
   for (const sql of statements) await db.query(sql);
@@ -140,6 +143,8 @@ export async function takeBudget(db: Database, shop: string, bucket: string, lim
 }
 
 export async function purgeExpired(db: Database): Promise<void> {
+  await db.query("UPDATE avatar_sessions SET result=NULL WHERE expires_at<now() OR state IN ('ended','failed')");
+  await db.query("DELETE FROM avatar_sessions WHERE state IN ('ended','failed') AND expires_at<now()-interval '1 day'");
   await db.query('DELETE FROM conversations WHERE expires_at < now()');
   await db.query('DELETE FROM pixel_assignments WHERE expires_at < now()');
   await db.query("DELETE FROM events WHERE created_at < now() - interval '90 days'");

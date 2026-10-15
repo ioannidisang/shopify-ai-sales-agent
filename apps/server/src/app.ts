@@ -16,12 +16,14 @@ import { Security, constantEqual, configurationFingerprint, assignmentSchema, sh
 import { type Database, takeBudget, purgeExpired } from './database.js';
 import { configSchema, factSchema, readTenantFiles, type readEnv } from './config.js';
 import { registerInstallation, REQUIRED_SHOPIFY_SCOPES } from './installation.js';
+import { registerAvatarRoutes, avatarAvailable } from './tavus-routes.js';
+import type { TavusProvider } from './tavus-client.js';
 
 declare module 'fastify' { interface FastifyRequest { rawBody?: string } }
 type Environment = ReturnType<typeof readEnv>;
 type Tenant = { config: ShopConfig; facts: ApprovedFact[]; credentials: string };
 type History = HistoryMessage[];
-type Services = { catalog?: (tenant: Tenant) => Catalog; planner?: Planner; composer?: ConversationModel; planners?: Partial<Record<Provider, Planner>>; composers?: Partial<Record<Provider, ConversationModel>>; modelFactory?: (provider: Provider, onUsage: (usage: ModelUsage) => void) => { planner: Planner; composer?: ConversationModel }; verifyProxy?: (query: URLSearchParams) => Promise<boolean> };
+type Services = { tavus?: TavusProvider; catalog?: (tenant: Tenant) => Catalog; planner?: Planner; composer?: ConversationModel; planners?: Partial<Record<Provider, Planner>>; composers?: Partial<Record<Provider, ConversationModel>>; modelFactory?: (provider: Provider, onUsage: (usage: ModelUsage) => void) => { planner: Planner; composer?: ConversationModel }; verifyProxy?: (query: URLSearchParams) => Promise<boolean> };
 const scopeList = [...REQUIRED_SHOPIFY_SCOPES];
 const baseBody = z.object({ token: z.string().min(1).max(2048) });
 const contextSchema = { country: z.string().regex(/^[A-Z]{2}$/), locale: z.enum(['el', 'en']) };
@@ -114,7 +116,10 @@ export async function buildApp(env: Environment, db: Database, services: Service
     return shop;
   }
   async function tenantFromProxy(req: FastifyRequest): Promise<Tenant> {
-    const shop = await proxyShop(req);
+    return tenantForShop(await proxyShop(req));
+  }
+  async function tenantForShop(shop: string): Promise<Tenant> {
+    if (!env.allowedShops.includes(shop)) throw new HttpError(403, 'Shop not permitted');
     const result = await db.query<{ config: unknown; facts: unknown; credentials: string }>('SELECT config,facts,credentials FROM shops WHERE shop=$1 AND active=true', [shop]);
     const row = result.rows[0];
     if (!row) throw new HttpError(403, 'Not installed');
@@ -127,6 +132,10 @@ export async function buildApp(env: Environment, db: Database, services: Service
   async function session(req: FastifyRequest, token: string) {
     const tenant = await tenantFromProxy(req); let claims: SessionClaims;
     try { claims = security!.verify(token, tenant.config.shop); } catch { throw new HttpError(401, 'Invalid token'); }
+    return validatedSession(tenant, claims);
+  }
+  async function validatedSession(tenant: Tenant, claims: SessionClaims) {
+    if (claims.shop !== tenant.config.shop || claims.exp <= Date.now() / 1000) throw new HttpError(401, 'Session expired');
     const result = await db.query<{ consent: boolean; assignment: string; experiment_id: string; config_fingerprint: string; provider: Provider | null }>('SELECT consent,assignment,experiment_id,config_fingerprint,provider FROM conversations WHERE shop=$1 AND id=$2 AND expires_at>now()', [claims.shop, claims.sid]);
     const row = result.rows[0];
     if (!row) throw new HttpError(401, 'Session expired');
@@ -169,13 +178,19 @@ export async function buildApp(env: Environment, db: Database, services: Service
     const claims: SessionClaims = { shop, sid: id, exp: Math.floor(Date.now() / 1000) + 1800, assignment, experimentId, consent, country: body.country, locale: body.locale, provider, configFingerprint: digest, ...(visitorHash ? { visitorHash } : {}) };
     await db.query('INSERT INTO conversations(shop,id,history,expires_at,consent,assignment,experiment_id,visitor_hash,config_fingerprint,provider) VALUES($1,$2,$3,to_timestamp($4),$5,$6,$7,$8,$9,$10)', [shop, id, security!.encrypt([], shop), claims.exp, consent, assignment, experimentId, visitorHash, digest, provider ?? null]);
     if (experiment.enabled && visitorHash) await db.query('INSERT INTO eligible_exposures(shop,experiment_id,visitor_hash,assignment,config_fingerprint) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING', [shop, experimentId, visitorHash, assignment, digest]);
-    return { token: security!.sign(claims), conversationId: id, assignment, experimentId, brand: tenant.config.brand, enabled: true, knowledgeVersion: tenant.config.knowledgeVersion };
+    return { token: security!.sign(claims), conversationId: id, assignment, experimentId, brand: tenant.config.brand, enabled: true, knowledgeVersion: tenant.config.knowledgeVersion,
+      ...(avatarAvailable(env, tenant.config) ? { avatar: { provider: 'tavus', previewOnly: true, maxDurationSeconds: 180 } } : {}) };
   });
   app.post('/proxy/chat', async (req) => {
     const body = baseBody.extend({ message: z.string().trim().min(1).max(2000), ...contextSchema }).strict().parse(req.body);
     const { tenant, claims, row } = await session(req, body.token);
     if (claims.assignment === 'control') throw new HttpError(403, 'Control arm');
     if (body.country !== claims.country || body.locale !== claims.locale) throw new HttpError(400, 'Market changed, start a new session');
+    return groundedTurn({ tenant, claims, row }, body.message);
+  });
+  async function groundedTurn({ tenant, claims, row }: Awaited<ReturnType<typeof session>>, message: string) {
+    const body = { message, country: claims.country, locale: claims.locale };
+    if (claims.assignment === 'control') throw new HttpError(403, 'Control arm');
     market(tenant, body.country);
     const usage: ModelUsage[] = [];
     const turnSignal = AbortSignal.timeout(25000);
@@ -208,7 +223,18 @@ export async function buildApp(env: Environment, db: Database, services: Service
         ON CONFLICT(shop,day,experiment_id,assignment,provider,model,knowledge_version,config_fingerprint,operation) DO UPDATE SET
         requests=model_usage.requests+1,successful_requests=model_usage.successful_requests+EXCLUDED.successful_requests,input_tokens=model_usage.input_tokens+EXCLUDED.input_tokens,output_tokens=model_usage.output_tokens+EXCLUDED.output_tokens,unknown_token_requests=model_usage.unknown_token_requests+EXCLUDED.unknown_token_requests,duration_ms=model_usage.duration_ms+EXCLUDED.duration_ms`, [claims.shop, row.consent ? claims.experimentId : 'off', row.consent ? claims.assignment : 'untracked', item.provider, item.model, tenant.config.knowledgeVersion, claims.configFingerprint, item.operation, item.success ? 1 : 0, item.inputTokens ?? 0, item.outputTokens ?? 0, item.inputTokens === null || item.outputTokens === null ? 1 : 0, Math.round(item.durationMs)]);
     }
-  });
+  }
+  const avatars = security ? registerAvatarRoutes(app, env, db, security, {
+    authenticate: session,
+    authenticateEnd: async (req, token) => {
+      const shop = await proxyShop(req);
+      try { return security.verify(token, shop, Date.now(), 3600000); }
+      catch { throw new HttpError(401, 'Invalid session'); }
+    },
+    validate: async claims => validatedSession(await tenantForShop(claims.shop), claims),
+    chat: async (claims, message) => groundedTurn(await validatedSession(await tenantForShop(claims.shop), claims), message),
+    provider: services.tavus,
+  }) : undefined;
   app.post('/proxy/variants/verify', async (req) => {
     const body = baseBody.extend({ variantId: z.string().regex(/^gid:\/\/shopify\/ProductVariant\/\d+$/), ...contextSchema }).strict().parse(req.body);
     const { tenant, claims } = await session(req, body.token);
@@ -324,6 +350,7 @@ export async function buildApp(env: Environment, db: Database, services: Service
     const topic = req.headers['x-shopify-topic'];
     const previous = await db.query('SELECT id FROM webhooks WHERE shop=$1 AND id=$2', [shop, id]);
     if (previous.rows.length) return reply.code(200).send();
+    if (topic === 'app/uninstalled' || topic === 'shop/redact' || topic === 'customers/redact') await avatars?.stopShop(shop);
     if (topic === 'app/uninstalled') {
       await db.query("UPDATE shops SET active=false,credentials='' WHERE shop=$1", [shop]);
       await db.query('DELETE FROM conversations WHERE shop=$1', [shop]);

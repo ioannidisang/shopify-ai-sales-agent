@@ -1,6 +1,6 @@
 # Shopify AI Sales Agent — architecture decision record
 
-Status: implementation baseline, 1 October 2026. Live launch remains gated on real integration verification.
+Status: implementation baseline, 1 October 2026. The active Bionera private pilot and verified integration results are recorded in BIONERA-PILOT.md and PROGRESS.md. The 13 October extension proposal below is researched design, not implemented functionality.
 
 ## Product boundary
 
@@ -64,3 +64,54 @@ Release evidence required: OAuth reinstall/uninstall; bad proxy signatures denie
 - https://shopify.dev/docs/api/customer-privacy
 - https://developers.openai.com/api/docs/guides/structured-outputs
 - https://developers.openai.com/api/docs/guides/voice-webrtc
+
+## 13 October 2026 proposal — learning loop and digital person
+
+**15 October implementation update:** the merchant selected Tavus for the first Bionera trial. Full CVI now uses our verified custom LLM callback; session-specific PALs, authenticated short rooms, encrypted checked results and the lazy Daily widget are implemented. Real test-mode creation and cleanup passed, but production deployment and real Greek media acceptance remain pending. The earlier options below are retained as design history. The knowledge workbench and GSL remain proposals. See [Tavus pilot](TAVUS-PILOT.md) for the selected design, safeguards, release sequence and verified limits.
+
+The merchant prioritizes a visible digital person with optional spoken or written interaction, alongside continuous improvement and expansion of approved knowledge. This changes the next product milestone: knowledge administration and a controlled speaking-avatar prototype should advance together. It does not authorize buying a new provider plan, publishing the live theme, or treating generated claims as merchant-approved facts.
+
+### Controlled knowledge growth
+
+Existing source revisions/hashes, draft/approve/revoke operations, merchant guidance, and runtime evidence checks remain the foundation. Add a merchant-authenticated knowledge workbench with tenant-scoped source registry, revisions, extracted candidates, approval audit, evaluations and release manifests. Review actions must use an authenticated merchant identity rather than a client-provided approver name.
+
+Allowlisted public store pages, official product labels, supplier documents and merchant uploads become inputs to a bounded asynchronous ingestion job. Fetches require URL/redirect/size/type limits and protection against internal-network targets. Source text is untrusted data, never executable instructions. Extraction produces a candidate, exact supporting passage, source revision, product association and proposed category. It does not approve itself. Detect conflicts and missing evidence explicitly.
+
+Approval can cover a reviewed collection of evidence-backed candidates or a versioned source section under an explicit merchant policy; it need not require hand-authoring every FAQ. New wording may be generated from approved facts without constituting a new factual claim. New claims or materially changed passages require review; a published webpage alone is not approval. Normalize formatting and match stable passages so harmless whitespace edits do not needlessly revoke every fact, while substantive changes invalidate affected evidence. Prices, discounts, variants and availability remain outside this knowledge pipeline and come from live Shopify.
+
+Extend lexical retrieval with Greek-aware hybrid retrieval as volume grows. Apply shop, product, locale, approval and validity filters before selecting results. The current lexical implementation and 1,000-fact cap are not a scalable retrieval design.
+
+### Learning from experience
+
+Keep the current short-lived encrypted conversation context separate from any learning dataset. Do not silently retain transcripts, recordings or health disclosures. The first learning signal design uses bounded categories such as missing evidence, rejected grounding, unresolved product comparison and explicit merchant correction; avoid raw text, health categories and identifiers. Establish purpose, consent and retention separately from commerce analytics. A shopper statement identifies a possible gap, never supplies authoritative product evidence.
+
+Aggregate gaps into a merchant review queue. Search only permitted sources; propose a sourced answer or ask a specific question when evidence is absent. Merchant corrections and approved synthetic examples may improve versioned guidance. Keep a frozen Greek evaluation set (including Greeklish, ambiguous references, comparisons, budget, unsupported claims and clinical boundaries), with human ratings for naturalness and usefulness. Fine-tuning is a later option using a reviewed dataset, not the mechanism for changing current product facts.
+
+Validate candidate knowledge/guidance releases offline, then publish a version that can be rolled back. Any experiment-affecting change requires a new experiment version; do not mutate prompts or knowledge midway through an A/B/C measurement. More purchases alone do not establish factual accuracy or causal improvement.
+
+### One conversation, optional face and voice
+
+Proposed first integration: typed input or speech transcription → existing commerce/evidence pipeline → fully checked response → the same displayed text and synthesized speech → modular avatar renderer. The chained path allows inspection before speech and replacement of individual components. It is supported in [OpenAI voice-agent guidance](https://developers.openai.com/api/docs/guides/voice-agents). The current transport/avatar interfaces are extension points only; no live audio or avatar runtime is implemented.
+
+Do not send provisional model tokens to speech. Associate verified text, audio and product cards with a turn ID; interruption cancels generation and buffered playback, and stale output cannot resume. For initial voice delivery, price remains on the authoritative card; reading it aloud would require a separate deterministic formatter using fresh Shopify values. Cart changes still require a visible, explicit shopper confirmation. An avatar must never acquire independent tools, store credentials or authority to alter commerce.
+
+A small clearly labelled AI person opens an expandable panel with Write/Speak, microphone state, mute/stop, captions and product cards. Start media only after a shopper action; do not autoplay sales speech. No shopper camera is required. Keep one conversation across text/voice switches and fall back to text when media fails. Native interruption, short relevant replies, Greek pronunciation and response delay must be tested; visual realism alone is not sales quality. [OpenAI TTS](https://developers.openai.com/api/docs/guides/text-to-speech) lists Greek, but describes voices as optimized for English; supported language is not verified quality on our product names.
+
+First candidate for a bounded private prototype: [LiveAvatar Avatar Only/LITE](https://docs.liveavatar.com/docs/lite-mode/overview), which renders supplied audio while we own STT, reasoning and TTS. Its [events](https://docs.liveavatar.com/docs/lite-mode/events) support supplied audio and interruption. Tavus Echo is a second visual comparison candidate, using [external text/audio](https://docs.tavus.io/sections/event-schemas/conversation-echo). Neither candidate has been integrated or evaluated with Bionera Greek speech.
+
+Research snapshot, 13 October: [LiveAvatar pricing](https://docs.liveavatar.com/docs/faq/credits) lists a free tier with 10 credits and Essential at $99/month with 1,100 + 10 credits. LITE consumes one credit per session minute, including listening time; STT/TTS/model/hosting are separate. These are vendor list terms, not a purchase or total cost estimate. Require lazy sessions, idle shutdown, concurrency/time limits and a measured cost per completed conversation before selecting a paid plan. Existing Responses-only API permissions must not be assumed to authorize audio endpoints.
+
+### Greek Sign Language is a separate accessibility track
+
+A speaking avatar's lip synchronization or generic gestures are not Greek Sign Language (GSL/ΕΝΓ). EASIER demonstrates an actual Greek signing avatar but describes work in progress; [its public evidence](https://www.project-easier.eu/the-easier-avatar/) does not establish a production API for arbitrary Bionera conversation.
+
+Keep text and captions available. A first scoped GSL pilot can use clips translated and reviewed by qualified GSL specialists and Deaf users for stable approved intents, linked to the knowledge version and invalidated when it changes. Do not embed live prices/stock in fixed clips. The signing view must expand to show hands, upper body and facial expressions. Arbitrary text-to-GSL generation and understanding shopper signing through a camera are distinct future systems requiring separate evidence and evaluation. Captions are useful access, not a claim of GSL equivalence.
+
+### Next implementation and release evidence
+
+1. Merchant knowledge workbench and bounded source ingestion; verify authorization, source grounding, tenant isolation, conflict handling and revision/revocation behavior.
+2. Small Greek evaluation corpus and private digital-person prototype using the same approved knowledge. Compare pronunciation, understandable dialogue, lip synchronization, interruption, latency, mobile reliability and total session cost using identical scenarios.
+3. Explicitly scoped learning signals and candidate guidance releases, evaluated before promotion. Preserve the existing no-transcript-analytics behavior.
+4. GSL content/partner assessment with actual comprehension testing; no unsupported live-GSL claims.
+
+The live Bionera and Nutri themes remain read-only. Provider accounts/keys, a selected persona, audio endpoint access, cost limits and separately reviewed GSL material are external dependencies; none was provisioned during this research.
