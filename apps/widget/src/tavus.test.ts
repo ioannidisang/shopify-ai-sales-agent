@@ -8,18 +8,19 @@ vi.mock('@daily-co/daily-js', () => ({ default: sdk }));
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
 function fixture() {
   const listeners = new Map<string, () => void>();
-  const localTrack = { stop: vi.fn() } as unknown as MediaStreamTrack;
+  const localTrack = { stop: vi.fn(), readyState: 'live', enabled: true, muted: false } as unknown as MediaStreamTrack;
   const remoteTrack = { readyState: 'live', kind: 'video', stop: vi.fn() } as unknown as MediaStreamTrack;
+  const localAudio = { state: 'off', persistentTrack: localTrack };
   const call: PilotCall = {
     on: vi.fn((event, callback) => { listeners.set(event, callback); }),
-    participants: vi.fn(() => ({ local: { local: true, tracks: { audio: { persistentTrack: localTrack } } }, replica: { local: false, tracks: { video: { persistentTrack: remoteTrack } } } })),
+    participants: vi.fn(() => ({ local: { local: true, tracks: { audio: localAudio } }, replica: { local: false, tracks: { video: { persistentTrack: remoteTrack } } } })),
     join: vi.fn().mockResolvedValue({}), setLocalAudio: vi.fn(), setLocalVideo: vi.fn(), sendAppMessage: vi.fn(), leave: vi.fn().mockResolvedValue(undefined), destroy: vi.fn().mockResolvedValue(undefined),
   };
   const session: AvatarSession = { sessionId: 'session-id', conversationId: 'provider-id', conversationUrl: 'https://trial.daily.co/private-room', meetingToken: 'private-meeting-token', expiresAt: new Date(Date.now() + 180_000).toISOString() };
   const post = vi.fn<(path: string, body?: unknown, controller?: AbortController) => Promise<unknown>>(async path => path === '/avatar/start' ? session : path === '/avatar/result' ? { sequence: 0, ended: false } : undefined);
-  const onState = vi.fn(), onResult = vi.fn(), onTracks = vi.fn(), onMicrophone = vi.fn();
-  const options: PilotOptions = { token: 'widget-token', maxDurationSeconds: 180, post: post as PilotOptions['post'], onState, onResult, onTracks, onMicrophone, createCall: () => call };
-  return { pilot: new TavusPilot(options), options, call, post, listeners, session, onState, onResult, onTracks, onMicrophone, localTrack, remoteTrack };
+  const onState = vi.fn(), onResult = vi.fn(), onTracks = vi.fn(), onMicrophone = vi.fn(), onMicrophoneState = vi.fn(), onEnd = vi.fn();
+  const options: PilotOptions = { token: 'widget-token', maxDurationSeconds: 180, post: post as PilotOptions['post'], onState, onResult, onTracks, onMicrophone, onMicrophoneState, onEnd, createCall: () => call };
+  return { pilot: new TavusPilot(options), options, call, post, listeners, session, onState, onResult, onTracks, onMicrophone, onMicrophoneState, onEnd, localTrack, localAudio, remoteTrack };
 }
 beforeEach(() => { vi.useFakeTimers(); });
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
@@ -54,6 +55,103 @@ describe('private Tavus transport', () => {
     expect(f.pilot.sendText('later')).toBe(false);
   });
 
+  it('reports microphone readiness only after permission produces a playable live track', async () => {
+    const f = fixture(); await f.pilot.start('private-code');
+    f.pilot.toggleMicrophone();
+    expect(f.onMicrophone).not.toHaveBeenCalledWith(true);
+    expect(f.onMicrophoneState).toHaveBeenLastCalledWith('starting');
+    expect(f.pilot.microphonePending).toBe(true);
+    f.localAudio.state = 'loading'; f.listeners.get('participant-updated')!();
+    expect(f.onMicrophone).not.toHaveBeenCalledWith(true);
+    f.localAudio.state = 'playable'; f.listeners.get('participant-updated')!();
+    expect(f.onMicrophone).toHaveBeenLastCalledWith(true);
+    expect(f.onMicrophoneState).toHaveBeenLastCalledWith('on');
+    expect(f.pilot.microphonePending).toBe(false);
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(f.onMicrophoneState).toHaveBeenLastCalledWith('on');
+    await f.pilot.stop();
+  });
+
+  it('allows canceling microphone permission and mutes a track arriving after cancellation', async () => {
+    const f = fixture(); await f.pilot.start('private-code');
+    f.pilot.toggleMicrophone(); f.pilot.toggleMicrophone();
+    expect(f.onMicrophoneState).toHaveBeenLastCalledWith('off');
+    f.localAudio.state = 'playable'; f.listeners.get('track-started')!();
+    expect(f.call.setLocalAudio).toHaveBeenLastCalledWith(false);
+    expect(f.onMicrophone).not.toHaveBeenCalledWith(true);
+    expect(f.pilot.state).toBe('active');
+    await f.pilot.stop();
+  });
+
+  it('keeps video and checked text usable after a microphone permission/device error and permits deliberate retry', async () => {
+    const f = fixture(); await f.pilot.start('private-code');
+    f.pilot.toggleMicrophone(); f.listeners.get('camera-error')!();
+    expect(f.onMicrophoneState).toHaveBeenLastCalledWith('failed');
+    expect(f.call.setLocalAudio).toHaveBeenLastCalledWith(false);
+    expect(f.pilot.state).toBe('active');
+    expect(f.call.destroy).not.toHaveBeenCalled();
+    expect(f.onEnd).not.toHaveBeenCalled();
+    expect(f.pilot.sendText('Synthetic question')).toBe(true);
+    f.pilot.toggleMicrophone(); f.localAudio.state = 'playable'; f.listeners.get('participant-updated')!();
+    expect(f.onMicrophoneState).toHaveBeenLastCalledWith('on');
+    await f.pilot.stop();
+  });
+
+  it('shows device failure if capture never becomes live, without ending the avatar', async () => {
+    const f = fixture(); await f.pilot.start('private-code');
+    f.pilot.toggleMicrophone();
+    await vi.advanceTimersByTimeAsync(30_001);
+    expect(f.onMicrophoneState).toHaveBeenLastCalledWith('failed');
+    expect(f.call.setLocalAudio).toHaveBeenLastCalledWith(false);
+    expect(f.pilot.state).toBe('active');
+    expect(f.call.destroy).not.toHaveBeenCalled();
+    await f.pilot.stop();
+  });
+
+  it('handles a synchronous microphone failure without ending the call or exposing the SDK error', async () => {
+    const f = fixture(); await f.pilot.start('private-code');
+    vi.mocked(f.call.setLocalAudio).mockImplementationOnce(() => { throw new Error('sensitive provider detail'); });
+    f.pilot.toggleMicrophone();
+    expect(f.onMicrophoneState).toHaveBeenLastCalledWith('failed');
+    expect(f.pilot.state).toBe('active');
+    expect(f.onEnd).not.toHaveBeenCalled();
+    await f.pilot.stop();
+  });
+
+  it.each(['device-error', 'late-canceled-track'] as const)('stops only local audio if SDK muting fails after %s', async failure => {
+    const f = fixture(); await f.pilot.start('private-code'); f.pilot.toggleMicrophone();
+    if (failure === 'late-canceled-track') f.pilot.toggleMicrophone();
+    vi.mocked(f.call.setLocalAudio).mockImplementation(() => { throw new Error('sensitive provider detail'); });
+    f.localAudio.state = 'playable';
+    f.listeners.get(failure === 'device-error' ? 'camera-error' : 'track-started')!();
+    expect(f.localTrack.stop).toHaveBeenCalledExactlyOnceWith();
+    expect(f.remoteTrack.stop).not.toHaveBeenCalled();
+    expect(f.call.destroy).not.toHaveBeenCalled();
+    expect(f.onMicrophone).not.toHaveBeenCalledWith(true);
+    expect(f.pilot.state).toBe('active');
+    await f.pilot.stop();
+  });
+
+  it('ignores late permission/media events after the call ends', async () => {
+    const f = fixture(); await f.pilot.start('private-code'); f.pilot.toggleMicrophone();
+    await f.pilot.stop(); f.onMicrophoneState.mockClear(); f.onMicrophone.mockClear();
+    f.localAudio.state = 'playable'; f.listeners.get('participant-updated')!(); f.listeners.get('camera-error')!();
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(f.onMicrophoneState).not.toHaveBeenCalled();
+    expect(f.onMicrophone).not.toHaveBeenCalled();
+    expect(f.pilot.state).toBe('idle');
+  });
+
+  it('stops claiming microphone readiness when the live local track is interrupted', async () => {
+    const f = fixture(); await f.pilot.start('private-code'); f.pilot.toggleMicrophone();
+    f.localAudio.state = 'playable'; f.listeners.get('participant-updated')!();
+    f.localAudio.state = 'interrupted'; f.listeners.get('track-stopped')!();
+    expect(f.onMicrophone).toHaveBeenLastCalledWith(false);
+    expect(f.onMicrophoneState).toHaveBeenLastCalledWith('failed');
+    expect(f.pilot.state).toBe('active');
+    await f.pilot.stop();
+  });
+
   it('cleans up a paid session arriving after cancellation without joining it', async () => {
     const f = fixture(); const pending = deferred<AvatarSession>();
     f.post.mockImplementationOnce(() => pending.promise);
@@ -63,6 +161,7 @@ describe('private Tavus transport', () => {
     expect(f.call.join).not.toHaveBeenCalled();
     expect(f.call.destroy).toHaveBeenCalledTimes(1);
     expect(f.post).toHaveBeenCalledWith('/avatar/end', { token: 'widget-token', sessionId: 'session-id' });
+    expect(f.onEnd).not.toHaveBeenCalled();
     expect(f.pilot.state).toBe('idle');
   });
 
@@ -77,6 +176,7 @@ describe('private Tavus transport', () => {
     expect(f.pilot.state).toBe('idle');
     expect(f.onState).not.toHaveBeenCalledWith('active');
     expect(f.call.destroy).toHaveBeenCalledTimes(1);
+    expect(f.onEnd).not.toHaveBeenCalled();
     expect(f.post.mock.calls.filter(call => call[0] === '/avatar/result')).toHaveLength(0);
   });
 
@@ -101,6 +201,7 @@ describe('private Tavus transport', () => {
     expect(f.pilot.state).toBe('idle');
     expect(f.call.destroy).toHaveBeenCalledTimes(1);
     expect(f.post).toHaveBeenCalledWith('/avatar/end', { token: 'widget-token', sessionId: 'session-id' });
+    expect(f.onEnd).toHaveBeenCalledExactlyOnceWith('duration');
   });
 
   it.each(['https://attacker.example/room', 'http://trial.daily.co/room', 'https://daily.co.attacker.example/room'])('rejects unexpected meeting origin %s and ends the server session', async conversationUrl => {
@@ -117,6 +218,7 @@ describe('private Tavus transport', () => {
     expect(f.pilot.state).toBe('failed');
     expect(f.call.setLocalAudio).toHaveBeenLastCalledWith(false);
     expect(f.call.destroy).toHaveBeenCalledTimes(1);
+    expect(f.onEnd).toHaveBeenCalledExactlyOnceWith('connection');
     await f.pilot.start('new-code');
     expect(f.pilot.state).toBe('active');
     await f.pilot.stop();
@@ -129,6 +231,16 @@ describe('private Tavus transport', () => {
     expect(f.pilot.state).toBe('failed');
     expect(f.call.destroy).toHaveBeenCalledTimes(1);
     expect(f.onResult).not.toHaveBeenCalled();
+    expect(f.onEnd).toHaveBeenCalledExactlyOnceWith('result');
+  });
+
+  it('distinguishes a server-ended session from a connection failure after cleanup completes', async () => {
+    const f = fixture();
+    f.post.mockImplementation(async path => path === '/avatar/start' ? f.session : path === '/avatar/result' ? { sequence: 0, ended: true } : undefined);
+    await f.pilot.start('private-code'); await vi.advanceTimersByTimeAsync(0);
+    expect(f.pilot.state).toBe('idle');
+    expect(f.onEnd).toHaveBeenCalledExactlyOnceWith('server');
+    expect(f.onEnd.mock.invocationCallOrder[0]).toBeGreaterThan(f.onState.mock.invocationCallOrder.at(-1)!);
   });
 });
 

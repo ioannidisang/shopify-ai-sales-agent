@@ -74,6 +74,47 @@ beforeEach(() => { provider.createTavusPilot.mockReset(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('private avatar launch lifecycle', () => {
+  it.each(['el', 'en'])('shows confirmed microphone state and recoverable failure in %s', async locale => {
+    const f = await fixture(locale);
+    let callbacks!: PilotOptions;
+    const pilot = { state: 'active', start: vi.fn(async () => callbacks.onState('active')), stop: vi.fn() };
+    provider.createTavusPilot.mockImplementation((options: PilotOptions) => { callbacks = options; return pilot; });
+    f.code.value = 'synthetic-code'; f.start.click();
+    await vi.waitFor(() => expect(pilot.start).toHaveBeenCalledOnce());
+    const mic = f.host.shadowRoot!.find(element => element.textContent === (locale === 'el' ? 'Άνοιγμα μικροφώνου' : 'Turn microphone on'));
+    callbacks.onMicrophoneState?.('starting');
+    expect(mic.getAttribute('aria-pressed')).toBe('false');
+    expect(f.status.textContent).toContain(locale === 'el' ? 'Περιμένουμε πρόσβαση' : 'Waiting for microphone');
+    expect(mic.textContent).toContain(locale === 'el' ? 'Ακύρωση' : 'Cancel');
+    callbacks.onMicrophone(true); callbacks.onMicrophoneState?.('on');
+    expect(mic.getAttribute('aria-pressed')).toBe('true');
+    expect(f.status.textContent).toContain(locale === 'el' ? 'Μπορείς να μιλήσεις' : 'You can speak');
+    callbacks.onMicrophone(false); callbacks.onMicrophoneState?.('failed');
+    expect(mic.getAttribute('aria-pressed')).toBe('false');
+    expect(f.status.textContent).toContain(locale === 'el' ? 'δεν ενεργοποιήθηκε' : 'could not be activated');
+    expect(mic.hidden).toBe(false);
+    expect(pilot.stop).not.toHaveBeenCalled();
+    expect(f.start.hidden).toBe(true);
+  });
+
+  it.each([
+    ['duration', 'Η δοκιμή των 3 λεπτών ολοκληρώθηκε.'],
+    ['server', 'Η συνεδρία με το πρόσωπο ολοκληρώθηκε.'],
+    ['connection', 'Η σύνδεση με το πρόσωπο διακόπηκε.'],
+    ['result', 'Δεν παραλήφθηκε η ελεγμένη απάντηση.'],
+  ] as const)('keeps an understandable %s end message', async (reason, message) => {
+    const f = await fixture();
+    let callbacks!: PilotOptions;
+    const pilot = { state: 'active' as PilotState, start: vi.fn(async () => callbacks.onState('active')), stop: vi.fn() };
+    provider.createTavusPilot.mockImplementation((options: PilotOptions) => { callbacks = options; return pilot; });
+    f.code.value = 'synthetic-code'; f.start.click();
+    await vi.waitFor(() => expect(pilot.start).toHaveBeenCalledOnce());
+    pilot.state = 'idle'; callbacks.onState('idle'); callbacks.onEnd?.(reason);
+    expect(f.status.textContent).toContain(message);
+    expect(f.start.hidden).toBe(false);
+    expect(f.host.shadowRoot!.find(element => element.textContent === 'Αποστολή').disabled).toBe(false);
+  });
+
   it.each([
     ['el', 'Συμπλήρωσε τον κωδικό ιδιωτικής δοκιμής για να ξεκινήσεις.'],
     ['en', 'Enter the private trial access code before starting.'],

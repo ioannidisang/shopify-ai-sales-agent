@@ -27,6 +27,8 @@ const copy = {
     avatarCode: 'Private trial access code', avatarStart: 'Start avatar · microphone off', avatarStarting: 'Connecting the digital assistant…', avatarReady: 'Connected. Type below or enable the microphone.', avatarEnd: 'End avatar · continue in text', avatarStopping: 'Ending the trial…', avatarFailed: 'The avatar is unavailable. You can continue in text.',
     avatarCodeRequired: 'Enter the private trial access code before starting.', avatarWaitForReply: 'Wait for the current answer, then start the avatar.',
     avatarMicOn: 'Turn microphone on', avatarMicOff: 'Mute microphone', avatarInterrupt: 'Stop speaking', avatarPlay: 'Play sound and video', avatarCaption: 'Checked answer',
+    avatarMicCancel: 'Cancel microphone activation', avatarMicStarting: 'Waiting for microphone access. Allow access in your browser.', avatarMicReady: 'Microphone active. You can speak now.', avatarMicFailed: 'The microphone could not be activated. Check browser permissions or continue typing.',
+    avatarConnectionEnded: 'The avatar connection was interrupted. You can continue in text.', avatarResultEnded: 'The checked answer could not be retrieved. The avatar stopped; you can continue in text.', avatarDurationEnded: 'The 3-minute trial has ended. You can continue in text.', avatarServerEnded: 'The avatar session has ended. You can continue in text.',
   },
   el: {
     launch: 'Βοηθός αγορών', subtitle: 'AI βοηθός · Πληροφορίες προϊόντων', hello: 'Βρες αυτό που ψάχνεις.',
@@ -47,6 +49,8 @@ const copy = {
     avatarCode: 'Κωδικός ιδιωτικής δοκιμής', avatarStart: 'Έναρξη προσώπου · μικρόφωνο κλειστό', avatarStarting: 'Συνδέεται ο ψηφιακός βοηθός…', avatarReady: 'Συνδέθηκε. Γράψε παρακάτω ή άνοιξε το μικρόφωνο.', avatarEnd: 'Τέλος προσώπου · συνέχεια γραπτά', avatarStopping: 'Τερματίζεται η δοκιμή…', avatarFailed: 'Το πρόσωπο δεν είναι διαθέσιμο. Μπορείς να συνεχίσεις γραπτά.',
     avatarCodeRequired: 'Συμπλήρωσε τον κωδικό ιδιωτικής δοκιμής για να ξεκινήσεις.', avatarWaitForReply: 'Περίμενε την τρέχουσα απάντηση και μετά ξεκίνησε το πρόσωπο.',
     avatarMicOn: 'Άνοιγμα μικροφώνου', avatarMicOff: 'Σίγαση μικροφώνου', avatarInterrupt: 'Σταμάτα την ομιλία', avatarPlay: 'Αναπαραγωγή ήχου και εικόνας', avatarCaption: 'Ελεγμένη απάντηση',
+    avatarMicCancel: 'Ακύρωση ανοίγματος μικροφώνου', avatarMicStarting: 'Περιμένουμε πρόσβαση στο μικρόφωνο. Επίτρεψέ την στον browser.', avatarMicReady: 'Το μικρόφωνο είναι ενεργό. Μπορείς να μιλήσεις.', avatarMicFailed: 'Το μικρόφωνο δεν ενεργοποιήθηκε. Έλεγξε την άδεια στον browser ή συνέχισε γραπτά.',
+    avatarConnectionEnded: 'Η σύνδεση με το πρόσωπο διακόπηκε. Μπορείς να συνεχίσεις γραπτά.', avatarResultEnded: 'Δεν παραλήφθηκε η ελεγμένη απάντηση. Το πρόσωπο σταμάτησε· μπορείς να συνεχίσεις γραπτά.', avatarDurationEnded: 'Η δοκιμή των 3 λεπτών ολοκληρώθηκε. Μπορείς να συνεχίσεις γραπτά.', avatarServerEnded: 'Η συνεδρία με το πρόσωπο ολοκληρώθηκε. Μπορείς να συνεχίσεις γραπτά.',
   },
 } as const;
 
@@ -268,6 +272,15 @@ class SalesAssistant {
           if (!current() || !this.avatarMic) return;
           this.avatarMic.textContent = enabled ? this.t.avatarMicOff : this.t.avatarMicOn;
           this.avatarMic.setAttribute('aria-pressed', String(enabled));
+        },
+        onMicrophoneState: state => {
+          if (!current() || this.avatar?.state !== 'active') return;
+          if (this.avatarMic) this.avatarMic.textContent = state === 'starting' ? this.t.avatarMicCancel : state === 'on' ? this.t.avatarMicOff : this.t.avatarMicOn;
+          if (this.avatarStatus) this.avatarStatus.textContent = state === 'starting' ? this.t.avatarMicStarting : state === 'on' ? this.t.avatarMicReady : state === 'failed' ? this.t.avatarMicFailed : this.t.avatarReady;
+        },
+        onEnd: reason => {
+          if (!current() || !this.avatarStatus) return;
+          this.avatarStatus.textContent = reason === 'duration' ? this.t.avatarDurationEnded : reason === 'server' ? this.t.avatarServerEnded : reason === 'result' ? this.t.avatarResultEnded : this.t.avatarConnectionEnded;
         },
         onTracks: tracks => {
           if (!current() || !this.avatarVideo) return;

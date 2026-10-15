@@ -5,6 +5,8 @@ import type { ChatResponse } from './types.js';
 const Daily = DailyImport as unknown as DailyCallFactory;
 
 export type PilotState = 'idle' | 'starting' | 'active' | 'stopping' | 'failed';
+export type MicrophoneState = 'off' | 'starting' | 'on' | 'failed';
+export type PilotEndReason = 'connection' | 'result' | 'duration' | 'server';
 export interface AvatarSession {
   sessionId: string;
   conversationId: string;
@@ -13,7 +15,8 @@ export interface AvatarSession {
   expiresAt: string;
 }
 export interface AvatarResult { sequence: number; response?: ChatResponse; userText?: string; ended: boolean }
-type Participant = { local?: boolean; tracks?: { video?: { persistentTrack?: MediaStreamTrack; track?: MediaStreamTrack }; audio?: { persistentTrack?: MediaStreamTrack; track?: MediaStreamTrack } } };
+type TrackState = { state?: string; persistentTrack?: MediaStreamTrack; track?: MediaStreamTrack };
+type Participant = { local?: boolean; tracks?: { video?: TrackState; audio?: TrackState } };
 export interface PilotCall {
   on(event: string, callback: () => void): unknown;
   participants(): Record<string, Participant>;
@@ -32,6 +35,9 @@ export interface PilotOptions {
   onResult(result: AvatarResult): void;
   onTracks(tracks: MediaStreamTrack[]): void;
   onMicrophone(enabled: boolean): void;
+  onMicrophoneState?(state: MicrophoneState): void;
+  /** Fixed reason only: never forward SDK errors, room URLs or media content. */
+  onEnd?(reason: PilotEndReason): void;
   createCall?: () => PilotCall;
 }
 
@@ -46,9 +52,53 @@ export class TavusPilot {
   private pollAbort?: AbortController;
   private sequence = 0;
   private microphone = false;
+  private microphoneRequested = false;
+  private microphoneState: MicrophoneState = 'off';
+  private microphoneTimer?: ReturnType<typeof setTimeout>;
   private stopping?: Promise<void>;
 
   constructor(private readonly options: PilotOptions) {}
+
+  get microphonePending(): boolean { return this.microphoneState === 'starting'; }
+
+  private setMicrophoneState(state: MicrophoneState): void {
+    const enabled = state === 'on';
+    if (this.microphone !== enabled) { this.microphone = enabled; this.options.onMicrophone(enabled); }
+    if (this.microphoneState !== state) { this.microphoneState = state; this.options.onMicrophoneState?.(state); }
+  }
+
+  private microphoneFailed(): void {
+    clearTimeout(this.microphoneTimer);
+    this.microphoneRequested = false;
+    this.setMicrophoneState('failed');
+    if (this.call) this.muteMicrophone(this.call);
+  }
+
+  private muteMicrophone(call: PilotCall): void {
+    try { call.setLocalAudio(false); }
+    catch {
+      // A broken SDK mute must not leave local capture running while the UI
+      // reports an inactive microphone. Only local audio belongs to this action.
+      try {
+        for (const participant of Object.values(call.participants())) {
+          if (participant.local) (participant.tracks?.audio?.persistentTrack ?? participant.tracks?.audio?.track)?.stop();
+        }
+      } catch { /* The participant can disappear during call teardown. */ }
+    }
+  }
+
+  private updateMicrophone(call: PilotCall): void {
+    const audio = Object.values(call.participants()).find(participant => participant.local)?.tracks?.audio;
+    const track = audio?.persistentTrack ?? audio?.track;
+    const ready = audio?.state === 'playable' && track?.readyState === 'live' && track.enabled !== false && track.muted !== true;
+    if (!this.microphoneRequested) {
+      // Permission can resolve after cancellation. Never leave that late track live.
+      if (ready) this.muteMicrophone(call);
+      return;
+    }
+    if (ready) { clearTimeout(this.microphoneTimer); this.setMicrophoneState('on'); }
+    else if (audio?.state === 'blocked' || this.microphoneState === 'on') this.microphoneFailed();
+  }
 
   private setState(state: PilotState): void { this.state = state; this.options.onState(state); }
   private current(generation: number): boolean { return generation === this.generation && this.state !== 'stopping' && this.state !== 'idle' && this.state !== 'failed'; }
@@ -66,6 +116,7 @@ export class TavusPilot {
       this.call = call;
       const media = () => {
         if (!this.current(generation)) return;
+        this.updateMicrophone(call);
         const tracks: MediaStreamTrack[] = [];
         for (const participant of Object.values(call.participants())) {
           if (participant.local) continue;
@@ -78,8 +129,11 @@ export class TavusPilot {
         this.options.onTracks(tracks);
       };
       for (const event of ['participant-joined', 'participant-updated', 'participant-left', 'track-started', 'track-stopped']) call.on(event, media);
-      for (const event of ['error', 'camera-error', 'left-meeting']) call.on(event, () => {
-        if (this.current(generation)) void this.stop(true);
+      // Daily camera-error also covers denied/unavailable microphones. It is a
+      // recoverable device problem, unlike the fatal call-level error event.
+      call.on('camera-error', () => { if (this.current(generation)) this.microphoneFailed(); });
+      for (const event of ['error', 'left-meeting']) call.on(event, () => {
+        if (this.current(generation)) void this.stop(true, 'connection');
       });
       const session = await this.options.post<AvatarSession>('/avatar/start', { token: this.options.token, accessCode });
       accessCode = '';
@@ -88,7 +142,7 @@ export class TavusPilot {
       const remaining = Math.min(Date.parse(session.expiresAt) - Date.now(), this.options.maxDurationSeconds * 1_000, 180_000);
       const room = new URL(session.conversationUrl);
       if (room.protocol !== 'https:' || !room.hostname.endsWith('.daily.co') || room.username || room.password || !Number.isFinite(remaining) || remaining <= 0 || !session.meetingToken) throw new Error('Unavailable');
-      this.timeout = setTimeout(() => { void this.stop(); }, remaining);
+      this.timeout = setTimeout(() => { void this.stop(false, 'duration'); }, remaining);
       await call.join({ url: session.conversationUrl, token: session.meetingToken, startVideoOff: true, startAudioOff: true });
       if (!this.current(generation)) return;
       call.setLocalVideo(false);
@@ -97,7 +151,7 @@ export class TavusPilot {
       void this.poll(generation);
     } catch {
       accessCode = '';
-      if (this.current(generation)) await this.stop(true);
+      if (this.current(generation)) await this.stop(true, 'connection');
     }
   }
 
@@ -108,22 +162,32 @@ export class TavusPilot {
       this.interrupt();
       this.call.sendAppMessage({ message_type: 'conversation', event_type: 'conversation.respond', conversation_id: this.session.conversationId, properties: { text: trimmed } }, '*');
       return true;
-    } catch { void this.stop(true); return false; }
+    } catch { void this.stop(true, 'connection'); return false; }
   }
 
   interrupt(): void {
     if (this.state !== 'active' || !this.call || !this.session) return;
     try { this.call.sendAppMessage({ message_type: 'conversation', event_type: 'conversation.interrupt', conversation_id: this.session.conversationId }, '*'); }
-    catch { void this.stop(true); }
+    catch { void this.stop(true, 'connection'); }
   }
 
   toggleMicrophone(): void {
     if (this.state !== 'active' || !this.call) return;
+    clearTimeout(this.microphoneTimer);
+    this.microphoneRequested = !this.microphoneRequested;
+    this.setMicrophoneState(this.microphoneRequested ? 'starting' : 'off');
     try {
-      this.microphone = !this.microphone;
-      this.call.setLocalAudio(this.microphone);
-      this.options.onMicrophone(this.microphone);
-    } catch { void this.stop(true); }
+      this.call.setLocalAudio(this.microphoneRequested);
+      if (this.microphoneRequested) {
+        const generation = this.generation;
+        this.microphoneTimer = setTimeout(() => {
+          if (this.current(generation) && this.microphonePending) this.microphoneFailed();
+        }, 30_000);
+        // setLocalAudio returns before the permission/capture flow completes.
+        // Only a confirmed live local track may claim that the mic is on.
+        this.updateMicrophone(this.call);
+      }
+    } catch { this.microphoneFailed(); }
   }
 
   private async poll(generation: number): Promise<void> {
@@ -137,9 +201,9 @@ export class TavusPilot {
         this.sequence = result.sequence;
         this.options.onResult(result);
       }
-      if (result.ended) { await this.stop(); return; }
+      if (result.ended) { await this.stop(false, 'server'); return; }
       this.pollTimer = setTimeout(() => { void this.poll(generation); }, 1_000);
-    } catch { if (this.current(generation)) await this.stop(true); }
+    } catch { if (this.current(generation)) await this.stop(true, 'result'); }
     finally { if (this.pollAbort === abort) this.pollAbort = undefined; }
   }
 
@@ -147,16 +211,16 @@ export class TavusPilot {
     try { await this.options.post('/avatar/end', { token: this.options.token, sessionId }); } catch { /* Server duration limit still applies. */ }
   }
 
-  stop(failed = false): Promise<void> {
+  stop(failed = false, reason?: PilotEndReason): Promise<void> {
     if (this.stopping) return this.stopping;
     if (this.state === 'idle' || this.state === 'failed') return Promise.resolve();
     ++this.generation;
     this.setState('stopping');
-    clearTimeout(this.timeout); clearTimeout(this.pollTimer);
+    clearTimeout(this.timeout); clearTimeout(this.pollTimer); clearTimeout(this.microphoneTimer);
     this.pollAbort?.abort(); this.pollAbort = undefined;
     const call = this.call; this.call = undefined;
     const session = this.session; this.session = undefined;
-    this.microphone = false; this.options.onMicrophone(false); this.options.onTracks([]);
+    this.microphoneRequested = false; this.setMicrophoneState('off'); this.options.onMicrophone(false); this.options.onTracks([]);
     // Mute and stop tracks synchronously, including on pagehide and during a pending join.
     if (call) {
       try { call.setLocalAudio(false); call.setLocalVideo(false); } catch { /* Call may already be gone. */ }
@@ -168,6 +232,7 @@ export class TavusPilot {
         session ? this.endSession(session.sessionId) : Promise.resolve(),
       ]);
       this.setState(failed ? 'failed' : 'idle');
+      if (reason) this.options.onEnd?.(reason);
       this.stopping = undefined;
     })();
     return this.stopping;
