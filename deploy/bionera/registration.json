@@ -9,19 +9,19 @@
   "callbackUrl": "https://shopify-ai-sales-agent-smka.onrender.com/auth/bionera/callback",
   "verifiedOn": "2026-10-15",
   "version": {
-    "name": "bionera-tavus-preview-30acb4b",
-    "id": "1168709615617"
+    "name": "bionera-avatar-start-f260592",
+    "id": "1168736976897"
   },
   "extensions": {
     "sales-assistant": {
       "type": "theme",
       "uid": "5a62595f-e2e0-42c5-370d-1ee264e5462a7da03a8d",
-      "verifiedVersionId": "1168709615617"
+      "verifiedVersionId": "1168736976897"
     },
     "sales-analytics": {
       "type": "web_pixel_extension",
       "uid": "cf80051d-738b-118b-d80d-eebad45da897d5af0a6e",
-      "verifiedVersionId": "1168709615617"
+      "verifiedVersionId": "1168736976897"
     }
   }
 }
