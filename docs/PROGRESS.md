@@ -10,6 +10,8 @@ GET-only Tavus preflight στις **16:48:46 UTC** επιβεβαίωσε πλή
 
 Το τελικό `pnpm check` (έναρξη **19:53:07 Europe/Athens**) πέρασε: **453 tests / 25 files**, typecheck και production build. Περιλαμβάνει **25 transport tests** και **16 mounted-widget tests**, με readiness/cancel/retry μικροφώνου, late tracks, safe mute fallback όταν αποτυγχάνει το SDK, διατήρηση γραπτής συνομιλίας και εξηγήσεις λήξης. Η πραγματική ακουστική επαλήθευση της διόρθωσης παραμένει επόμενο βήμα.
 
+Η διόρθωση αποθηκεύτηκε/pushed στο **`47bc7c4`** και έγινε release ως **`bionera-avatar-mic-47bc7c4` / `1168763125761`** στις **16:54:42 UTC**. Theme Check και extension build πέρασαν· CLI readback επιβεβαίωσε **active**. Ανανεώθηκε η υπάρχουσα ιδιωτική προεπισκόπηση, άνοιξε ο βοηθός και ο κωδικός συμπληρώθηκε ιδιωτικά (`codePresent=true`, `startEnabled=true`). Screenshot: `.data/evidence/tavus-mic-fixed-2026-10-15.jpg`. Δεν ξεκίνησε νέα κλήση, δεν έγινε backend deployment/migration και δεν δημοσιεύτηκε live theme. Εκκρεμεί πραγματική επανάληψη του microphone test από τον χρήστη.
+
 ## 15 Οκτωβρίου 2026 — διόρθωση σιωπηλής αποτυχίας έναρξης avatar
 
 Ο χρήστης ανέφερε ότι το «Έναρξη προσώπου · μικρόφωνο κλειστό» δεν έκανε τίποτα. Στην υπάρχουσα καρτέλα Bionera επιβεβαιώθηκαν κενό ορατό πεδίο κωδικού, ενεργό κουμπί έναρξης και κενό status. Το `visibilitychange` καλούσε `stopAvatar()` ακόμη και πριν από την πρώτη κλήση, σβήνοντας τον προεισαγμένο κωδικό. Το guard του `startAvatar()` επέστρεφε σιωπηλά όταν έλειπε ο κωδικός.
