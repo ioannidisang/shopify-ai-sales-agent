@@ -80,6 +80,56 @@ describe('Tavus private full-pipeline adapter', () => {
     expect(fetcher.mock.calls.every(([, init]) => init?.body === undefined && init?.redirect === 'error')).toBe(true);
   });
 
+  it('reduces verbose shutdown diagnostics to a fixed reason without returning provider data', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({
+      ...conversation, status: 'ended',
+      events: [
+        { event_type: 'application.transcription_ready', properties: { transcript: [{ content: 'private shopper text' }] } },
+        { event_type: 'system.shutdown', properties: { shutdown_reason: 'participant_absent_timeout reached', private: 'secret' } },
+      ],
+    }));
+    expect(await client(fetcher).getConversationDiagnostics('c123trial')).toEqual({ shutdownReason: 'participant_absent_timeout' });
+    expect(fetcher.mock.calls[0]![0]).toBe('https://tavusapi.com/v2/conversations/c123trial?verbose=true');
+    expect(fetcher.mock.calls[0]![1]).toMatchObject({ method: 'GET', redirect: 'error' });
+    expect(fetcher.mock.calls[0]![1]?.body).toBeUndefined();
+  });
+
+  it.each([
+    ['max_call_duration', 'max_call_duration'],
+    ['participant_left_timeout reached', 'participant_left_timeout'],
+    ['internal error occurred at step stt', 'internal_error'],
+    ['daily_room_has_been_deleted', 'daily_room_has_been_deleted'],
+  ])('allowlists documented shutdown reason %s', async (raw, expected) => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({ status: 'ended', shutdown_reason: raw }));
+    expect(await client(fetcher).getConversationDiagnostics('c123trial')).toEqual({ shutdownReason: expected });
+  });
+
+  it.each([
+    { status: 'active', shutdown_reason: 'participant_left_timeout' },
+    { status: 'ended', shutdown_reason: 'secret authenticated https://private.example/path' },
+    { events: [{ event_type: 'application.transcription_ready', properties: { shutdown_reason: 'max_call_duration' } }] },
+    { events: [null, 4, {}, { event_type: 'system.shutdown', properties: { shutdown_reason: 'unrecognized private value' } }] },
+  ])('discards absent or unrecognized shutdown evidence', async value => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json(value));
+    expect(await client(fetcher).getConversationDiagnostics('c123trial')).toBeUndefined();
+  });
+
+  it('limits diagnostic retrieval to two seconds even if fetch ignores cancellation', async () => {
+    vi.useFakeTimers();
+    try {
+      let signal: AbortSignal | null | undefined;
+      const fetcher = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+        signal = init?.signal;
+        return new Promise<Response>(() => {});
+      });
+      const check = expect(client(fetcher).getConversationDiagnostics('c123trial')).rejects.toBeInstanceOf(TavusUnavailableError);
+      await vi.advanceTimersByTimeAsync(2_000);
+      await check;
+      expect(signal?.aborted).toBe(true);
+      expect(fetcher).toHaveBeenCalledOnce();
+    } finally { vi.useRealTimers(); }
+  });
+
   it('treats absent cleanup resources as success without accepting absent creates or authentication failure', async () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => json({ error: 'Already absent' }, 404));
     const adapter = client(fetcher);

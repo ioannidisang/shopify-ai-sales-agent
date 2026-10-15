@@ -74,6 +74,26 @@ beforeEach(() => { provider.createTavusPilot.mockReset(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('private avatar launch lifecycle', () => {
+  it('retains categorical disconnect details after cleanup and clears them on close', async () => {
+    const f = await fixture();
+    let callbacks!: PilotOptions;
+    const pilot = { state: 'active' as PilotState, start: vi.fn(async () => callbacks.onState('active')), stop: vi.fn() };
+    provider.createTavusPilot.mockImplementation((options: PilotOptions) => { callbacks = options; return pilot; });
+    f.code.value = 'synthetic-code'; f.start.click();
+    await vi.waitFor(() => expect(pilot.start).toHaveBeenCalledOnce());
+    const detail = f.host.shadowRoot!.find(element => element.className === 'avatar-diagnostic');
+    expect(detail.hidden).toBe(true);
+    callbacks.onDiagnostic?.({ event: 'daily-error', code: 'ejected', stage: 'unknown', elapsedSeconds: 32, microphone: 'on', checkedSequence: 1 });
+    callbacks.onState('stopping'); pilot.state = 'failed'; callbacks.onState('failed'); callbacks.onEnd?.('connection');
+    expect(detail.hidden).toBe(false);
+    expect(detail.open).toBe(false);
+    expect(detail.children[1]!.textContent).toBe('daily-error / ejected / unknown · 32s · mic:on · replies:1');
+    expect(f.status.textContent).toContain('Η σύνδεση με το πρόσωπο διακόπηκε.');
+    f.dialog.close();
+    expect(detail.hidden).toBe(true);
+    expect(detail.children[1]!.textContent).toBe('');
+  });
+
   it.each(['el', 'en'])('shows confirmed microphone state and recoverable failure in %s', async locale => {
     const f = await fixture(locale);
     let callbacks!: PilotOptions;

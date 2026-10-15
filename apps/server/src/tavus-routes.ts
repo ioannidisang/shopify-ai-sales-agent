@@ -6,7 +6,7 @@ import type { ChatResponse } from '../../widget/src/types.js';
 import type { RuntimeEnvironment } from './config.js';
 import { takeBudget, type Database } from './database.js';
 import { constantEqual, tokenPayload, type Security, type SessionClaims } from './security.js';
-import { TavusClient, TAVUS_MAX_CALL_SECONDS, type TavusProvider } from './tavus-client.js';
+import { TavusClient, TAVUS_MAX_CALL_SECONDS, TAVUS_DIAGNOSTIC_TIMEOUT_MS, TAVUS_SHUTDOWN_REASONS, type TavusProvider } from './tavus-client.js';
 
 const MAX_STARTS_PER_DAY = 3;
 const bearerBody = z.object({ token: z.string().min(1).max(2048) });
@@ -42,6 +42,24 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
   let sweeping = false;
   function available(config: ShopConfig) { if (!provider || !avatarAvailable(env, config)) throw new AvatarError(403); }
   async function get(id: string) { return (await db.query<Row>('SELECT * FROM avatar_sessions WHERE id=$1', [id])).rows[0]; }
+  async function recordShutdownReason(conversationId: string): Promise<void> {
+    if (!provider?.getConversationDiagnostics) return;
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const diagnostics = await Promise.race([
+        provider.getConversationDiagnostics(conversationId, { signal: controller.signal }),
+        new Promise<undefined>(resolve => {
+          timeout = setTimeout(() => { controller.abort(); resolve(undefined); }, TAVUS_DIAGNOSTIC_TIMEOUT_MS);
+          timeout.unref();
+        }),
+      ]);
+      // Re-allowlist at the logging boundary even for injected provider adapters.
+      const reason = diagnostics?.shutdownReason;
+      if (reason && TAVUS_SHUTDOWN_REASONS.includes(reason)) app.log.info({ reason }, 'Avatar provider shutdown');
+    } catch { /* Missing, delayed, or malformed diagnostics must not prevent cleanup. */ }
+    finally { clearTimeout(timeout); controller.abort(); }
+  }
   async function stop(row: Row): Promise<void> {
     if (!provider || row.state === 'ended' || row.state === 'failed') return;
     // Invalidate the callback before any network call, including in-flight generation.
@@ -50,6 +68,8 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
     if (!row.provider_conversation_id && new Date(row.expires_at).getTime() > Date.now()) return;
     try {
       if (row.provider_conversation_id) {
+        // Read the original provider cause before our end request can replace it.
+        await recordShutdownReason(row.provider_conversation_id);
         await provider.endConversation(row.provider_conversation_id);
         await provider.deleteConversation(row.provider_conversation_id, { hard: true });
       }

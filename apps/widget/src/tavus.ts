@@ -7,6 +7,16 @@ const Daily = DailyImport as unknown as DailyCallFactory;
 export type PilotState = 'idle' | 'starting' | 'active' | 'stopping' | 'failed';
 export type MicrophoneState = 'off' | 'starting' | 'on' | 'failed';
 export type PilotEndReason = 'connection' | 'result' | 'duration' | 'server';
+const DAILY_FATAL_CODES = ['ejected', 'nbf-room', 'nbf-token', 'exp-room', 'exp-token', 'no-room', 'meeting-full', 'end-of-life', 'not-allowed', 'connection-error'] as const;
+const DAILY_FAILURE_STAGES = ['load', 'join', 'reconnect', 'move', 'rtc-connection', 'room-lookup'] as const;
+export interface PilotDiagnostic {
+  readonly event: 'daily-error' | 'left-meeting' | 'start-failure' | 'send-failure' | 'interrupt-failure';
+  readonly code: typeof DAILY_FATAL_CODES[number] | 'unknown';
+  readonly stage: typeof DAILY_FAILURE_STAGES[number] | 'unknown';
+  readonly elapsedSeconds: number;
+  readonly microphone: MicrophoneState;
+  readonly checkedSequence: number;
+}
 export interface AvatarSession {
   sessionId: string;
   conversationId: string;
@@ -18,7 +28,7 @@ export interface AvatarResult { sequence: number; response?: ChatResponse; userT
 type TrackState = { state?: string; persistentTrack?: MediaStreamTrack; track?: MediaStreamTrack };
 type Participant = { local?: boolean; tracks?: { video?: TrackState; audio?: TrackState } };
 export interface PilotCall {
-  on(event: string, callback: () => void): unknown;
+  on(event: string, callback: (event?: unknown) => void): unknown;
   participants(): Record<string, Participant>;
   join(options: { url: string; token: string; startVideoOff: true; startAudioOff: true }): Promise<unknown>;
   setLocalAudio(enabled: boolean): unknown;
@@ -38,6 +48,8 @@ export interface PilotOptions {
   onMicrophoneState?(state: MicrophoneState): void;
   /** Fixed reason only: never forward SDK errors, room URLs or media content. */
   onEnd?(reason: PilotEndReason): void;
+  /** Ephemeral allowlisted diagnostic; contains no SDK messages or identifiers. */
+  onDiagnostic?(diagnostic: PilotDiagnostic): void;
   createCall?: () => PilotCall;
 }
 
@@ -56,10 +68,36 @@ export class TavusPilot {
   private microphoneState: MicrophoneState = 'off';
   private microphoneTimer?: ReturnType<typeof setTimeout>;
   private stopping?: Promise<void>;
+  private startedAt = 0;
+  private lastDiagnostic?: PilotDiagnostic;
 
   constructor(private readonly options: PilotOptions) {}
 
   get microphonePending(): boolean { return this.microphoneState === 'starting'; }
+  get diagnostic(): PilotDiagnostic | undefined { return this.lastDiagnostic; }
+
+  private diagnose(event: PilotDiagnostic['event'], payload?: unknown): void {
+    if (this.lastDiagnostic) return;
+    let code: PilotDiagnostic['code'] = 'unknown', stage: PilotDiagnostic['stage'] = 'unknown';
+    // Never copy unknown strings or nested SDK error data into our diagnostic.
+    try {
+      const error = payload && typeof payload === 'object' ? (payload as { error?: unknown }).error : undefined;
+      if (error && typeof error === 'object') {
+        const type = (error as { type?: unknown }).type;
+        if (typeof type === 'string' && DAILY_FATAL_CODES.includes(type as typeof DAILY_FATAL_CODES[number])) code = type as PilotDiagnostic['code'];
+        const details = (error as { details?: unknown }).details;
+        if (code === 'connection-error' && details && typeof details === 'object') {
+          const on = (details as { on?: unknown }).on;
+          if (typeof on === 'string' && DAILY_FAILURE_STAGES.includes(on as typeof DAILY_FAILURE_STAGES[number])) stage = on as PilotDiagnostic['stage'];
+        }
+      }
+    } catch { /* Malformed event data must never prevent call cleanup. */ }
+    this.lastDiagnostic = Object.freeze({ event, code, stage,
+      elapsedSeconds: Math.max(0, Math.min(180, Math.floor((Date.now() - this.startedAt) / 1_000))),
+      microphone: this.microphoneState, checkedSequence: Math.max(0, Math.min(1_000, this.sequence)),
+    });
+    try { this.options.onDiagnostic?.(this.lastDiagnostic); } catch { /* Diagnostics cannot interfere with cleanup. */ }
+  }
 
   private setMicrophoneState(state: MicrophoneState): void {
     const enabled = state === 'on';
@@ -106,6 +144,7 @@ export class TavusPilot {
   async start(accessCode: string): Promise<void> {
     if (!accessCode.trim() || this.state === 'starting' || this.state === 'active' || this.state === 'stopping') return;
     const generation = ++this.generation;
+    this.startedAt = Date.now(); this.lastDiagnostic = undefined;
     this.setState('starting');
     this.sequence = 0;
     try {
@@ -132,8 +171,11 @@ export class TavusPilot {
       // Daily camera-error also covers denied/unavailable microphones. It is a
       // recoverable device problem, unlike the fatal call-level error event.
       call.on('camera-error', () => { if (this.current(generation)) this.microphoneFailed(); });
-      for (const event of ['error', 'left-meeting']) call.on(event, () => {
-        if (this.current(generation)) void this.stop(true, 'connection');
+      for (const event of ['error', 'left-meeting'] as const) call.on(event, payload => {
+        if (this.current(generation)) {
+          this.diagnose(event === 'error' ? 'daily-error' : 'left-meeting', payload);
+          void this.stop(true, 'connection');
+        }
       });
       const session = await this.options.post<AvatarSession>('/avatar/start', { token: this.options.token, accessCode });
       accessCode = '';
@@ -151,7 +193,7 @@ export class TavusPilot {
       void this.poll(generation);
     } catch {
       accessCode = '';
-      if (this.current(generation)) await this.stop(true, 'connection');
+      if (this.current(generation)) { this.diagnose('start-failure'); await this.stop(true, 'connection'); }
     }
   }
 
@@ -162,13 +204,13 @@ export class TavusPilot {
       this.interrupt();
       this.call.sendAppMessage({ message_type: 'conversation', event_type: 'conversation.respond', conversation_id: this.session.conversationId, properties: { text: trimmed } }, '*');
       return true;
-    } catch { void this.stop(true, 'connection'); return false; }
+    } catch { this.diagnose('send-failure'); void this.stop(true, 'connection'); return false; }
   }
 
   interrupt(): void {
     if (this.state !== 'active' || !this.call || !this.session) return;
     try { this.call.sendAppMessage({ message_type: 'conversation', event_type: 'conversation.interrupt', conversation_id: this.session.conversationId }, '*'); }
-    catch { void this.stop(true, 'connection'); }
+    catch { this.diagnose('interrupt-failure'); void this.stop(true, 'connection'); }
   }
 
   toggleMicrophone(): void {

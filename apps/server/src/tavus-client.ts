@@ -8,6 +8,14 @@ const JWT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 
 export const TAVUS_MAX_CALL_SECONDS = 180;
 export const TAVUS_ABSENT_SECONDS = 30;
+export const TAVUS_DIAGNOSTIC_TIMEOUT_MS = 2_000;
+export const TAVUS_SHUTDOWN_REASONS = [
+  'max_call_duration', 'participant_left_timeout', 'participant_absent_timeout',
+  'bot_could_not_join_meeting_it_was_probably_ended', 'daily_room_has_been_deleted',
+  'exception_encountered_during_conversation_startup', 'end_conversation_endpoint_hit', 'internal_error',
+] as const;
+export type TavusShutdownReason = typeof TAVUS_SHUTDOWN_REASONS[number];
+export interface TavusConversationDiagnostics { shutdownReason: TavusShutdownReason }
 
 export interface TavusRequestOptions { signal?: AbortSignal }
 
@@ -38,6 +46,8 @@ export interface TavusProvider {
   endConversation(conversationId: string, options?: TavusRequestOptions): Promise<void>;
   deleteConversation(conversationId: string, options?: TavusRequestOptions & { hard?: boolean }): Promise<void>;
   deletePal(palId: string, options?: TavusRequestOptions): Promise<void>;
+  /** Optional best-effort evidence before deletion; never returns provider text or transcripts. */
+  getConversationDiagnostics?(conversationId: string, options?: TavusRequestOptions): Promise<TavusConversationDiagnostics | undefined>;
 }
 
 export class TavusUnavailableError extends Error {
@@ -55,6 +65,16 @@ function resourceId(value: unknown): string {
 function object(value: unknown): Record<string, unknown> {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new TavusUnavailableError();
   return value as Record<string, unknown>;
+}
+
+function shutdownReason(value: unknown): TavusShutdownReason | undefined {
+  if (typeof value !== 'string' || value.length > 128) return undefined;
+  for (const reason of TAVUS_SHUTDOWN_REASONS) {
+    if (value === reason) return reason;
+    if (['max_call_duration', 'participant_left_timeout', 'participant_absent_timeout'].includes(reason) && value === `${reason} reached`) return reason;
+  }
+  if (/^internal error occurred at step [A-Za-z0-9 _-]{1,64}$/.test(value)) return 'internal_error';
+  return undefined;
 }
 
 function callbackUrl(value: string): string {
@@ -199,10 +219,26 @@ export class TavusClient implements TavusProvider {
     await this.request(`/v2/pals/${resourceId(palId)}`, 'DELETE', undefined, options.signal, false);
   }
 
-  private async request(path: string, method: 'POST' | 'DELETE', body: unknown, signal?: AbortSignal, json = true): Promise<unknown> {
+  async getConversationDiagnostics(conversationId: string, options: TavusRequestOptions = {}): Promise<TavusConversationDiagnostics | undefined> {
+    // Retrieval can contain transcripts and join material. Inspect in memory only,
+    // reduce immediately to a fixed enum, and never let diagnostics block cleanup.
+    const result = object(await this.request(`/v2/conversations/${resourceId(conversationId)}?verbose=true`,
+      'GET', undefined, options.signal, true, TAVUS_DIAGNOSTIC_TIMEOUT_MS));
+    if (Array.isArray(result.events)) {
+      for (const event of result.events.slice(-1_000).reverse()) {
+        if (event?.event_type !== 'system.shutdown') continue;
+        const reason = shutdownReason(event.properties?.shutdown_reason);
+        if (reason) return { shutdownReason: reason };
+      }
+    }
+    const reason = result.status === 'ended' ? shutdownReason(result.shutdown_reason) : undefined;
+    return reason ? { shutdownReason: reason } : undefined;
+  }
+
+  private async request(path: string, method: 'GET' | 'POST' | 'DELETE', body: unknown, signal?: AbortSignal, json = true, timeoutMs = this.timeoutMs): Promise<unknown> {
     const controller = new AbortController();
     const cancel = () => controller.abort();
-    const timeout = setTimeout(cancel, this.timeoutMs);
+    const timeout = setTimeout(cancel, Math.min(this.timeoutMs, timeoutMs));
     timeout.unref();
     signal?.addEventListener('abort', cancel, { once: true });
     let stopWaiting = () => {};

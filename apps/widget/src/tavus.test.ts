@@ -7,7 +7,7 @@ vi.mock('@daily-co/daily-js', () => ({ default: sdk }));
 
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(done => { resolve = done; }); return { promise, resolve }; }
 function fixture() {
-  const listeners = new Map<string, () => void>();
+  const listeners = new Map<string, (event?: unknown) => void>();
   const localTrack = { stop: vi.fn(), readyState: 'live', enabled: true, muted: false } as unknown as MediaStreamTrack;
   const remoteTrack = { readyState: 'live', kind: 'video', stop: vi.fn() } as unknown as MediaStreamTrack;
   const localAudio = { state: 'off', persistentTrack: localTrack };
@@ -18,9 +18,9 @@ function fixture() {
   };
   const session: AvatarSession = { sessionId: 'session-id', conversationId: 'provider-id', conversationUrl: 'https://trial.daily.co/private-room', meetingToken: 'private-meeting-token', expiresAt: new Date(Date.now() + 180_000).toISOString() };
   const post = vi.fn<(path: string, body?: unknown, controller?: AbortController) => Promise<unknown>>(async path => path === '/avatar/start' ? session : path === '/avatar/result' ? { sequence: 0, ended: false } : undefined);
-  const onState = vi.fn(), onResult = vi.fn(), onTracks = vi.fn(), onMicrophone = vi.fn(), onMicrophoneState = vi.fn(), onEnd = vi.fn();
-  const options: PilotOptions = { token: 'widget-token', maxDurationSeconds: 180, post: post as PilotOptions['post'], onState, onResult, onTracks, onMicrophone, onMicrophoneState, onEnd, createCall: () => call };
-  return { pilot: new TavusPilot(options), options, call, post, listeners, session, onState, onResult, onTracks, onMicrophone, onMicrophoneState, onEnd, localTrack, localAudio, remoteTrack };
+  const onState = vi.fn(), onResult = vi.fn(), onTracks = vi.fn(), onMicrophone = vi.fn(), onMicrophoneState = vi.fn(), onEnd = vi.fn(), onDiagnostic = vi.fn();
+  const options: PilotOptions = { token: 'widget-token', maxDurationSeconds: 180, post: post as PilotOptions['post'], onState, onResult, onTracks, onMicrophone, onMicrophoneState, onEnd, onDiagnostic, createCall: () => call };
+  return { pilot: new TavusPilot(options), options, call, post, listeners, session, onState, onResult, onTracks, onMicrophone, onMicrophoneState, onEnd, onDiagnostic, localTrack, localAudio, remoteTrack };
 }
 beforeEach(() => { vi.useFakeTimers(); });
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
@@ -241,6 +241,74 @@ describe('private Tavus transport', () => {
     expect(f.pilot.state).toBe('idle');
     expect(f.onEnd).toHaveBeenCalledExactlyOnceWith('server');
     expect(f.onEnd.mock.invocationCallOrder[0]).toBeGreaterThan(f.onState.mock.invocationCallOrder.at(-1)!);
+  });
+
+  it('retains only the first safe fatal diagnostic when Daily immediately emits left-meeting', async () => {
+    const f = fixture();
+    f.post.mockImplementation(async path => path === '/avatar/start' ? f.session : path === '/avatar/result' ? { sequence: 7, ended: false } : undefined);
+    await f.pilot.start('private-code');
+    f.pilot.toggleMicrophone(); f.localAudio.state = 'playable'; f.listeners.get('participant-updated')!();
+    await vi.advanceTimersByTimeAsync(1_500);
+    f.listeners.get('error')!({ errorMsg: 'secret-token', error: { type: 'connection-error', msg: 'private-message', details: { on: 'rtc-connection', uri: 'https://private.example/secret', sourceError: { token: 'secret' } } } });
+    f.listeners.get('left-meeting')!();
+    await vi.advanceTimersByTimeAsync(0);
+    const expected = { event: 'daily-error', code: 'connection-error', stage: 'rtc-connection', elapsedSeconds: 1, microphone: 'on', checkedSequence: 7 };
+    expect(f.onDiagnostic).toHaveBeenCalledExactlyOnceWith(expected);
+    expect(f.pilot.diagnostic).toEqual(expected);
+    expect(Object.isFrozen(f.pilot.diagnostic)).toBe(true);
+    expect(f.pilot.state).toBe('failed');
+    expect(f.call.destroy).toHaveBeenCalledOnce();
+    await f.pilot.start('new-code');
+    expect(f.pilot.diagnostic).toBeUndefined();
+    await f.pilot.stop();
+  });
+
+  it.each([
+    { error: { type: 'https://private.example/secret', details: { on: 'rtc-connection' } } },
+    { error: { type: ['ejected'], details: { on: 'private-stage' } } },
+    { errorMsg: 'private-message', error: 'private-token' },
+    undefined,
+  ])('never copies unknown or secret-bearing SDK values into terminal diagnostics', async payload => {
+    const f = fixture(); await f.pilot.start('private-code');
+    f.listeners.get('error')!(payload); await vi.advanceTimersByTimeAsync(0);
+    expect(f.pilot.diagnostic).toEqual({ event: 'daily-error', code: 'unknown', stage: 'unknown', elapsedSeconds: 0, microphone: 'off', checkedSequence: 0 });
+    expect(f.call.destroy).toHaveBeenCalledOnce();
+  });
+
+  it('ignores unknown connection stages and bounds diagnostic counters even after clock jumps', async () => {
+    const f = fixture();
+    f.post.mockImplementation(async path => path === '/avatar/start' ? f.session : path === '/avatar/result' ? { sequence: Number.MAX_SAFE_INTEGER, ended: false } : undefined);
+    await f.pilot.start('private-code'); await vi.advanceTimersByTimeAsync(0);
+    vi.setSystemTime(Date.now() + 1_000_000);
+    f.listeners.get('error')!({ error: { type: 'connection-error', details: { on: 'secret-authenticated-url' } } });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.pilot.diagnostic).toEqual({ event: 'daily-error', code: 'connection-error', stage: 'unknown', elapsedSeconds: 180, microphone: 'off', checkedSequence: 1000 });
+  });
+
+  it('cleans up when diagnostic consumers throw and retains provider ejection as the category', async () => {
+    const f = fixture(); f.onDiagnostic.mockImplementation(() => { throw new Error('consumer failed'); });
+    await f.pilot.start('private-code');
+    f.listeners.get('error')!({ error: { type: 'ejected', details: { on: 'join' } } });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.pilot.diagnostic).toMatchObject({ code: 'ejected', stage: 'unknown' });
+    expect(f.pilot.state).toBe('failed');
+    expect(f.call.destroy).toHaveBeenCalledOnce();
+    expect(f.post).toHaveBeenCalledWith('/avatar/end', { token: 'widget-token', sessionId: 'session-id' });
+  });
+
+  it.each(['start-failure', 'send-failure', 'interrupt-failure', 'left-meeting'] as const)('distinguishes %s without retaining exception messages', async event => {
+    const f = fixture(); const fail = () => { throw new Error('sensitive exception'); };
+    if (event === 'start-failure') vi.mocked(f.call.join).mockImplementationOnce(fail);
+    await f.pilot.start('private-code');
+    if (event === 'send-failure') {
+      vi.mocked(f.call.sendAppMessage).mockImplementationOnce(() => {}).mockImplementationOnce(fail);
+      expect(f.pilot.sendText('Synthetic question')).toBe(false);
+    } else if (event === 'interrupt-failure') {
+      vi.mocked(f.call.sendAppMessage).mockImplementationOnce(fail); f.pilot.interrupt();
+    } else if (event === 'left-meeting') f.listeners.get('left-meeting')!();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.pilot.diagnostic).toEqual({ event, code: 'unknown', stage: 'unknown', elapsedSeconds: 0, microphone: 'off', checkedSequence: 0 });
+    expect(f.call.destroy).toHaveBeenCalledOnce();
   });
 });
 

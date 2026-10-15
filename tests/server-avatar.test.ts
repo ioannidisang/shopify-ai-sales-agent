@@ -49,6 +49,7 @@ function mockProvider() {
     endConversation: vi.fn<TavusProvider['endConversation']>().mockResolvedValue(undefined),
     deleteConversation: vi.fn<TavusProvider['deleteConversation']>().mockResolvedValue(undefined),
     deletePal: vi.fn<TavusProvider['deletePal']>().mockResolvedValue(undefined),
+    getConversationDiagnostics: vi.fn<NonNullable<TavusProvider['getConversationDiagnostics']>>().mockResolvedValue(undefined),
   };
 }
 function proxy(path: string, tenant = shop) {
@@ -114,6 +115,48 @@ afterEach(async () => { await app?.close(); app = undefined; });
 afterAll(async () => { await db.close(); });
 
 describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions', () => {
+  it('captures an allowlisted provider shutdown before ending and deleting without logging private data', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    provider.getConversationDiagnostics.mockResolvedValue({ shutdownReason: 'participant_absent_timeout' });
+    expect((await end(session, room)).statusCode).toBe(200);
+    expect(info).toHaveBeenCalledExactlyOnceWith({ reason: 'participant_absent_timeout' }, 'Avatar provider shutdown');
+    expect(provider.getConversationDiagnostics.mock.invocationCallOrder[0]).toBeLessThan(provider.endConversation.mock.invocationCallOrder[0]!);
+    expect(provider.endConversation.mock.invocationCallOrder[0]).toBeLessThan(provider.deleteConversation.mock.invocationCallOrder[0]!);
+    expect((await row(room)).state).toBe('ended');
+  });
+
+  it.each(['missing', 'rejected', 'untrusted'] as const)('continues cleanup and logs no shutdown text when diagnostics are %s', async mode => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    if (mode === 'rejected') provider.getConversationDiagnostics.mockRejectedValue(new Error('private token and transcript'));
+    if (mode === 'untrusted') provider.getConversationDiagnostics.mockResolvedValue({ shutdownReason: 'private token and transcript' } as never);
+    expect((await end(session, room)).statusCode).toBe(200);
+    expect(info).not.toHaveBeenCalled();
+    expect(provider.endConversation).toHaveBeenCalledOnce();
+    expect(provider.deleteConversation).toHaveBeenCalledOnce();
+    expect(provider.deletePal).toHaveBeenCalledOnce();
+    expect((await row(room)).state).toBe('ended');
+  });
+
+  it('bounds a stalled diagnostic adapter independently so cleanup cannot get stuck', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    let signal: AbortSignal | undefined;
+    provider.getConversationDiagnostics.mockImplementation(async (_id, options) => {
+      signal = options?.signal;
+      return new Promise(() => {});
+    });
+    const begin = performance.now();
+    expect((await end(session, room)).statusCode).toBe(200);
+    expect(performance.now() - begin).toBeLessThan(3_000);
+    expect(signal?.aborted).toBe(true);
+    expect(provider.endConversation).toHaveBeenCalledOnce();
+    expect((await row(room)).state).toBe('ended');
+  });
+
   it('keeps the feature unavailable when deployment enablement is absent', async () => {
     await build({ ...environment, tavus: undefined });
     const session = await bootstrap();

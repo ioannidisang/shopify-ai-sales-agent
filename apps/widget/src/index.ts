@@ -29,6 +29,7 @@ const copy = {
     avatarMicOn: 'Turn microphone on', avatarMicOff: 'Mute microphone', avatarInterrupt: 'Stop speaking', avatarPlay: 'Play sound and video', avatarCaption: 'Checked answer',
     avatarMicCancel: 'Cancel microphone activation', avatarMicStarting: 'Waiting for microphone access. Allow access in your browser.', avatarMicReady: 'Microphone active. You can speak now.', avatarMicFailed: 'The microphone could not be activated. Check browser permissions or continue typing.',
     avatarConnectionEnded: 'The avatar connection was interrupted. You can continue in text.', avatarResultEnded: 'The checked answer could not be retrieved. The avatar stopped; you can continue in text.', avatarDurationEnded: 'The 3-minute trial has ended. You can continue in text.', avatarServerEnded: 'The avatar session has ended. You can continue in text.',
+    avatarDiagnostic: 'Connection details for this trial',
   },
   el: {
     launch: 'Βοηθός αγορών', subtitle: 'AI βοηθός · Πληροφορίες προϊόντων', hello: 'Βρες αυτό που ψάχνεις.',
@@ -51,6 +52,7 @@ const copy = {
     avatarMicOn: 'Άνοιγμα μικροφώνου', avatarMicOff: 'Σίγαση μικροφώνου', avatarInterrupt: 'Σταμάτα την ομιλία', avatarPlay: 'Αναπαραγωγή ήχου και εικόνας', avatarCaption: 'Ελεγμένη απάντηση',
     avatarMicCancel: 'Ακύρωση ανοίγματος μικροφώνου', avatarMicStarting: 'Περιμένουμε πρόσβαση στο μικρόφωνο. Επίτρεψέ την στον browser.', avatarMicReady: 'Το μικρόφωνο είναι ενεργό. Μπορείς να μιλήσεις.', avatarMicFailed: 'Το μικρόφωνο δεν ενεργοποιήθηκε. Έλεγξε την άδεια στον browser ή συνέχισε γραπτά.',
     avatarConnectionEnded: 'Η σύνδεση με το πρόσωπο διακόπηκε. Μπορείς να συνεχίσεις γραπτά.', avatarResultEnded: 'Δεν παραλήφθηκε η ελεγμένη απάντηση. Το πρόσωπο σταμάτησε· μπορείς να συνεχίσεις γραπτά.', avatarDurationEnded: 'Η δοκιμή των 3 λεπτών ολοκληρώθηκε. Μπορείς να συνεχίσεις γραπτά.', avatarServerEnded: 'Η συνεδρία με το πρόσωπο ολοκληρώθηκε. Μπορείς να συνεχίσεις γραπτά.',
+    avatarDiagnostic: 'Στοιχεία σύνδεσης της δοκιμής',
   },
 } as const;
 
@@ -111,6 +113,8 @@ class SalesAssistant {
   private avatarVideo?: HTMLVideoElement;
   private avatarPlay?: HTMLButtonElement;
   private avatarStatus?: HTMLElement;
+  private avatarDiagnostic?: HTMLDetailsElement;
+  private avatarDiagnosticText?: HTMLElement;
   private avatarCaption?: HTMLElement;
   private avatarTyped: string[] = [];
   private avatarStopping?: Promise<void>;
@@ -212,18 +216,26 @@ class SalesAssistant {
     const end = button(this.t.avatarEnd, () => this.stopAvatar()); end.hidden = true;
     const controls = node('div', undefined, 'avatar-controls'); controls.append(microphone, interrupt, end);
     const status = node('p', '', 'avatar-status'); status.setAttribute('role', 'status');
+    const diagnostic = node('details', undefined, 'avatar-diagnostic'); diagnostic.hidden = true;
+    const diagnosticText = node('p');
+    diagnostic.append(node('summary', this.t.avatarDiagnostic), diagnosticText);
     code.addEventListener('input', () => {
       if (code.getAttribute('aria-invalid') !== 'true') return;
       code.removeAttribute('aria-invalid');
       status.textContent = '';
     });
     const caption = node('p', '', 'avatar-caption'); caption.hidden = true; caption.setAttribute('aria-label', this.t.avatarCaption);
-    panel.append(code, start, video, play, caption, controls, status);
+    panel.append(code, start, video, play, caption, controls, status, diagnostic);
+    this.avatarDiagnostic = diagnostic; this.avatarDiagnosticText = diagnosticText;
     this.avatarPanel = panel; this.avatarCode = code; this.avatarStart = start; this.avatarVideo = video; this.avatarPlay = play; this.avatarMic = microphone; this.avatarInterrupt = interrupt; this.avatarEnd = end; this.avatarStatus = status; this.avatarCaption = caption;
     return panel;
   }
 
   private avatarState(state: PilotState): void {
+    if (state === 'starting' && this.avatarDiagnostic) {
+      this.avatarDiagnostic.hidden = true; this.avatarDiagnostic.open = false;
+      if (this.avatarDiagnosticText) this.avatarDiagnosticText.textContent = '';
+    }
     const active = state === 'active';
     const busy = state === 'starting' || state === 'stopping';
     if (this.avatarStart) { this.avatarStart.hidden = active || busy; this.avatarStart.disabled = busy; }
@@ -278,6 +290,13 @@ class SalesAssistant {
           if (this.avatarMic) this.avatarMic.textContent = state === 'starting' ? this.t.avatarMicCancel : state === 'on' ? this.t.avatarMicOff : this.t.avatarMicOn;
           if (this.avatarStatus) this.avatarStatus.textContent = state === 'starting' ? this.t.avatarMicStarting : state === 'on' ? this.t.avatarMicReady : state === 'failed' ? this.t.avatarMicFailed : this.t.avatarReady;
         },
+        onDiagnostic: diagnostic => {
+          if (!current() || !this.avatarDiagnostic || !this.avatarDiagnosticText) return;
+          // The transport supplies only fixed enums and bounded counters, never
+          // raw SDK errors, room addresses, credentials or conversation text.
+          this.avatarDiagnosticText.textContent = `${diagnostic.event} / ${diagnostic.code} / ${diagnostic.stage} · ${diagnostic.elapsedSeconds}s · mic:${diagnostic.microphone} · replies:${diagnostic.checkedSequence}`;
+          this.avatarDiagnostic.hidden = false;
+        },
         onEnd: reason => {
           if (!current() || !this.avatarStatus) return;
           this.avatarStatus.textContent = reason === 'duration' ? this.t.avatarDurationEnded : reason === 'server' ? this.t.avatarServerEnded : reason === 'result' ? this.t.avatarResultEnded : this.t.avatarConnectionEnded;
@@ -312,6 +331,8 @@ class SalesAssistant {
   private stopAvatar(): Promise<void> {
     if (this.avatarStopping) return this.avatarStopping;
     ++this.avatarAttempt; this.avatarLoading = false; this.avatarTyped = [];
+    if (this.avatarDiagnostic) { this.avatarDiagnostic.hidden = true; this.avatarDiagnostic.open = false; }
+    if (this.avatarDiagnosticText) this.avatarDiagnosticText.textContent = '';
     const avatar = this.avatar; this.avatar = undefined;
     if (this.avatarCode) { this.avatarCode.value = ''; this.avatarCode.removeAttribute('aria-invalid'); }
     if (this.avatarVideo) { this.avatarVideo.pause(); this.avatarVideo.srcObject = null; }
