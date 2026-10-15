@@ -16,6 +16,7 @@ Each session creates its own PAL with a unique callback credential. Credentials 
 
 - `pnpm check`: 409 tests across 23 files, typecheck and production build passed.
 - Bionera staged app configuration validation, app build and Theme Check passed with both existing Bionera extension identities preserved.
+- Implementation commit `a088047` was pushed. Bionera extension version `bionera-tavus-preview-a088047` / `1168669835265` was released and read back as active. No theme settings/publication changed. The backend still requires migration/deployment and Tavus remains disabled.
 - Actual Tavus key authentication and stock-face reads: HTTP 200. No key was printed or committed.
 - Actual `test_mode: true` preflight with this adapter and Brooke: PAL creation 200; private conversation creation 200 with `ended` status and meeting token; end 200; conversation hard-delete 204; PAL delete 204. No known test resources remain.
 - Test mode never launches the avatar and does not test the real callback, speech quality, interruption, latency or production cost.
