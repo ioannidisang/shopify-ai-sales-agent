@@ -40,6 +40,7 @@ export interface ChatResponse {
 
 export interface ShopifyBrowser {
   routes?: { root: string };
+  theme?: { id?: number | string; role?: string };
   customerPrivacy?: { analyticsProcessingAllowed(): boolean };
   loadFeatures?: (features: { name: string; version: string }[], callback: (error?: unknown) => void) => void;
   analytics?: { publish(name: string, data: Record<string, unknown>): unknown };

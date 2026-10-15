@@ -3,6 +3,7 @@ import type { WidgetConnection, EventDetail } from './connection.js';
 import { styles } from './styles.js';
 import { lockPageScroll } from './appearance.js';
 import { avatarModuleUrl } from './module-url.js';
+import { isUnpublishedTheme } from './preview.js';
 import type { AnalyticsEventName, ChatResponse, Product, Variant } from './types.js';
 import type { TavusPilot, PilotState, PilotOptions } from './tavus.js';
 
@@ -184,7 +185,7 @@ class SalesAssistant {
   }
 
   private avatarAllowed(): boolean {
-    return this.host.dataset.themeRole === 'unpublished' && !!this.session?.enabled && this.session.assignment !== 'control' && this.session.avatar?.provider === 'tavus' && this.session.avatar.previewOnly === true;
+    return isUnpublishedTheme(window.Shopify?.theme) && !!this.session?.enabled && this.session.assignment !== 'control' && this.session.avatar?.provider === 'tavus' && this.session.avatar.previewOnly === true;
   }
 
   private buildAvatar(): HTMLDetailsElement {
