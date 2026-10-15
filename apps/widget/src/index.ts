@@ -25,6 +25,7 @@ const copy = {
     live: 'Price and availability checked with Shopify. Final totals at checkout.', noVariant: 'Open the product page for available options.',
     avatar: 'Private trial · AI digital assistant', avatarNotice: 'In this trial, your text and microphone audio are sent to Tavus and our AI provider. Your camera stays off. Avoid personal or health details.',
     avatarCode: 'Private trial access code', avatarStart: 'Start avatar · microphone off', avatarStarting: 'Connecting the digital assistant…', avatarReady: 'Connected. Type below or enable the microphone.', avatarEnd: 'End avatar · continue in text', avatarStopping: 'Ending the trial…', avatarFailed: 'The avatar is unavailable. You can continue in text.',
+    avatarCodeRequired: 'Enter the private trial access code before starting.', avatarWaitForReply: 'Wait for the current answer, then start the avatar.',
     avatarMicOn: 'Turn microphone on', avatarMicOff: 'Mute microphone', avatarInterrupt: 'Stop speaking', avatarPlay: 'Play sound and video', avatarCaption: 'Checked answer',
   },
   el: {
@@ -44,6 +45,7 @@ const copy = {
     live: 'Τιμή και διαθεσιμότητα από Shopify. Το τελικό σύνολο εμφανίζεται στην ολοκλήρωση.', noVariant: 'Δες τη σελίδα του προϊόντος για διαθέσιμες επιλογές.',
     avatar: 'Ιδιωτική δοκιμή · AI ψηφιακός βοηθός', avatarNotice: 'Στη δοκιμή, το κείμενο και ο ήχος του μικροφώνου σου αποστέλλονται στο Tavus και στον πάροχο AI μας. Η κάμερά σου παραμένει κλειστή. Απόφυγε προσωπικά δεδομένα ή στοιχεία υγείας.',
     avatarCode: 'Κωδικός ιδιωτικής δοκιμής', avatarStart: 'Έναρξη προσώπου · μικρόφωνο κλειστό', avatarStarting: 'Συνδέεται ο ψηφιακός βοηθός…', avatarReady: 'Συνδέθηκε. Γράψε παρακάτω ή άνοιξε το μικρόφωνο.', avatarEnd: 'Τέλος προσώπου · συνέχεια γραπτά', avatarStopping: 'Τερματίζεται η δοκιμή…', avatarFailed: 'Το πρόσωπο δεν είναι διαθέσιμο. Μπορείς να συνεχίσεις γραπτά.',
+    avatarCodeRequired: 'Συμπλήρωσε τον κωδικό ιδιωτικής δοκιμής για να ξεκινήσεις.', avatarWaitForReply: 'Περίμενε την τρέχουσα απάντηση και μετά ξεκίνησε το πρόσωπο.',
     avatarMicOn: 'Άνοιγμα μικροφώνου', avatarMicOff: 'Σίγαση μικροφώνου', avatarInterrupt: 'Σταμάτα την ομιλία', avatarPlay: 'Αναπαραγωγή ήχου και εικόνας', avatarCaption: 'Ελεγμένη απάντηση',
   },
 } as const;
@@ -181,7 +183,12 @@ class SalesAssistant {
     this.dialog.append(shell);
     this.shadow.append(this.dialog);
     window.addEventListener('pagehide', () => { void this.stopAvatar(); });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) void this.stopAvatar(); });
+    document.addEventListener('visibilitychange', () => {
+      // Stop media and connection attempts in a background tab, but preserve an
+      // unsubmitted code while the merchant switches tabs to prepare the trial.
+      const state = this.avatar?.state;
+      if (document.hidden && (this.avatarLoading || state === 'starting' || state === 'active' || state === 'stopping')) void this.stopAvatar();
+    });
   }
 
   private avatarAllowed(): boolean {
@@ -201,6 +208,11 @@ class SalesAssistant {
     const end = button(this.t.avatarEnd, () => this.stopAvatar()); end.hidden = true;
     const controls = node('div', undefined, 'avatar-controls'); controls.append(microphone, interrupt, end);
     const status = node('p', '', 'avatar-status'); status.setAttribute('role', 'status');
+    code.addEventListener('input', () => {
+      if (code.getAttribute('aria-invalid') !== 'true') return;
+      code.removeAttribute('aria-invalid');
+      status.textContent = '';
+    });
     const caption = node('p', '', 'avatar-caption'); caption.hidden = true; caption.setAttribute('aria-label', this.t.avatarCaption);
     panel.append(code, start, video, play, caption, controls, status);
     this.avatarPanel = panel; this.avatarCode = code; this.avatarStart = start; this.avatarVideo = video; this.avatarPlay = play; this.avatarMic = microphone; this.avatarInterrupt = interrupt; this.avatarEnd = end; this.avatarStatus = status; this.avatarCaption = caption;
@@ -211,7 +223,7 @@ class SalesAssistant {
     const active = state === 'active';
     const busy = state === 'starting' || state === 'stopping';
     if (this.avatarStart) { this.avatarStart.hidden = active || busy; this.avatarStart.disabled = busy; }
-    if (this.avatarCode) { this.avatarCode.hidden = active || busy; this.avatarCode.value = ''; }
+    if (this.avatarCode) this.avatarCode.hidden = active || busy;
     if (this.avatarMic) {
       this.avatarMic.hidden = !active;
       if (!active) { this.avatarMic.textContent = this.t.avatarMicOn; this.avatarMic.setAttribute('aria-pressed', 'false'); }
@@ -226,8 +238,18 @@ class SalesAssistant {
   }
 
   private async startAvatar(): Promise<void> {
-    if (!this.avatarAllowed() || !this.dialog.open || this.avatarLoading || this.chatPending || !this.avatarCode?.value.trim()) return;
-    let accessCode = this.avatarCode.value; this.avatarCode.value = '';
+    if (!this.dialog.open || this.avatarLoading) return;
+    if (!this.avatarAllowed()) { this.avatarState('failed'); return; }
+    if (this.avatarStopping) { if (this.avatarStatus) this.avatarStatus.textContent = this.t.avatarStopping; return; }
+    if (this.chatPending) { if (this.avatarStatus) this.avatarStatus.textContent = this.t.avatarWaitForReply; return; }
+    if (!this.avatarCode?.value.trim()) {
+      if (this.avatarStatus) this.avatarStatus.textContent = this.t.avatarCodeRequired;
+      this.avatarCode?.setAttribute('aria-invalid', 'true');
+      this.avatarCode?.focus();
+      return;
+    }
+    this.avatarCode.removeAttribute('aria-invalid');
+    let accessCode = this.avatarCode.value.trim(); this.avatarCode.value = '';
     const generation = this.generation;
     const attempt = ++this.avatarAttempt;
     this.avatarPlaybackPaused = false;
@@ -278,7 +300,7 @@ class SalesAssistant {
     if (this.avatarStopping) return this.avatarStopping;
     ++this.avatarAttempt; this.avatarLoading = false; this.avatarTyped = [];
     const avatar = this.avatar; this.avatar = undefined;
-    if (this.avatarCode) this.avatarCode.value = '';
+    if (this.avatarCode) { this.avatarCode.value = ''; this.avatarCode.removeAttribute('aria-invalid'); }
     if (this.avatarVideo) { this.avatarVideo.pause(); this.avatarVideo.srcObject = null; }
     if (this.avatarCaption) { this.avatarCaption.textContent = ''; this.avatarCaption.hidden = true; }
     this.avatarState(avatar ? 'stopping' : 'idle');
