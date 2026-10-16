@@ -85,7 +85,7 @@ describe('two-call conversation with a complete small live catalog', () => {
     const input = request();
     vi.mocked(input.catalog.getCompleteSmallCatalog!).mockResolvedValue([]);
     vi.mocked(input.composer!.selectAndCompose!).mockResolvedValue({ plan: { ...plan, intent: 'clarify', productIds: [], factIds: [] },
-      draft: draft('Δεν έχω διαθέσιμη επιλογή στον κατάλογο.', [], []) });
+      draft: draft('Δεν βρήκα επιλογή στον κατάλογο.', [], []) });
     const result = await respond(input);
     expect(result.policy).toBeUndefined();
     expect(result.products).toEqual([]);

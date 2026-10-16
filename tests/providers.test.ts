@@ -113,6 +113,7 @@ for (const provider of ['openai', 'mistral'] as const) {
       expect(messages(requests[2]!)[0].content).toContain('An absence-of-evidence acknowledgment needs no citation');
       expect(messages(requests[2]!)[0].content).toContain('Verdict: supported=true, medical=false');
       expect(messages(requests[2]!)[0].content).toContain('Verdict: supported=false, medical=false');
+      expect(messages(requests[2]!)[0].content).toContain('Names, ingredients and packaging are never stock evidence');
       expect(JSON.stringify(onUsage.mock.calls)).not.toContain(conversation.message);
     });
 
@@ -142,7 +143,8 @@ for (const provider of ['openai', 'mistral'] as const) {
         expect(context.history[0].context).toEqual({ productIds: ['p2', 'p1'], factIds: ['f1'] });
         expect(messages[0].content).toContain('For add_to_cart return draft=null');
         expect(messages[0].content).toContain('Every draft reference must also occur in plan.productIds or plan.factIds');
-        expect(messages[0].content).toContain('Keep prices, discounts and stock quantities out of prose');
+        expect(messages[0].content).toContain('Keep prices, discounts, stock quantities and product availability status out of prose');
+        expect(messages[0].content).toContain('even if all its variants are sold out. Answer the factual question');
         expect(messages[0].content).toContain('return intent=clarify, productIds=[],');
         expect(messages[0].content).toContain('name Good Night plus an approved fact that it contains melatonin does not support recommending it');
         return jsonResponse(responseBody({ plan: { ...plan, productIds: ['p1'] }, draft }));

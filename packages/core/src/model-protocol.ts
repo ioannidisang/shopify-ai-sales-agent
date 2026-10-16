@@ -3,7 +3,7 @@ import { conversationDraftSchema, type ConversationInput, type ModelOptions, typ
 import type { PlannerInput } from './types.js';
 
 /** Bump whenever prompts, context, output contracts or server response validation rules change. */
-export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v8';
+export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v9';
 
 export const planSchema = z.object({
   intent: z.enum(['search', 'facts', 'add_to_cart', 'clarify', 'greeting', 'medical', 'unsupported']),
@@ -36,6 +36,8 @@ For medical intent return no productIds, factIds or variantId. Use unsupported f
 On the first pass products may be empty: derive a short product/category searchQuery from the latest message and
 conversation context. Translate generic Greek product category terms into common English names when useful.
 On the second pass, choose only provided product IDs and fact IDs, ranked by the stated shopping preferences.
+For an explicit named-product information request, keep the matching provided product and its relevant approved facts
+even when unavailable for purchase. Inventory restricts cart actions, not access to factual product information.
 Never infer health benefits or suitability from product titles. Product facts must reference exact provided fact IDs.
 Only use add_to_cart when the latest user message explicitly asks to add a concrete product. Resolve a variant only
 when uniquely specified by the user or when that product has exactly one variant. Otherwise use clarify.
@@ -57,7 +59,9 @@ General non-clinical wellbeing goals do not authorize benefit claims. A product 
 that it supports the goal, even if the reply only repeats its name or ingredients. This implication needs an approved fact
 explicitly linking that exact product to that goal; a title, ingredient or package fact is insufficient. Without that link,
 ask a neutral shopping clarification and acknowledge the information limit, without recommending or displaying a product.
-Keep prices, discounts and stock quantities out of prose; the live product cards display commerce values.
+Keep prices, discounts, stock quantities and product availability status out of prose; live product cards display them.
+Do not say a product is in stock, sold out or unavailable, even from a candidate snapshot. Direct the shopper to the
+selected current card for availability when its showsAvailability flag is true. No selected card means no stock assertion.
 The server-provided productCards describe the UI accompanying this reply, not extra product claims.
 When showsPrice or showsAvailability is true, that information is displayed in the corresponding product card.
 Omission of numeric prices or stock data from your prose context does not mean that the shopper lacks that information.
@@ -89,6 +93,7 @@ and describe only the limits of the evidence available to you. Never say the bra
 product cannot have a benefit: missing approved evidence does not prove absence, inefficacy or catalog availability.
 Do not turn this evidence limit into a medical assessment. Do not refer the shopper to a health professional solely
 for a general non-clinical goal; the usual medical boundaries still apply when there is relevant clinical context.
+Ask which specific product or ingredient the shopper wants factual information about, not what features a product for the unsupported goal should have.
 ${writingRules}`;
 
 export const selectionComposerInstructions = `Select relevant catalog products and approved facts, then write one concise shopping reply.
@@ -96,6 +101,8 @@ Return only the required JSON object containing plan and draft. Classify the lat
 the supplied intent is only a hint and may be classify_and_select when the server already obtained a complete small live catalog.
 The supplied products and facts are CANDIDATES, not an already selected recommendation or displayed UI.
 Select at most 4 productIds and at most 4 factIds. Only select provided IDs. A product-specific fact requires its selected product.
+When the shopper explicitly asks about a named product, select its matching current candidate and relevant approved facts
+even if all its variants are sold out. Answer the factual question; do not omit the product or replace its facts with a stock statement.
 Set searchQuery to an empty string; this stage cannot request another search. Never invent an ID or a source.
 Preserve clinical context for dependent requests. Use medical for diagnosis, treatment, symptoms, medication interactions,
 pregnancy, breastfeeding, personalized dosage, medical suitability or a child. For medical, clear all selected IDs and return draft=null.
@@ -140,6 +147,9 @@ product needs evidence for that fact, not evidence of benefit for an earlier goa
 Use productCards to check references to the accompanying UI. A cited product ID suffices for a supported reference to its
 displayed price or availability; no fact ID is needed for that UI reference. Reject claims that price or availability
 information is missing when the corresponding current card shows it. This does not authorize prices or stock claims in prose.
+Any prose assertion that a product is in stock, sold out or unavailable is unsupported, including an uncited assertion
+with products=[] and facts=[]. Names, ingredients and packaging are never stock evidence. A reference to availability
+being shown in a selected current card is allowed only when that card's showsAvailability is true.
 Safe greetings and clarification questions do not require citations. Lack of evidence should be admitted, not filled in.
 Set medical=true if the request or relevant conversation context concerns diagnosis, treatment, symptoms, interactions,
 pregnancy, breastfeeding, personalized dosage, medical suitability or a child, OR the draft gives medical/diagnostic advice.
