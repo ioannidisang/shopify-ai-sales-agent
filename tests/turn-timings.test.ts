@@ -59,6 +59,22 @@ describe('private turn duration measurements', () => {
     expect(timings.snapshot().stages.catalogProducts.calls).toBe(2);
   });
 
+  it('preserves optional combined composition and counts it once without exposing its selection or draft', async () => {
+    let now = 0;
+    const timings = new TurnTimings(() => now);
+    const value = { plan, draft: { segments: [{ text: 'private draft', productIds: [], factIds: [] }] } };
+    const composer: ConversationModel = {
+      async compose() { throw new Error('Unexpected separate composition'); },
+      async verify() { return { supported: true, medical: false }; },
+      async selectAndCompose(input) { expect(this).toBe(composer); expect(input).toBe(privateConversation); now += 200; return value; },
+    };
+    const measured = timings.model({ planner: { async plan() { return plan; } }, composer });
+    expect(await measured.composer!.selectAndCompose!(privateConversation)).toBe(value);
+    expect(timings.snapshot().stages.compose).toEqual({ calls: 1, failed: 0, durationMs: 200 });
+    expect(timings.snapshot().stages.plan.calls).toBe(0);
+    expect(JSON.stringify(timings.snapshot())).not.toContain('private');
+  });
+
   it('bounds accumulated values and records failed calls without exposing their exceptions', async () => {
     let now = 0;
     const timings = new TurnTimings(() => now);

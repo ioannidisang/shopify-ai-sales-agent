@@ -44,6 +44,7 @@ export class TurnTimings {
       planner: { plan: input => this.measure('plan', () => model.planner.plan(input)) },
       ...(composer ? { composer: {
         compose: input => this.measure('compose', () => composer.compose(input)),
+        ...(composer.selectAndCompose ? { selectAndCompose: input => this.measure('compose', () => composer.selectAndCompose!(input)) } : {}),
         verify: (input, draft) => this.measure('verify', () => composer.verify(input, draft)),
       } } : {}),
     };

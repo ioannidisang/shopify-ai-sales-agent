@@ -112,6 +112,38 @@ for (const provider of ['openai', 'mistral'] as const) {
       expect(await create(fetcher).verify(conversation, draft)).toEqual({ supported: false, medical: true });
     });
 
+    it('combines selection and drafting without claiming that every candidate card is displayed', async () => {
+      const onUsage = vi.fn();
+      const fetcher = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        const messages = provider === 'openai' ? body.input : body.messages;
+        const context = JSON.parse(messages[1].content);
+        const format = provider === 'openai' ? body.text.format : body.response_format.json_schema;
+        expect(format.strict).toBe(true);
+        expect(format.schema.required).toEqual(['plan', 'draft']);
+        expect(format.schema.additionalProperties).toBe(false);
+        expect(context).not.toHaveProperty('productCards');
+        expect(context.candidateProductCards).toHaveLength(12);
+        expect(context.products[0].variants[0].price).toEqual(product.variants[0]!.price);
+        expect(context.products[0].variants[0].availableForSale).toBe(true);
+        expect(context.facts).toEqual([{ id: 'size-1', productId: product.id, text: 'Η συσκευασία είναι 500 g.' }]);
+        expect(messages[0].content).toContain('For add_to_cart return draft=null');
+        expect(messages[0].content).toContain('Every draft reference must also occur in plan.productIds or plan.factIds');
+        expect(messages[0].content).toContain('Keep prices, discounts and stock quantities out of prose');
+        return jsonResponse(responseBody({ plan, draft }));
+      });
+      const products = Array.from({ length: 12 }, (_, index) => ({ ...product, id: `gid://shopify/Product/${index + 1}` }));
+      expect(await create(fetcher, onUsage).selectAndCompose({ ...conversation, products })).toEqual({ plan, draft });
+      expect(fetcher).toHaveBeenCalledOnce();
+      expect(onUsage.mock.calls[0]![0]).toMatchObject({ operation: 'compose', success: true });
+      expect(JSON.stringify(onUsage.mock.calls)).not.toContain(conversation.message);
+    });
+
+    it('rejects unexpected combined selection fields without promoting the draft', async () => {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(responseBody({ plan, draft, executeCart: true })));
+      await expect(create(fetcher).selectAndCompose(conversation)).rejects.toThrow('planning service');
+    });
+
     it('fails closed on unexpected draft fields', async () => {
       const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(responseBody({ ...draft, cartMutation: 'unsafe' })));
       await expect(create(fetcher).compose(conversation)).rejects.toThrow('planning service');

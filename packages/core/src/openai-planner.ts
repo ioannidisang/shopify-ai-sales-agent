@@ -1,8 +1,8 @@
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import type { z } from 'zod';
-import { conversationDraftSchema, verificationSchema, type ConversationDraft, type ConversationInput, type ConversationModel, type ModelOptions, type ModelUsage, type Verification } from './conversation.js';
-import { composerInstructions, conversationContext, measuredCall, PlannerError, plannerContext, plannerInstructions, planSchema, verifierInstructions } from './model-protocol.js';
+import { conversationDraftSchema, verificationSchema, type ConversationDraft, type ConversationInput, type ConversationModel, type ConversationSelection, type ModelOptions, type ModelUsage, type Verification } from './conversation.js';
+import { composerInstructions, conversationContext, conversationSelectionSchema, measuredCall, PlannerError, plannerContext, plannerInstructions, planSchema, selectionComposerInstructions, selectionConversationContext, verifierInstructions } from './model-protocol.js';
 import type { Planner, PlannerInput, Plan } from './types.js';
 
 export { planSchema, PlannerError } from './model-protocol.js';
@@ -39,6 +39,10 @@ export class OpenAIPlanner implements Planner, ConversationModel {
 
   compose(input: ConversationInput): Promise<ConversationDraft> {
     return this.request('compose', composerInstructions, conversationContext(input), conversationDraftSchema, 1600);
+  }
+
+  selectAndCompose(input: ConversationInput): Promise<ConversationSelection> {
+    return this.request('compose', selectionComposerInstructions, selectionConversationContext(input), conversationSelectionSchema, 1600);
   }
 
   verify(input: ConversationInput, draft: ConversationDraft): Promise<Verification> {

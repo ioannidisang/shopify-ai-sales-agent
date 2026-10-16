@@ -1,4 +1,4 @@
-import { conversationDraftSchema, verificationSchema, type ConversationInput, type ConversationModel } from './conversation.js';
+import { conversationDraftSchema, verificationSchema, type ConversationDraft, type ConversationInput, type ConversationModel } from './conversation.js';
 import { containsForbiddenClaim, normalizeInput } from './policy.js';
 
 export class CompositionRejected extends Error {
@@ -9,7 +9,12 @@ const numbers = (value: string) => value.normalize('NFKC').match(/\d+(?:[.,]\d+)
 
 /** Deterministic checks complement, but cannot replace, semantic evidence checking. */
 export async function composeGrounded(model: ConversationModel, input: ConversationInput): Promise<string> {
-  const draft = conversationDraftSchema.parse(await model.compose(input));
+  return verifyGrounded(model, input, await model.compose(input));
+}
+
+/** A draft composed alongside selection has exactly the same final validation boundary. */
+export async function verifyGrounded(model: ConversationModel, input: ConversationInput, untrusted: ConversationDraft): Promise<string> {
+  const draft = conversationDraftSchema.parse(untrusted);
   const products = new Map(input.products.map(product => [product.id, product]));
   const facts = new Map(input.facts.map(fact => [fact.id, fact]));
   for (const segment of draft.segments) {

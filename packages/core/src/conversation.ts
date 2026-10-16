@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { GroundedFact, HistoryMessage, Locale, PendingAction, Product } from './types.js';
+import type { GroundedFact, HistoryMessage, Locale, PendingAction, Plan, Product } from './types.js';
 
 export interface ConversationInput {
   message: string; history: HistoryMessage[]; locale: Locale; brand: string;
@@ -9,9 +9,12 @@ export interface ConversationInput {
 export interface ConversationDraft {
   segments: Array<{ text: string; productIds: string[]; factIds: string[] }>;
 }
+export interface ConversationSelection { plan: Plan; draft: ConversationDraft | null }
 export interface Verification { supported: boolean; medical: boolean }
 export interface ConversationModel {
   compose(input: ConversationInput): Promise<ConversationDraft>;
+  /** Select from live candidates and draft once; final selected evidence is independently verified afterward. */
+  selectAndCompose?(input: ConversationInput): Promise<ConversationSelection>;
   verify(input: ConversationInput, draft: ConversationDraft): Promise<Verification>;
 }
 export interface ModelUsage {

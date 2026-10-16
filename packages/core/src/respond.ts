@@ -1,7 +1,8 @@
-import { plannerContext, planSchema } from './model-protocol.js';
+import { conversationSelectionSchema, plannerContext, planSchema } from './model-protocol.js';
 import { hasExplicitAddIntent, isMedicalRequest, usableFacts } from './policy.js';
 import { currentSourceFacts, retrieveFacts } from './knowledge.js';
-import { composeGrounded, CompositionRejected } from './grounding.js';
+import { composeGrounded, CompositionRejected, verifyGrounded } from './grounding.js';
+import type { ConversationDraft, ConversationInput } from './conversation.js';
 import type { AssistantResponse, Locale, RespondInput } from './types.js';
 
 const templates = {
@@ -51,14 +52,15 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
     && Number.isFinite(Date.parse(configuredProfile.approvedAt)) && Date.parse(configuredProfile.approvedAt) <= Date.now() ? configuredProfile : undefined;
   const base = { message: input.message, history: history.slice(-10), locale, facts,
     ...(profile ? { guidance: { instructions: profile.instructions, examples: profile.examples } } : {}) };
-  const finish = async (result: AssistantResponse, intent: string): Promise<AssistantResponse> => {
+  const finish = async (result: AssistantResponse, intent: string, draft?: ConversationDraft): Promise<AssistantResponse> => {
     // Legacy planner-only consumers keep their deterministic interface. Production always supplies a composer.
     if (!input.composer) return result;
-    const text = await composeGrounded(input.composer, {
+    const composition: ConversationInput = {
       ...base, brand: shop.brand, products: result.products, facts: result.facts,
       instructions: profile?.instructions ?? '', examples: profile?.examples ?? [], intent,
       ...(result.pendingAction ? { pendingAction: result.pendingAction } : {}),
-    });
+    };
+    const text = draft ? await verifyGrounded(input.composer, composition, draft) : await composeGrounded(input.composer, composition);
     const selectedIds = new Set(result.facts.map(fact => fact.id));
     const stillApproved = usableFacts(currentSourceFacts(input.facts, shop.shop).filter(fact => selectedIds.has(fact.id)), shop.shop, locale);
     if (stillApproved.length !== selectedIds.size) throw new CompositionRejected();
@@ -88,9 +90,19 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
     // checks below; this removes duplicate planning, never evidence validation.
     const samePlanningContext = !initial.searchQuery.trim()
       && JSON.stringify(plannerContext(initialInput)) === JSON.stringify(plannerContext(selectionInput));
-    const plan = samePlanningContext ? initial : planSchema.parse(await planner.plan(selectionInput));
+    // Production combines selection and writing, but the draft remains untrusted.
+    // Its only validation context is the final selected evidence AFTER fresh live
+    // reads below, never the wider search candidates or old commerce values.
+    // Known cart requests retain the separate post-validation composition path.
+    const combined = !samePlanningContext && initial.intent !== 'add_to_cart' && input.composer?.selectAndCompose
+      ? conversationSelectionSchema.parse(await input.composer.selectAndCompose({
+        ...selectionInput, brand: shop.brand, instructions: profile?.instructions ?? '', examples: profile?.examples ?? [], intent: initial.intent,
+      })) : undefined;
+    const plan = combined?.plan ?? (samePlanningContext ? initial : planSchema.parse(await planner.plan(selectionInput)));
     if (plan.intent === 'medical') return policyResponse(locale, 'medical');
-    if (plan.intent === 'unsupported' || plan.intent === 'greeting') return await finish(policyResponse(locale, plan.intent), plan.intent);
+    if (combined && !combined.draft && plan.intent !== 'add_to_cart') throw new CompositionRejected();
+    const selectedDraft = combined?.draft ?? undefined;
+    if (plan.intent === 'unsupported' || plan.intent === 'greeting') return await finish(policyResponse(locale, plan.intent), plan.intent, selectedDraft);
     // Never fetch an arbitrary model-supplied ID; it must be a member of this shop's search result.
     const ids = [...new Set(plan.productIds)].filter(id => allowedProductIds.has(id)).slice(0, 4);
     const fresh = ids.length ? await catalog.getProducts(ids, context) : [];
@@ -127,7 +139,8 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
         }
       }
     }
-    return await finish(result, result.pendingAction ? 'cart_confirmation_required' : plan.intent === 'add_to_cart' ? 'clarify' : plan.intent);
+    return await finish(result, result.pendingAction ? 'cart_confirmation_required' : plan.intent === 'add_to_cart' ? 'clarify' : plan.intent,
+      plan.intent === 'add_to_cart' ? undefined : selectedDraft);
   } catch (error) {
     // Never leak provider error bodies, credentials, or unsafe model output.
     if (error instanceof CompositionRejected && error.medical) return policyResponse(locale, 'medical');

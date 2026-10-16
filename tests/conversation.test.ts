@@ -230,3 +230,129 @@ describe('generated conversation with evidence checks', () => {
     expect(input.catalog.getProducts).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('combined product selection and composition', () => {
+  function combinedRequest(overrides: Partial<RespondInput> = {}) {
+    const composer: ConversationModel = {
+      ...model(),
+      selectAndCompose: vi.fn().mockResolvedValue({ plan: { ...plan, intent: 'facts', factIds: [fact.id] },
+        draft: draft('Η συσκευασία περιέχει 500 g.', [product.id], [fact.id]) }),
+    };
+    return request({ composer, ...overrides });
+  }
+
+  it('uses three model calls, keeps fresh commerce, and verifies only selected final evidence', async () => {
+    const second = { ...product, id: 'gid://shopify/Product/2', title: 'Unselected powder' };
+    const input = combinedRequest();
+    const freshProduct = { ...product, variants: [{ ...product.variants[0]!, price: { amount: '29.90', currencyCode: 'EUR' }, availableForSale: false }] };
+    vi.mocked(input.catalog.search).mockResolvedValue([product, second]);
+    vi.mocked(input.catalog.getProducts).mockResolvedValue([freshProduct]);
+    const result = await respond(input);
+    expect(result.policy).toBeUndefined();
+    expect(result.text).toBe('Η συσκευασία περιέχει 500 g.');
+    expect(result.products).toEqual([freshProduct]);
+    expect(input.planner.plan).toHaveBeenCalledOnce();
+    expect(input.composer!.selectAndCompose).toHaveBeenCalledOnce();
+    expect(input.composer!.compose).not.toHaveBeenCalled();
+    expect(input.composer!.verify).toHaveBeenCalledOnce();
+    expect(input.composer!.verify).toHaveBeenCalledWith(expect.objectContaining({ products: [freshProduct],
+      facts: [{ id: fact.id, productId: product.id, text: fact.text, source: fact.source }] }), expect.anything());
+    expect(input.catalog.getProducts).toHaveBeenCalledWith([product.id], { country: 'GR', locale: 'el' });
+  });
+
+  it.each(['unselected product', 'wrong product fact', 'generated price', 'unsupported quantity'])('rejects %s before semantic verification', async kind => {
+    const second = { ...product, id: 'gid://shopify/Product/2' };
+    const otherFact = { ...fact, id: 'other-fact', productId: second.id };
+    const input = combinedRequest({ facts: [fact, otherFact] });
+    vi.mocked(input.catalog.search).mockResolvedValue([product, second]);
+    const value = kind === 'unselected product' ? draft('Here is another product.', [second.id])
+      : kind === 'wrong product fact' ? draft('Contains 500 g.', [product.id], [otherFact.id])
+        : kind === 'generated price' ? draft('It costs €25.', [product.id]) : draft('Contains 900 g.', [product.id], [fact.id]);
+    vi.mocked(input.composer!.selectAndCompose!).mockResolvedValue({ plan: { ...plan, factIds: [fact.id, otherFact.id] }, draft: value });
+    expect((await respond(input)).policy).toBe('unavailable');
+    expect(input.composer!.verify).not.toHaveBeenCalled();
+    expect(input.composer!.compose).not.toHaveBeenCalled();
+  });
+
+  it('never verifies a search-snapshot assertion when the selected product disappeared', async () => {
+    const input = combinedRequest();
+    vi.mocked(input.catalog.getProducts).mockResolvedValue([]);
+    expect((await respond(input)).policy).toBe('unavailable');
+    expect(input.composer!.verify).not.toHaveBeenCalled();
+  });
+
+  it.each(['select', 'verify'])('withholds facts revoked during %s', async stage => {
+    const mutable = { ...fact };
+    const input = combinedRequest({ facts: [mutable] });
+    if (stage === 'select') vi.mocked(input.composer!.selectAndCompose!).mockImplementation(async () => {
+      mutable.status = 'revoked';
+      return { plan: { ...plan, factIds: [fact.id] }, draft: draft('Contains 500 g.', [product.id], [fact.id]) };
+    });
+    else vi.mocked(input.composer!.verify).mockImplementation(async () => {
+      mutable.status = 'revoked';
+      return { supported: true, medical: false };
+    });
+    const result = await respond(input);
+    expect(result.policy).toBe('unavailable');
+    expect(result.facts).toEqual([]);
+  });
+
+  it('retains clinical markers for independent factual requests in selection and verification', async () => {
+    const history = [{ role: 'user' as const, content: MEDICAL_HISTORY_MARKER }];
+    const input = combinedRequest({ message: 'Θέλω ασβέστιο', history });
+    expect((await respond(input)).policy).toBeUndefined();
+    expect(input.composer!.selectAndCompose).toHaveBeenCalledWith(expect.objectContaining({ history }));
+    expect(input.composer!.verify).toHaveBeenCalledWith(expect.objectContaining({ history }), expect.anything());
+  });
+
+  it('honors a clinical classification even when combined output includes a harmless-looking draft', async () => {
+    const input = combinedRequest();
+    vi.mocked(input.composer!.selectAndCompose!).mockResolvedValue({ plan: { ...plan, intent: 'medical' }, draft: draft('Hello') });
+    expect((await respond(input)).policy).toBe('medical');
+    expect(input.catalog.getProducts).not.toHaveBeenCalled();
+    expect(input.composer!.verify).not.toHaveBeenCalled();
+  });
+
+  it('verifies empty-selection clarification without paying for another composition', async () => {
+    const input = combinedRequest();
+    vi.mocked(input.composer!.selectAndCompose!).mockResolvedValue({ plan: { ...plan, intent: 'clarify', productIds: [], factIds: [] },
+      draft: draft('Προτιμάς κάψουλες ή σκόνη;') });
+    const result = await respond(input);
+    expect(result.text).toBe('Προτιμάς κάψουλες ή σκόνη;');
+    expect(result.products).toEqual([]);
+    expect(input.composer!.compose).not.toHaveBeenCalled();
+    expect(input.composer!.verify).toHaveBeenCalledOnce();
+  });
+
+  it('retains a separate composition after final variant validation for explicit cart requests', async () => {
+    const input = combinedRequest({ message: 'Add the vanilla product to my cart' });
+    vi.mocked(input.planner.plan).mockResolvedValue({ ...plan, intent: 'add_to_cart', variantId: product.variants[0]!.id, quantity: 1 });
+    const result = await respond(input);
+    expect(result.pendingAction).toEqual({ kind: 'add', variantId: product.variants[0]!.id, quantity: 1 });
+    expect(input.composer!.selectAndCompose).not.toHaveBeenCalled();
+    expect(input.catalog.getVariant).toHaveBeenCalledOnce();
+    expect(input.composer!.compose).toHaveBeenCalledWith(expect.objectContaining({ pendingAction: result.pendingAction }));
+    expect(input.composer!.verify).toHaveBeenCalledOnce();
+  });
+
+  it('discards a combined cart draft and never promotes model intent into shopper authorization', async () => {
+    const input = combinedRequest();
+    vi.mocked(input.composer!.selectAndCompose!).mockResolvedValue({
+      plan: { ...plan, intent: 'add_to_cart', variantId: product.variants[0]!.id, quantity: 1 }, draft: draft('I added it to your cart.'),
+    });
+    const result = await respond(input);
+    expect(result.pendingAction).toBeUndefined();
+    expect(input.catalog.getVariant).not.toHaveBeenCalled();
+    expect(result.text).not.toContain('added');
+    expect(input.composer!.compose).toHaveBeenCalledWith(expect.objectContaining({ intent: 'clarify' }));
+  });
+
+  it('withholds the complete combined answer when semantic support is rejected', async () => {
+    const input = combinedRequest();
+    vi.mocked(input.composer!.verify).mockResolvedValue({ supported: false, medical: false });
+    const result = await respond(input);
+    expect(result.policy).toBe('unavailable');
+    expect(result.products).toEqual([]);
+    expect(result.facts).toEqual([]);
+  });
+});
