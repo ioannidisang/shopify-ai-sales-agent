@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { respond } from '../packages/core/src/respond.js';
 import { composeGrounded } from '../packages/core/src/grounding.js';
 import { conversationContext } from '../packages/core/src/model-protocol.js';
+import { MEDICAL_HISTORY_MARKER } from '../packages/core/src/policy.js';
 import type { ConversationDraft, ConversationInput, ConversationModel } from '../packages/core/src/conversation.js';
 import type { ApprovedFact, Plan, Product, RespondInput, ShopConfig } from '../packages/core/src/types.js';
 
@@ -151,6 +152,37 @@ describe('generated conversation with evidence checks', () => {
     expect((await respond(input)).policy).toBe('medical');
     expect(input.composer!.compose).not.toHaveBeenCalled();
   });
+  it('answers a new factual product request after a medical marker without erasing safety context', async () => {
+    const history = [{ role: 'user' as const, content: MEDICAL_HISTORY_MARKER },
+      { role: 'assistant' as const, content: 'Please ask a health professional for personal advice.' }];
+    const before = structuredClone(history);
+    const input = request({ message: 'Θέλω ασβέστιο', history });
+    const result = await respond(input);
+    expect(result.policy).toBeUndefined();
+    expect(result.products).toEqual([product]);
+    expect(input.planner.plan).toHaveBeenCalledWith(expect.objectContaining({ history }));
+    expect(input.composer!.compose).toHaveBeenCalledWith(expect.objectContaining({ history }));
+    expect(input.composer!.verify).toHaveBeenCalledWith(expect.objectContaining({ history }), expect.anything());
+    expect(history).toEqual(before);
+    const followup = request({ message: 'Ναι, βάλε αυτό', history: [...history,
+      { role: 'user', content: input.message }, { role: 'assistant', content: result.text }] });
+    expect((await respond(followup)).policy).toBe('medical');
+    expect(followup.planner.plan).not.toHaveBeenCalled();
+  });
+  it('retains ordinary budget and preference history for a newly named product', async () => {
+    const history = [{ role: 'user' as const, content: 'My budget is modest and I prefer vanilla.' }];
+    const input = request({ message: 'Show me protein', history });
+    await respond(input);
+    expect(input.planner.plan).toHaveBeenCalledWith(expect.objectContaining({ history }));
+    expect(input.composer!.compose).toHaveBeenCalledWith(expect.objectContaining({ history }));
+  });
+  it('still rejects medical implications found by verification after a fresh product request', async () => {
+    const input = request({ message: 'Θέλω ασβέστιο', history: [{ role: 'user', content: MEDICAL_HISTORY_MARKER }] });
+    vi.mocked(input.composer!.verify).mockResolvedValue({ supported: false, medical: true });
+    const result = await respond(input);
+    expect(result.policy).toBe('medical');
+    expect(result.products).toEqual([]);
+  });
   it('fails closed on malformed drafts and provider errors without leaking their contents', async () => {
     const input = request();
     vi.mocked(input.composer!.compose).mockRejectedValue(new Error('secret-provider-payload'));
@@ -167,5 +199,34 @@ describe('generated conversation with evidence checks', () => {
     expect(vi.mocked(input.planner.plan).mock.calls[0]![0].products.map(item => item.id)).toEqual([product.id, second.id]);
     expect(response.products.map(item => item.id)).toEqual([second.id]);
     expect(input.catalog.search).not.toHaveBeenCalled();
+  });
+  it('avoids duplicate planning only for identical no-search context and still re-reads the final selection', async () => {
+    const input = request({ message: 'Τι περιέχει;', history: [{ role: 'assistant', content: 'An option',
+      context: { productIds: [product.id], factIds: [fact.id] } }] });
+    vi.mocked(input.planner.plan).mockResolvedValue({ ...plan, searchQuery: '', intent: 'facts', factIds: [fact.id] });
+    const result = await respond(input);
+    expect(input.planner.plan).toHaveBeenCalledOnce();
+    expect(input.catalog.search).not.toHaveBeenCalled();
+    expect(input.catalog.getProducts).toHaveBeenCalledTimes(2);
+    expect(input.composer!.compose).toHaveBeenCalledOnce();
+    expect(input.composer!.verify).toHaveBeenCalledOnce();
+    expect(result.products).toEqual([product]);
+  });
+  it('plans again without a search when fact scoping changed the model context', async () => {
+    const anotherFact = { ...fact, id: 'another', productId: 'gid://shopify/Product/2' };
+    const input = request({ facts: [fact, anotherFact], message: 'Τι περιέχει;', history: [{ role: 'assistant', content: 'An option',
+      context: { productIds: [product.id], factIds: [fact.id] } }] });
+    vi.mocked(input.planner.plan).mockResolvedValue({ ...plan, searchQuery: '', intent: 'facts', factIds: [fact.id] });
+    await respond(input);
+    expect(input.planner.plan).toHaveBeenCalledTimes(2);
+    expect(input.catalog.search).not.toHaveBeenCalled();
+    expect(input.catalog.getProducts).toHaveBeenCalledTimes(2);
+  });
+  it('does not reuse a plan when a catalog search ran but returned no additional products', async () => {
+    const input = request({ history: [{ role: 'assistant', content: 'An option', context: { productIds: [product.id], factIds: [] } }] });
+    vi.mocked(input.catalog.search).mockResolvedValue([]);
+    await respond(input);
+    expect(input.planner.plan).toHaveBeenCalledTimes(2);
+    expect(input.catalog.getProducts).toHaveBeenCalledTimes(2);
   });
 });

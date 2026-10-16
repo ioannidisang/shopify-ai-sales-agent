@@ -24,12 +24,42 @@ function hasCapsuleDosageQuestion(text: string): boolean {
   return questions.some(match => !packageCountPredicate.test(text.slice(match.index + match[0].length)));
 }
 
+function hasCurrentMedicalRequest(text: string): boolean {
+  return text === MEDICAL_HISTORY_MARKER || medicalTerms.test(text) || personalSuitability.test(text)
+    || hasCapsuleDosageQuestion(text) || hiddenMedical.test(text.replace(/[^\p{L}\p{N}]/gu, ''));
+}
+
+// A new, fully stated catalog request may proceed to semantic classification
+// instead of inheriting a refusal just because it is short. This is NOT a context
+// reset: every model still receives prior clinical context and may reject it.
+// Matching this grammar is never evidence of a product's existence or suitability.
+function isIndependentShoppingRequest(message: string): boolean {
+  const text = normalizeInput(message).trim().replace(/[?.!;;]+$/u, '').trim();
+  if (hasCurrentMedicalRequest(text) || consumptionContext.test(text)) return false;
+  const subjects = [
+    /^(?:θελω|θα ηθελα|δειξε μου|δειξτε μου)\s+(?:να δω\s+)?(.+)$/u,
+    /^(?:τι|ποια|ποιο|ποιες)\s+(.+)\s+(?:εχετε|διαθετετε)$/u,
+    /^(?:εχετε|διαθετετε)\s+(.+)$/u,
+    /^(?:ποσο κοστιζει|ποια ειναι η τιμη του|τι περιεχει)\s+(.+)$/u,
+    /^(?:i want|i would like|show me)\s+(.+)$/u,
+    /^(?:what|which)\s+(.+)\s+do you (?:have|stock|carry)$/u,
+    /^do you (?:have|stock|carry)\s+(.+)$/u,
+    /^(?:what is the price of|what are the ingredients of)\s+(.+)$/u,
+  ];
+  const subject = subjects.map(pattern => pattern.exec(text)?.[1]).find(Boolean);
+  if (!subject || subject.length > 100 || !/^[\p{L}\p{N}\s.'’+/-]+$/u.test(subject)
+    || /^(?:το|τα|την|τη|τον|τους|τις|ενα|μια|a|an|the)$/u.test(subject)) return false;
+  // Reject obvious anaphora, goal-only and mixed requests rather than extracting
+  // a safe-looking clause. This is not an exhaustive intent or product classifier.
+  return !/(?<!\p{L})(?:για|να|μου|μας|μενα|εμενα|αυτ\p{L}*|εκειν\p{L}*|ιδιο\p{L}*|πρωτο\p{L}*|δευτερ\p{L}*|κατι|καποι\p{L}*|καλυτερ\p{L}*|προτειν\p{L}*|βοηθ\p{L}*|χρειαζ\p{L}*|ανακουφ\p{L}*|εναλλακτικ\p{L}*|ηρεμια|υπνο|δυναμη|περισσοτερ\p{L}*|και|η|for|to|me|my|us|it|this|that|those|these|same|first|second|other|another|something|anything|options|alternatives|relief|best|better|recommend\p{L}*|help\p{L}*|need|and|or)(?!\p{L})/u.test(subject);
+}
+
 export function isMedicalRequest(message: string, history: HistoryMessage[] = []): boolean {
   const text = normalizeInput(message);
-  if (text === MEDICAL_HISTORY_MARKER) return true;
-  if (medicalTerms.test(text) || personalSuitability.test(text) || hasCapsuleDosageQuestion(text) || hiddenMedical.test(text.replace(/[^\p{L}\p{N}]/gu, ''))) return true;
+  if (hasCurrentMedicalRequest(text)) return true;
+  if (isIndependentShoppingRequest(message)) return false;
   // A short follow-up must not turn an earlier clinical request into a product sale.
-  const followup = /^(?:yes|ok|okay|sure|that|it|add|buy|ναι|ενταξει|αυτο|βαλε|προσθεσε)\b/u.test(text.trim()) || text.trim().length < 35;
+  const followup = /^(?:yes|ok|okay|sure|that|it|add|buy|ναι|ενταξει|αυτο|βαλε|προσθεσε)(?=$|[^\p{L}\p{N}_])/u.test(text.trim()) || text.trim().length < 35;
   return followup && history.slice(-6).some(turn => turn.role === 'user' && isMedicalRequest(turn.content));
 }
 

@@ -305,10 +305,20 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     expect(chunks.every(chunk => chunk.object === 'chat.completion.chunk' && chunk.id === chunks[0]!.id)).toBe(true);
     expect(composer.verify).toHaveBeenCalledOnce();
     expect((await poll(session, room)).json().response.text).toBe(approvedText);
-    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'completed', status: 200, durationMs: expect.any(Number), reason: 'ok' }, 'Avatar callback outcome');
-    const diagnostic = info.mock.calls[0]![0] as { durationMs: number };
+    expect(info).toHaveBeenCalledWith({ outcome: 'completed', status: 200, durationMs: expect.any(Number), reason: 'ok' }, 'Avatar callback outcome');
+    const diagnostics = info.mock.calls.filter(call => call[1] === 'Avatar callback outcome');
+    expect(diagnostics).toHaveLength(1);
+    const diagnostic = diagnostics[0]![0] as { durationMs: number };
     expect(diagnostic.durationMs).toBeGreaterThanOrEqual(0);
     expect(diagnostic.durationMs).toBeLessThanOrEqual(60_000);
+    const measurements = info.mock.calls.filter(call => call[1] === 'Assistant turn timings');
+    expect(measurements).toHaveLength(1);
+    expect(measurements[0]![0]).toMatchObject({ transport: 'avatar', durationMs: expect.any(Number), stages: {
+      plan: { calls: 1, failed: 0 }, compose: { calls: 1, failed: 0 }, verify: { calls: 1, failed: 0 },
+      catalogSearch: { calls: 0, failed: 0 }, catalogProducts: { calls: 0, failed: 0 }, catalogVariant: { calls: 0, failed: 0 },
+    } });
+    const logged = JSON.stringify(info.mock.calls);
+    for (const privateValue of [secret(), room.sessionId, room.conversationId, room.conversationUrl, shop, 'Γεια σου', approvedText]) expect(logged).not.toContain(privateValue);
   });
 
   it('returns a valid fully checked non-streaming completion to an OpenAI-compatible client', async () => {

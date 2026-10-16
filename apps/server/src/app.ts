@@ -18,6 +18,7 @@ import { configSchema, factSchema, readTenantFiles, type readEnv } from './confi
 import { registerInstallation, REQUIRED_SHOPIFY_SCOPES } from './installation.js';
 import { registerAvatarRoutes, avatarAvailable, type AvatarCallbackReason } from './tavus-routes.js';
 import type { TavusProvider } from './tavus-client.js';
+import { TurnTimings } from './turn-timings.js';
 
 declare module 'fastify' { interface FastifyRequest { rawBody?: string } }
 type Environment = ReturnType<typeof readEnv>;
@@ -194,9 +195,10 @@ export async function buildApp(env: Environment, db: Database, services: Service
     if (claims.assignment === 'control') throw new HttpError(403, 'Control arm');
     market(tenant, body.country);
     const usage: ModelUsage[] = [];
+    const timings = new TurnTimings();
     const turnSignal = callbackSignal ? AbortSignal.any([AbortSignal.timeout(25000), callbackSignal]) : AbortSignal.timeout(25000);
     callbackSignal?.throwIfAborted();
-    const model = providerModel(claims.provider!, item => usage.push(item), turnSignal);
+    const model = timings.model(providerModel(claims.provider!, item => usage.push(item), turnSignal));
     const lock = await db.query<{ history: string; lease: string }>('UPDATE conversations SET busy_until=now()+interval \'45 seconds\', turns=turns+1 WHERE shop=$1 AND id=$2 AND expires_at>now() AND turns<30 AND (busy_until IS NULL OR busy_until<now()) RETURNING history,busy_until::text AS lease', [claims.shop, claims.sid]);
     if (!lock.rows.length) {
       const current = (await db.query<{ turns: number }>('SELECT turns FROM conversations WHERE shop=$1 AND id=$2', [claims.shop, claims.sid])).rows[0];
@@ -207,7 +209,7 @@ export async function buildApp(env: Environment, db: Database, services: Service
       if (!await takeBudget(db, claims.shop, `${day}:model`, 2000)) throw new HttpError(429, 'Daily limit', 'model_budget');
       // Read the history held by the acquired turn lock; an earlier pre-lock read can be stale.
       const history = security!.decrypt<History>(lock.rows[0]!.history, claims.shop);
-      const response = await respond({ shop: tenant.config, facts: tenant.facts, catalog: catalog(tenant), ...model, message: body.message, history, country: body.country, locale: body.locale, signal: turnSignal });
+      const response = await respond({ shop: tenant.config, facts: tenant.facts, catalog: timings.catalog(catalog(tenant)), ...model, message: body.message, history, country: body.country, locale: body.locale, signal: turnSignal });
       callbackSignal?.throwIfAborted();
       // Merchant revocation/config changes during generation must not release the older evidence.
       const latest = await db.query<{ config: unknown; facts: unknown }>('SELECT config,facts FROM shops WHERE shop=$1 AND active=true', [claims.shop]);
@@ -224,12 +226,18 @@ export async function buildApp(env: Environment, db: Database, services: Service
       const { policy: _internalPolicy, ...publicResponse } = response;
       return publicResponse;
     } finally {
-      await db.query('UPDATE conversations SET busy_until=NULL WHERE shop=$1 AND id=$2 AND busy_until=$3::timestamptz', [claims.shop, claims.sid, lock.rows[0]!.lease]);
-      // Operational totals never contain a visitor/session ID or customer text, even with consent.
-      for (const item of usage) await db.query(`INSERT INTO model_usage(shop,day,experiment_id,assignment,provider,model,knowledge_version,config_fingerprint,operation,requests,successful_requests,input_tokens,output_tokens,unknown_token_requests,duration_ms)
-        VALUES($1,current_date,$2,$3,$4,$5,$6,$7,$8,1,$9,$10,$11,$12,$13)
-        ON CONFLICT(shop,day,experiment_id,assignment,provider,model,knowledge_version,config_fingerprint,operation) DO UPDATE SET
-        requests=model_usage.requests+1,successful_requests=model_usage.successful_requests+EXCLUDED.successful_requests,input_tokens=model_usage.input_tokens+EXCLUDED.input_tokens,output_tokens=model_usage.output_tokens+EXCLUDED.output_tokens,unknown_token_requests=model_usage.unknown_token_requests+EXCLUDED.unknown_token_requests,duration_ms=model_usage.duration_ms+EXCLUDED.duration_ms`, [claims.shop, row.consent ? claims.experimentId : 'off', row.consent ? claims.assignment : 'untracked', item.provider, item.model, tenant.config.knowledgeVersion, claims.configFingerprint, item.operation, item.success ? 1 : 0, item.inputTokens ?? 0, item.outputTokens ?? 0, item.inputTokens === null || item.outputTokens === null ? 1 : 0, Math.round(item.durationMs)]);
+      try {
+        await db.query('UPDATE conversations SET busy_until=NULL WHERE shop=$1 AND id=$2 AND busy_until=$3::timestamptz', [claims.shop, claims.sid, lock.rows[0]!.lease]);
+        // Operational totals never contain a visitor/session ID or customer text, even with consent.
+        for (const item of usage) await db.query(`INSERT INTO model_usage(shop,day,experiment_id,assignment,provider,model,knowledge_version,config_fingerprint,operation,requests,successful_requests,input_tokens,output_tokens,unknown_token_requests,duration_ms)
+          VALUES($1,current_date,$2,$3,$4,$5,$6,$7,$8,1,$9,$10,$11,$12,$13)
+          ON CONFLICT(shop,day,experiment_id,assignment,provider,model,knowledge_version,config_fingerprint,operation) DO UPDATE SET
+          requests=model_usage.requests+1,successful_requests=model_usage.successful_requests+EXCLUDED.successful_requests,input_tokens=model_usage.input_tokens+EXCLUDED.input_tokens,output_tokens=model_usage.output_tokens+EXCLUDED.output_tokens,unknown_token_requests=model_usage.unknown_token_requests+EXCLUDED.unknown_token_requests,duration_ms=model_usage.duration_ms+EXCLUDED.duration_ms`, [claims.shop, row.consent ? claims.experimentId : 'off', row.consent ? claims.assignment : 'untracked', item.provider, item.model, tenant.config.knowledgeVersion, claims.configFingerprint, item.operation, item.success ? 1 : 0, item.inputTokens ?? 0, item.outputTokens ?? 0, item.inputTokens === null || item.outputTokens === null ? 1 : 0, Math.round(item.durationMs)]);
+      } finally {
+        // No request ID, response category or shopper content is included.
+        try { app.log.info({ transport: callbackSignal ? 'avatar' : 'text', ...timings.snapshot() }, 'Assistant turn timings'); }
+        catch { /* Operational logging cannot change a checked shopper response. */ }
+      }
     }
   }
   const avatars = security ? registerAvatarRoutes(app, env, db, security, {

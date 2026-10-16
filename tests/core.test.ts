@@ -144,6 +144,28 @@ describe('medical boundary', () => {
   it('still preserves the medical marker for a short package-count follow-up', () => {
     expect(isMedicalRequest('Πόσες κάψουλες έχει;', [{ role: 'user', content: MEDICAL_HISTORY_MARKER }])).toBe(true);
   });
+  it.each([
+    'Θέλω ασβέστιο', 'Δείξε μου πρωτεΐνη', 'Ποιο μαγνήσιο διαθέτετε;', 'Τι προϊόντα έχετε;',
+    'Έχετε Calcium Complex;', 'Τι περιέχει το Calcium Complex;', 'Πόσο κοστίζει το Calcium Complex;',
+    'I want calcium', 'Do you carry calcium?', 'What is the price of Calcium Complex?',
+  ])('allows a new factual product request through the lexical screen after a marker: %s', message => {
+    expect(isMedicalRequest(message, [{ role: 'user', content: MEDICAL_HISTORY_MARKER }])).toBe(false);
+  });
+  it.each([
+    'Θέλω αυτό', 'Θέλω αυτές', 'Θέλω κάποια', 'Θέλω κάτι για μένα', 'Θέλω να πάρω ασβέστιο',
+    'Θέλω ανακούφιση', 'Έχετε εναλλακτικές;', 'Θέλω περισσότερα', 'Θέλω ηρεμία',
+    'Ναι, βάλε το πρώτο προϊόν που είχαμε συζητήσει πριν από λίγο.',
+    'I want relief', 'Show me options', 'I want another', 'Yes, add the product we discussed earlier today',
+    'Θέλω ασβέστιο για διαβήτη', 'Έχετε ασβέστιο; Μπορώ να το πάρω;',
+  ])('does not mistake dependent, mixed or clinical requests for a fresh catalog inquiry: %s', message => {
+    expect(isMedicalRequest(message, [{ role: 'user', content: MEDICAL_HISTORY_MARKER }])).toBe(true);
+  });
+  it('keeps semantic medical classification authoritative for a plausible product request', async () => {
+    const request = input({ message: 'Θέλω ασβέστιο', history: [{ role: 'user', content: MEDICAL_HISTORY_MARKER }] }, plan({ intent: 'medical' }));
+    expect((await respond(request)).policy).toBe('medical');
+    expect(request.planner.plan).toHaveBeenCalledWith(expect.objectContaining({ history: request.history }));
+    expect(request.catalog.search).not.toHaveBeenCalled();
+  });
 });
 
 describe('explicit cart proposals', () => {
