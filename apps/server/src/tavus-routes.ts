@@ -6,7 +6,7 @@ import type { ChatResponse } from '../../widget/src/types.js';
 import type { RuntimeEnvironment } from './config.js';
 import { takeBudget, type Database } from './database.js';
 import { constantEqual, tokenPayload, type Security, type SessionClaims } from './security.js';
-import { TavusClient, TAVUS_MAX_CALL_SECONDS, TAVUS_DIAGNOSTIC_TIMEOUT_MS, TAVUS_SHUTDOWN_REASONS, type TavusProvider } from './tavus-client.js';
+import { TavusClient, TavusAllocationCleanupError, TAVUS_MAX_CALL_SECONDS, TAVUS_DIAGNOSTIC_TIMEOUT_MS, TAVUS_SHUTDOWN_REASONS, type TavusProvider } from './tavus-client.js';
 
 const MAX_STARTS_PER_DAY = 3;
 const bearerBody = z.object({ token: z.string().min(1).max(2048) });
@@ -39,6 +39,7 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
   const cleanupKey = env.tavus?.apiKey ?? env.tavusApiKey;
   const provider = deps.provider ?? (cleanupKey ? new TavusClient({ apiKey: cleanupKey }) : undefined);
   const owned = new Set<string>();
+  const callbackStarted = new WeakMap<FastifyRequest, number>();
   let sweeping = false;
   function available(config: ShopConfig) { if (!provider || !avatarAvailable(env, config)) throw new AvatarError(403); }
   async function get(id: string) { return (await db.query<Row>('SELECT * FROM avatar_sessions WHERE id=$1', [id])).rows[0]; }
@@ -128,7 +129,10 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
       if (!activated.rows.length) throw new AvatarError(409);
       return { sessionId: id, conversationId: room.conversationId, conversationUrl: room.conversationUrl,
         meetingToken: room.meetingToken, expiresAt: until.toISOString() };
-    } catch {
+    } catch (error) {
+      if (error instanceof TavusAllocationCleanupError) {
+        await db.query('UPDATE avatar_sessions SET provider_conversation_id=$2 WHERE id=$1 AND provider_conversation_id IS NULL', [id, error.conversationId]);
+      }
       const row = await get(id); if (row) await stop(row);
       throw new AvatarError(503);
     }
@@ -159,13 +163,28 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
         ? { response: security.decrypt<ChatResponse>(current!.result, claims.shop) } : {}) };
   });
 
-  app.post('/api/avatar/:id/v1/chat/completions', { config: { rateLimit: { max: 90, timeWindow: 60000 } } }, async (req, reply) => {
+  app.post('/api/avatar/:id/v1/chat/completions', {
+    config: { rateLimit: { max: 90, timeWindow: 60000 } },
+    onResponse: async (req, reply) => {
+      const started = callbackStarted.get(req);
+      if (started === undefined) return;
+      callbackStarted.delete(req);
+      // Only an authenticated callback is measured. This describes HTTP completion,
+      // not audible delivery; never copy provider data or request/session identifiers.
+      const status = [200, 400, 401, 403, 404, 409, 413, 429, 500, 502, 503, 504].includes(reply.statusCode) ? reply.statusCode : 500;
+      const outcome = status === 200 ? 'completed' : status < 500 ? 'rejected' : 'failed';
+      const durationMs = Math.max(0, Math.min(60_000, Math.round(performance.now() - started)));
+      try { app.log.info({ outcome, status, durationMs }, 'Avatar callback outcome'); }
+      catch { /* Operational diagnostics cannot interfere with response cleanup. */ }
+    },
+  }, async (req, reply) => {
     const { id } = z.object({ id: z.uuid() }).parse(req.params);
     const row = await get(id);
     const authorization = req.headers.authorization;
     if (!row || row.state !== 'active' || new Date(row.expires_at).getTime() <= Date.now()
       || typeof authorization !== 'string' || !/^Bearer [A-Za-z0-9_-]{32,256}$/.test(authorization)
       || !constantEqual(security.hashClient(row.shop, `avatar:${authorization.slice(7)}`), row.credential_hash)) throw new AvatarError(401);
+    callbackStarted.set(req, performance.now());
     const claims = tokenPayload.parse(row.claims);
     try { const { tenant } = await deps.validate(claims); available(tenant.config); }
     catch (error) { await stop(row); throw error; }

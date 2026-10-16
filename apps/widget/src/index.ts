@@ -118,7 +118,6 @@ class SalesAssistant {
   private avatarCaption?: HTMLElement;
   private avatarTyped: string[] = [];
   private avatarStopping?: Promise<void>;
-  private avatarPlaybackPaused = false;
 
   constructor(private readonly host: HTMLElement, private readonly connection: WidgetConnection, launcher: HTMLButtonElement) {
     this.locale = host.dataset.locale || 'en';
@@ -210,9 +209,11 @@ class SalesAssistant {
     const code = node('input'); code.type = 'password'; code.autocomplete = 'off'; code.maxLength = 160; code.placeholder = this.t.avatarCode; code.setAttribute('aria-label', this.t.avatarCode);
     const start = button(this.t.avatarStart, () => this.startAvatar(), 'primary');
     const video = node('video'); video.playsInline = true; video.autoplay = false; video.setAttribute('aria-label', this.t.avatar); video.hidden = true;
-    const play = button(this.t.avatarPlay, async () => { try { await video.play(); this.avatarPlaybackPaused = false; play.hidden = true; } catch { /* Keep the explicit playback option available. */ } }); play.hidden = true;
+    const play = button(this.t.avatarPlay, async () => { try { await video.play(); play.hidden = true; } catch { /* Keep the explicit playback option available. */ } }); play.hidden = true;
     const microphone = button(this.t.avatarMicOn, () => this.avatar?.toggleMicrophone()); microphone.hidden = true; microphone.setAttribute('aria-pressed', 'false');
-    const interrupt = button(this.t.avatarInterrupt, () => { this.avatarPlaybackPaused = true; video.pause(); this.avatar?.interrupt(); play.hidden = false; }); interrupt.hidden = true;
+    // Interrupt the provider's current utterance, keeping the live media stream
+    // playing so the next spoken or typed turn is audible without a second action.
+    const interrupt = button(this.t.avatarInterrupt, () => this.avatar?.interrupt()); interrupt.hidden = true;
     const end = button(this.t.avatarEnd, () => this.stopAvatar()); end.hidden = true;
     const controls = node('div', undefined, 'avatar-controls'); controls.append(microphone, interrupt, end);
     const status = node('p', '', 'avatar-status'); status.setAttribute('role', 'status');
@@ -268,7 +269,6 @@ class SalesAssistant {
     let accessCode = this.avatarCode.value.trim(); this.avatarCode.value = '';
     const generation = this.generation;
     const attempt = ++this.avatarAttempt;
-    this.avatarPlaybackPaused = false;
     this.avatarTyped = [];
     this.avatarLoading = true; this.avatarState('starting');
     try {
@@ -308,7 +308,7 @@ class SalesAssistant {
           const previous = video.srcObject instanceof MediaStream ? video.srcObject.getTracks() : [];
           if (tracks.length === previous.length && tracks.every(track => previous.includes(track))) return;
           video.srcObject = new MediaStream(tracks);
-          if (!this.avatarPlaybackPaused) void video.play().catch(() => { if (current() && this.avatarPlay) this.avatarPlay.hidden = false; });
+          void video.play().catch(() => { if (current() && this.avatarPlay) this.avatarPlay.hidden = false; });
         },
         onResult: result => {
           if (!current()) return;

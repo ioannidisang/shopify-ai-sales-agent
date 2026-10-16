@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { TavusClient, TavusUnavailableError } from '../apps/server/src/tavus-client.js';
+import { TavusAllocationCleanupError, TavusClient, TavusUnavailableError } from '../apps/server/src/tavus-client.js';
 
 const pal = {
   faceId: 'r123face', callbackBaseUrl: 'https://shop.example.com/api/tavus/llm',
@@ -151,8 +151,9 @@ describe('Tavus private full-pipeline adapter', () => {
   ])('rejects untrusted room URL without exposing join material: %s', async conversation_url => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({ ...conversation, conversation_url }));
     await expect(client(fetcher).createConversation({ palId: 'p123trial' })).rejects.toThrow(/^The avatar service is unavailable\.$/);
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(3);
     expect(fetcher.mock.calls[1]![0]).toBe('https://tavusapi.com/v2/conversations/c123trial/end');
+    expect(fetcher.mock.calls[2]![0]).toBe('https://tavusapi.com/v2/conversations/c123trial?hard=true');
   });
 
   it.each(['', 'one-segment', 'header.payload.', 'header.payload.sig\n', 'a.b.' + 's'.repeat(8200)])('requires bounded JWT join material', async meeting_token => {
@@ -197,13 +198,42 @@ describe('Tavus private full-pipeline adapter', () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it('attempts known-allocation cleanup once and preserves the generic error when cleanup fails', async () => {
+  it('attempts end and hard delete independently and preserves known allocation evidence when cleanup fails', async () => {
     const fetcher = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(json({ ...conversation, meeting_token: null }))
       .mockRejectedValueOnce(new Error('secret cleanup diagnostics'));
     await expect(client(fetcher).createConversation({ palId: 'p123trial' })).rejects.toThrow(/^The avatar service is unavailable\.$/);
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
       'https://tavusapi.com/v2/conversations', 'https://tavusapi.com/v2/conversations/c123trial/end',
+      'https://tavusapi.com/v2/conversations/c123trial?hard=true',
+    ]);
+  });
+
+  it('does not treat a generic 400 during malformed-allocation cleanup as confirmed absence', async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ ...conversation, meeting_token: null }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(json({ error: 'Private ambiguous provider text' }, 400));
+    const failure = await client(fetcher).createConversation({ palId: 'p123trial' }).catch(error => error as Error);
+    expect(failure).toBeInstanceOf(TavusAllocationCleanupError);
+    expect(failure).toMatchObject({ message: 'The avatar service is unavailable.', conversationId: 'c123trial' });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry a removed allocation when end fails but hard deletion succeeds', async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(json({ ...conversation, meeting_token: null }))
+      .mockRejectedValueOnce(new Error('Private failed end details'))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const failure = await client(fetcher).createConversation({ palId: 'p123trial' }).catch(error => error as Error);
+    expect(failure).toBeInstanceOf(TavusUnavailableError);
+    expect(failure).not.toBeInstanceOf(TavusAllocationCleanupError);
+    expect(failure).not.toHaveProperty('conversationId');
+    expect(failure).toMatchObject({ message: 'The avatar service is unavailable.' });
+    expect(fetcher.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+      ['https://tavusapi.com/v2/conversations', 'POST'],
+      ['https://tavusapi.com/v2/conversations/c123trial/end', 'POST'],
+      ['https://tavusapi.com/v2/conversations/c123trial?hard=true', 'DELETE'],
     ]);
   });
 

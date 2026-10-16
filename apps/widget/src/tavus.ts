@@ -150,7 +150,7 @@ export class TavusPilot {
     try {
       const call = this.options.createCall?.() ?? Daily.createCallObject({
         startVideoOff: true, startAudioOff: true, videoSource: false,
-        dailyConfig: { avoidEval: true, alwaysIncludeCamInPermissionPrompt: false, useDevicePreferenceCookies: false },
+        dailyConfig: { avoidEval: true, alwaysIncludeCamInPermissionPrompt: false, alwaysIncludeMicInPermissionPrompt: false, useDevicePreferenceCookies: false },
       }) as unknown as PilotCall;
       this.call = call;
       const media = () => {

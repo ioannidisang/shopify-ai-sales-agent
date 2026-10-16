@@ -57,6 +57,15 @@ export class TavusUnavailableError extends Error {
   }
 }
 
+/** Internal reconciliation evidence, never serialize or log this error object. */
+export class TavusAllocationCleanupError extends TavusUnavailableError {
+  readonly conversationId: string;
+  constructor(conversationId: string) {
+    super();
+    this.conversationId = resourceId(conversationId);
+  }
+}
+
 function resourceId(value: unknown): string {
   if (typeof value !== 'string' || !RESOURCE_ID.test(value)) throw new TavusUnavailableError();
   return value;
@@ -201,6 +210,10 @@ export class TavusClient implements TavusProvider {
       // A known allocation with unusable join material must not keep running. Cleanup has
       // its own bounded deadline because the shopper's request may already be cancelled.
       await this.endConversation(conversationId).catch(() => {});
+      try { await this.deleteConversation(conversationId, { hard: true }); }
+      catch { throw new TavusAllocationCleanupError(conversationId); }
+      // Confirmed hard deletion removes the allocation even if ending failed.
+      // Preserve an ID for reconciliation only when deletion is unconfirmed.
       throw new TavusUnavailableError();
     }
   }

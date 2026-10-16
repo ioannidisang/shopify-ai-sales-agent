@@ -1,11 +1,13 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
+import OpenAI from 'openai';
+import type { ChatCompletionChunk } from 'openai/resources/chat/completions';
 import { buildApp } from '../apps/server/src/app.js';
 import { openDatabase, type Database } from '../apps/server/src/database.js';
 import type { RuntimeEnvironment } from '../apps/server/src/config.js';
 import { Security } from '../apps/server/src/security.js';
-import type { TavusProvider } from '../apps/server/src/tavus-client.js';
+import { TavusAllocationCleanupError, type TavusProvider } from '../apps/server/src/tavus-client.js';
 import { MEDICAL_HISTORY_MARKER } from '../packages/core/src/index.js';
 import type { Catalog, Planner, ShopConfig } from '../packages/core/src/types.js';
 import type { ConversationModel } from '../packages/core/src/conversation.js';
@@ -80,6 +82,22 @@ function secret(index = 0) { return provider.createPal.mock.calls[index]![0].cal
 function callback(room: Started, text = 'Γεια σου', bearer = secret(), messages?: unknown[]) {
   return app!.inject({ method: 'POST', url: `/api/avatar/${room.sessionId}/v1/chat/completions`,
     headers: { authorization: `Bearer ${bearer}` }, payload: { model: 'shopify-grounded', stream: true, messages: messages ?? [{ role: 'user', content: text }] } });
+}
+function callbackClient(room: Started) {
+  return new OpenAI({ apiKey: secret(), baseURL: `https://app.example.com/api/avatar/${room.sessionId}/v1`, maxRetries: 0,
+    // The SDK talks only to Fastify injection. Split UTF-8 bytes across chunks to
+    // exercise the real SSE decoder, including Greek multibyte characters.
+    fetch: async (input, init) => {
+      const request = new Request(input, init);
+      const response = await app!.inject({ method: 'POST', url: new URL(request.url).pathname,
+        headers: { authorization: request.headers.get('authorization')!, 'content-type': 'application/json' }, payload: await request.text() });
+      const bytes = new TextEncoder().encode(response.body);
+      return new Response(new ReadableStream<Uint8Array>({ start(controller) {
+        for (let offset = 0; offset < bytes.length; offset += 7) controller.enqueue(bytes.slice(offset, offset + 7));
+        controller.close();
+      } }), { status: response.statusCode, headers: { 'content-type': String(response.headers['content-type']) } });
+    },
+  });
 }
 function end(session: Bootstrap, room: Started, tenant = shop) {
   return app!.inject({ method: 'POST', url: proxy('avatar/end', tenant), payload: { token: session.token, sessionId: room.sessionId } });
@@ -258,6 +276,80 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     expect((await db.query('SELECT * FROM events')).rows).toHaveLength(0);
   });
 
+  it('delivers valid Greek SSE through the real OpenAI SDK parser without network or provider calls', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    const stream = await callbackClient(room).chat.completions.create({ model: 'shopify-grounded', stream: true,
+      messages: [{ role: 'user', content: 'Γεια σου' }] });
+    const chunks: ChatCompletionChunk[] = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0]!.choices[0]!.delta).toEqual({ role: 'assistant', content: approvedText });
+    expect(chunks[1]!.choices[0]).toMatchObject({ delta: {}, finish_reason: 'stop' });
+    expect(chunks.every(chunk => chunk.object === 'chat.completion.chunk' && chunk.id === chunks[0]!.id)).toBe(true);
+    expect(composer.verify).toHaveBeenCalledOnce();
+    expect((await poll(session, room)).json().response.text).toBe(approvedText);
+    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'completed', status: 200, durationMs: expect.any(Number) }, 'Avatar callback outcome');
+    const diagnostic = info.mock.calls[0]![0] as { durationMs: number };
+    expect(diagnostic.durationMs).toBeGreaterThanOrEqual(0);
+    expect(diagnostic.durationMs).toBeLessThanOrEqual(60_000);
+  });
+
+  it('returns a valid fully checked non-streaming completion to an OpenAI-compatible client', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const response = await callbackClient(room).chat.completions.create({ model: 'shopify-grounded', stream: false,
+      messages: [{ role: 'user', content: 'Γεια σου' }] });
+    expect(response).toMatchObject({ object: 'chat.completion', model: 'shopify-grounded', choices: [
+      { index: 0, message: { role: 'assistant', content: approvedText }, finish_reason: 'stop' },
+    ] });
+    expect(Number.isInteger(response.created)).toBe(true);
+    expect(composer.verify).toHaveBeenCalledOnce();
+    expect((await poll(session, room)).json().response.text).toBe(approvedText);
+  });
+
+  it.each([
+    { messages: [] },
+    { messages: [{ role: 'assistant', content: 'private untrusted reply' }] },
+    { messages: [{ role: 'user', content: '' }] },
+    { messages: [{ role: 'user', content: ' '.repeat(10) }] },
+    { messages: [{ role: 'user', content: [{ type: 'text', text: 'unsupported private input' }] }] },
+    { stream: 'true', messages: [{ role: 'user', content: 'private input' }] },
+  ])('rejects malformed authenticated input without generation or sensitive diagnostic data: %j', async payload => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    const response = await app!.inject({ method: 'POST', url: `/api/avatar/${room.sessionId}/v1/chat/completions`,
+      headers: { authorization: `Bearer ${secret()}` }, payload });
+    expect(response.statusCode).toBe(400);
+    expect(planner.plan).not.toHaveBeenCalled();
+    expect(composer.compose).not.toHaveBeenCalled();
+    expect((await row(room))).toMatchObject({ state: 'active', sequence: 0, result: null });
+    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'rejected', status: 400, durationMs: expect.any(Number) }, 'Avatar callback outcome');
+    const logged = JSON.stringify(info.mock.calls);
+    for (const privateValue of [secret(), room.sessionId, room.conversationId, room.conversationUrl, 'private', 'unsupported']) expect(logged).not.toContain(privateValue);
+  });
+
+  it('emits no callback outcome for unauthenticated traffic or unrelated routes', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    expect((await callback(room, 'private rejected input', 'x'.repeat(43))).statusCode).toBe(401);
+    expect((await poll(session, room)).statusCode).toBe(200);
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it('reports owned callback failures using only a fixed status and bounded duration', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    await db.query('UPDATE conversations SET turns=30 WHERE id=$1', [session.conversationId]);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    expect((await callback(room, 'private rejected input')).statusCode).toBe(429);
+    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'rejected', status: 429, durationMs: expect.any(Number) }, 'Avatar callback outcome');
+    expect((await row(room))).toMatchObject({ state: 'ended', credential_hash: '', result: null });
+  });
+
   it('never streams model prose rejected by grounding', async () => {
     composer.compose.mockResolvedValue({ segments: [{ text: 'Μια ανεπιβεβαίωτη υπόσχεση προϊόντος.', productIds: [], factIds: [] }] });
     composer.verify.mockResolvedValue({ supported: false, medical: false });
@@ -430,6 +522,23 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     await db.query("UPDATE avatar_sessions SET expires_at=now()-interval '1 second' WHERE id=$1", [saved.id]);
     provider.createConversation.mockImplementation(async () => ({ conversationId: 'csecond', conversationUrl: 'https://tavus.daily.co/csecond', meetingToken: 'header.payload.signature', status: 'active' }));
     expect((await start(session)).statusCode).toBe(200);
+    expect(provider.deletePal).toHaveBeenCalledWith(saved.provider_pal_id);
+  });
+
+  it('persists a known malformed allocation for durable cleanup instead of losing the provider ID', async () => {
+    provider.createConversation.mockRejectedValue(new TavusAllocationCleanupError('cknownallocation'));
+    provider.deleteConversation.mockRejectedValueOnce(new Error('private cleanup details'));
+    await build();
+    const session = await bootstrap();
+    const response = await start(session);
+    expect(response.statusCode).toBe(503);
+    expect(response.body).not.toContain('cknownallocation');
+    const saved = (await db.query('SELECT * FROM avatar_sessions')).rows[0]!;
+    expect(saved).toMatchObject({ state: 'ending', credential_hash: '', result: null, provider_conversation_id: 'cknownallocation' });
+    expect(provider.endConversation).toHaveBeenCalledWith('cknownallocation');
+    expect(provider.deleteConversation).toHaveBeenCalledWith('cknownallocation', { hard: true });
+    await end(session, { sessionId: String(saved.id) } as Started);
+    expect((await db.query('SELECT state FROM avatar_sessions WHERE id=$1', [saved.id])).rows[0]!.state).toBe('ended');
     expect(provider.deletePal).toHaveBeenCalledWith(saved.provider_pal_id);
   });
 });

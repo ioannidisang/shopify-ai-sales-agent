@@ -34,7 +34,7 @@ describe('private Tavus transport', () => {
     sdk.createCallObject.mockReturnValue(f.call);
     const pilot = new TavusPilot({ ...f.options, createCall: undefined });
     await pilot.start('private-code');
-    expect(sdk.createCallObject).toHaveBeenCalledWith(expect.objectContaining({ videoSource: false, startVideoOff: true, startAudioOff: true, dailyConfig: expect.objectContaining({ alwaysIncludeCamInPermissionPrompt: false, useDevicePreferenceCookies: false }) }));
+    expect(sdk.createCallObject).toHaveBeenCalledWith(expect.objectContaining({ videoSource: false, startVideoOff: true, startAudioOff: true, dailyConfig: expect.objectContaining({ alwaysIncludeCamInPermissionPrompt: false, alwaysIncludeMicInPermissionPrompt: false, useDevicePreferenceCookies: false }) }));
     expect(f.call.join).toHaveBeenCalledWith({ url: f.session.conversationUrl, token: f.session.meetingToken, startVideoOff: true, startAudioOff: true });
     expect(f.call.setLocalAudio).not.toHaveBeenCalledWith(true);
     expect(f.onTracks).toHaveBeenCalledWith([f.remoteTrack]);

@@ -21,7 +21,10 @@ class Element extends EventTarget {
   disabled = false;
   open = false;
   shadowRoot?: Element;
-  pause = vi.fn();
+  srcObject: SyntheticMediaStream | null = null;
+  paused = true;
+  play = vi.fn(async () => { this.paused = false; });
+  pause = vi.fn(() => { this.paused = true; });
   focus = vi.fn();
   constructor(readonly tagName: string) { super(); }
   append(...elements: Element[]) { this.children.push(...elements); }
@@ -40,6 +43,11 @@ class Element extends EventTarget {
   all(): Element[] { return [this, ...this.children.flatMap(child => child.all())]; }
 }
 
+class SyntheticMediaStream {
+  constructor(private readonly tracks: MediaStreamTrack[]) {}
+  getTracks(): MediaStreamTrack[] { return this.tracks; }
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(done => { resolve = done; });
@@ -55,6 +63,7 @@ async function fixture(locale = 'el') {
   vi.stubGlobal('document', document);
   vi.stubGlobal('window', window);
   vi.stubGlobal('location', { origin: 'https://fixture.example' });
+  vi.stubGlobal('MediaStream', SyntheticMediaStream);
   const host = new Element('div'); host.dataset = { locale }; host.shadowRoot = new Element('shadow');
   const connection = {
     session: { token: 'synthetic-token', conversationId: 'synthetic-conversation', enabled: true, assignment: 'untracked', brand: 'Synthetic', avatar: { provider: 'tavus', previewOnly: true, maxDurationSeconds: 180 } },
@@ -74,6 +83,75 @@ beforeEach(() => { provider.createTavusPilot.mockReset(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('private avatar launch lifecycle', () => {
+  it('recovers rejected autoplay explicitly and plays replacement tracks without restarting unchanged media', async () => {
+    const f = await fixture();
+    let callbacks!: PilotOptions;
+    const pilot = { state: 'active', start: vi.fn(async () => callbacks.onState('active')), stop: vi.fn() };
+    provider.createTavusPilot.mockImplementation((options: PilotOptions) => { callbacks = options; return pilot; });
+    f.code.value = 'synthetic-code'; f.start.click();
+    await vi.waitFor(() => expect(pilot.start).toHaveBeenCalledOnce());
+    const video = f.host.shadowRoot!.find(element => element.tagName === 'video');
+    const play = f.host.shadowRoot!.find(element => element.textContent === 'Αναπαραγωγή ήχου και εικόνας');
+    video.play.mockRejectedValueOnce(new Error('Autoplay blocked'));
+    const audio = { kind: 'audio' } as MediaStreamTrack;
+    const picture = { kind: 'video' } as MediaStreamTrack;
+    callbacks.onTracks([picture, audio]);
+    await vi.waitFor(() => expect(play.hidden).toBe(false));
+    expect(video.paused).toBe(true);
+    expect(video.srcObject?.getTracks()).toEqual([picture, audio]);
+    const firstStream = video.srcObject;
+    callbacks.onTracks([picture, audio]);
+    expect(video.srcObject).toBe(firstStream);
+    expect(video.play).toHaveBeenCalledOnce();
+    play.click();
+    await vi.waitFor(() => expect(play.hidden).toBe(true));
+    expect(video.paused).toBe(false);
+    const nextAudio = { kind: 'audio' } as MediaStreamTrack;
+    callbacks.onTracks([picture, nextAudio]);
+    expect(video.srcObject).not.toBe(firstStream);
+    expect(video.srcObject?.getTracks()).toEqual([picture, nextAudio]);
+    expect(video.play).toHaveBeenCalledTimes(3);
+    f.dialog.close();
+    expect(video.paused).toBe(true);
+    expect(video.srcObject).toBeNull();
+  });
+
+  it('interrupts the utterance while leaving media live for later typed and voice replies', async () => {
+    const f = await fixture();
+    let callbacks!: PilotOptions;
+    const pilot = {
+      state: 'active', start: vi.fn(async () => callbacks.onState('active')), stop: vi.fn(),
+      interrupt: vi.fn(), sendText: vi.fn().mockReturnValue(true),
+    };
+    provider.createTavusPilot.mockImplementation((options: PilotOptions) => { callbacks = options; return pilot; });
+    f.code.value = 'synthetic-code'; f.start.click();
+    await vi.waitFor(() => expect(pilot.start).toHaveBeenCalledOnce());
+    const video = f.host.shadowRoot!.find(element => element.tagName === 'video');
+    const play = f.host.shadowRoot!.find(element => element.textContent === 'Αναπαραγωγή ήχου και εικόνας');
+    const interrupt = f.host.shadowRoot!.find(element => element.textContent === 'Σταμάτα την ομιλία');
+    const tracks = [{ kind: 'video' }, { kind: 'audio' }] as MediaStreamTrack[];
+    callbacks.onTracks(tracks);
+    expect(video.paused).toBe(false);
+    const stream = video.srcObject;
+    interrupt.click();
+    expect(pilot.interrupt).toHaveBeenCalledOnce();
+    expect(video.pause).not.toHaveBeenCalled();
+    expect(play.hidden).toBe(true);
+    const input = f.host.shadowRoot!.find(element => element.tagName === 'textarea');
+    const send = f.host.shadowRoot!.find(element => element.textContent === 'Αποστολή');
+    input.value = 'Synthetic typed question'; send.click();
+    await vi.waitFor(() => expect(pilot.sendText).toHaveBeenCalledWith('Synthetic typed question'));
+    callbacks.onResult({ sequence: 1, ended: false, userText: 'Synthetic typed question', response: { text: 'Synthetic typed answer', products: [], facts: [] } });
+    callbacks.onResult({ sequence: 2, ended: false, userText: 'Synthetic spoken question', response: { text: 'Synthetic spoken answer', products: [], facts: [] } });
+    callbacks.onTracks(tracks);
+    expect(video.srcObject).toBe(stream);
+    expect(video.paused).toBe(false);
+    expect(video.play).toHaveBeenCalledOnce();
+    expect(video.pause).not.toHaveBeenCalled();
+    expect(f.host.shadowRoot!.find(element => element.className === 'avatar-caption').textContent).toBe('Synthetic spoken answer');
+    expect(pilot.stop).not.toHaveBeenCalled();
+  });
+
   it('retains categorical disconnect details after cleanup and clears them on close', async () => {
     const f = await fixture();
     let callbacks!: PilotOptions;

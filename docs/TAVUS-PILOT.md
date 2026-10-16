@@ -26,12 +26,12 @@ The feature requires the enabled pilot shop, a valid app session, a separate pri
 
 Each session creates its own PAL with a unique callback credential. Credentials are hashed in the database; join material is never put in analytics or logs. The client accepts only the approved Tavus Daily room origin. Verified result payloads are encrypted. Normal end, expiry, backgrounding, configuration revocation and privacy cleanup terminate the room, delete its conversation and delete its session PAL. Cleanup failures retain known IDs for retry. A timed-out creation with no returned ID requires manual provider reconciliation; bounded duration does not remove orphaned provider data.
 
-## Verified evidence
+## Historical evidence — first rollout, 15 October 2026
 
-- Latest `pnpm check`: 427 tests across 24 files, typecheck and production build passed for correction commit `30acb4b`. The original sandbox attempt failed with temporary-file `ENOENT`; the approved execution outside the sandbox with a stable temporary directory passed.
+- At that checkpoint, `pnpm check` passed 427 tests across 24 files, typecheck and production build for correction commit `30acb4b`. The original sandbox attempt failed with temporary-file `ENOENT`; the approved execution outside the sandbox with a stable temporary directory passed. See `PROGRESS.md` for the current result.
 - Bionera staged app configuration validation, app build and Theme Check passed with both existing Bionera extension identities preserved.
 - Implementation commit `a088047` was pushed. Bionera extension version `bionera-tavus-preview-a088047` / `1168669835265` was released and read back as active. No theme settings/publication changed.
-- Correction commit `30acb4b` was released as `bionera-tavus-preview-30acb4b` / `1168709615617` at 16:11:44 UTC. Shopify CLI readback confirmed active, with both extension UIDs unchanged. This is the current extension release recorded in the registration manifest.
+- Correction commit `30acb4b` was released as `bionera-tavus-preview-30acb4b` / `1168709615617` at 16:11:44 UTC. Shopify CLI readback confirmed active at that time, with both extension UIDs unchanged. It has since been superseded; the registration manifest records the current release.
 - The migrator built source `39bb40a` at 15:48:16 UTC, including a passing `pnpm check` (409 tests / 23 files, typecheck and build). Run `crn-dav1af7pn0mc739l6cf0-1792079337` succeeded at 15:49:25.925 UTC. Render verified the migrator was suspended again at 15:50:53 UTC.
 - Web deployment `dep-db8fe6rrjlhs73fqaer0` became Live at 15:56:14 UTC. The five Tavus variables were privately merged into the web service and removed from the suspended migrator, preserving its six migration variables. Changing `TAVUS_ENABLED` to `true` triggered deployment `dep-db8ffmbl550s738vfet0`, verified Live at 15:57:59 UTC. Both deployments used source `39bb40a`.
 - At 16:01:45 UTC, the safe deployment check returned HTTP 200 for `/healthz`, `/readyz` and bootstrap. Readiness confirmed the required schema v3/runtime grants. Brand and knowledge version matched the local Bionera configuration; bootstrap advertised the valid Tavus private-preview contract, with experiments off, untracked assignment and `no-store`. This check did not start a provider room or make a model call.
@@ -40,7 +40,7 @@ Each session creates its own PAL with a unique callback credential. Credentials 
 - Test mode never launches the avatar and does not test the real callback, speech quality, interruption, latency or production cost.
 - The merchant confirmed the account's Free plan includes 20 conversational-video minutes, stock faces and 42+ languages. The actual Tavus Billing UI showed Free and CVI minutes **0 / 20** before the live trial, then **0.5 / 20** after the single call (19.5 minutes remaining in the displayed allowance). No paid plan purchase is authorized or was made.
 
-## Current storefront checkpoint
+## Historical storefront checkpoint — first typed trial, 15 October 2026
 
 The backend is enabled for the private Bionera pilot. In the actual unpublished theme `200088715651`, an empty Liquid `theme.role` hid the avatar entry point. A read-only inspection of the rendered `Shopify.theme` assignment in the preview DOM verified exactly `id: 200088715651` and `role: unpublished`. Correction `30acb4b` removes the unsupported Liquid attribute and checks the runtime role together with a positive theme ID, failing closed when the metadata is absent or invalid. After its release, the avatar entry point appeared in the actual private preview. The live theme `199350681987` is unchanged.
 
@@ -64,6 +64,10 @@ The migration, backend deployment, secret configuration and backend activation b
 6. After confirming Tavus trial minutes, set `TAVUS_ENABLED=true` and deploy the web service. Test only the existing unpublished theme `200088715651`. Keep the live theme `199350681987` unchanged and the A/B/C experiment disabled.
 
 ## Real-call acceptance
+
+For the next diagnostic trial, use **one 60–90-second call** first. Keep the Bionera tab foreground: hiding it intentionally ends the call. Let the greeting finish, send one harmless typed product question, and confirm audible output. Explicitly open the microphone and wait for “Το μικρόφωνο είναι ενεργό” before asking “Πόσες κάψουλες περιέχει το μαγνήσιο;”. Require both a checked answer and heard speech. Mute and end. If the connection ends unexpectedly, preserve the page and expand “Στοιχεία σύνδεσης της δοκιμής” before any reload or retry; inspect safe callback outcome/shutdown logs and aggregate cleanup. A successful local audio track is not proof of transcription, and a checked result is not proof of audible delivery.
+
+Read current provider minutes and today's start/lease counts before the call. The following broader acceptance is a later rollout gate, not a list to squeeze into this first diagnostic call.
 
 Use synthetic shopping questions, not personal health data. Start with typed input while hearing/seeing the avatar; then explicitly enable the microphone. Check a greeting, an approved product question, a comparison, an unsupported claim, an unavailable product and a medical question. Confirm that spoken answers match checked captions and authoritative product cards, and that a cart change requires a visible action.
 
