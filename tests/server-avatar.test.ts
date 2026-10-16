@@ -114,6 +114,21 @@ function deferred() {
   const promise = new Promise<void>(done => { resolve = done; });
   return { promise, resolve };
 }
+function observeAdmissions() {
+  const queries = vi.spyOn(db, 'query');
+  const admissions = () => queries.mock.calls.filter(([sql]) => sql.startsWith('SELECT consent,assignment,experiment_id,config_fingerprint,provider FROM conversations')).length;
+  return {
+    count: admissions,
+    async waitFor(count: number) {
+      await vi.waitFor(() => expect(admissions()).toBeGreaterThanOrEqual(count));
+      // Wait for the observed validation reads and their promise continuations,
+      // so the held first turn is not released before the duplicates are admitted.
+      await Promise.all(queries.mock.results.filter(result => result.type === 'return').map(result => result.value));
+      await new Promise<void>(resolve => setImmediate(resolve));
+    },
+    restore: () => queries.mockRestore(),
+  };
+}
 
 beforeAll(async () => { db = await openDatabase(undefined, 'memory://'); }, 20000);
 beforeEach(async () => {
@@ -290,7 +305,7 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     expect(chunks.every(chunk => chunk.object === 'chat.completion.chunk' && chunk.id === chunks[0]!.id)).toBe(true);
     expect(composer.verify).toHaveBeenCalledOnce();
     expect((await poll(session, room)).json().response.text).toBe(approvedText);
-    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'completed', status: 200, durationMs: expect.any(Number) }, 'Avatar callback outcome');
+    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'completed', status: 200, durationMs: expect.any(Number), reason: 'ok' }, 'Avatar callback outcome');
     const diagnostic = info.mock.calls[0]![0] as { durationMs: number };
     expect(diagnostic.durationMs).toBeGreaterThanOrEqual(0);
     expect(diagnostic.durationMs).toBeLessThanOrEqual(60_000);
@@ -326,7 +341,7 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     expect(planner.plan).not.toHaveBeenCalled();
     expect(composer.compose).not.toHaveBeenCalled();
     expect((await row(room))).toMatchObject({ state: 'active', sequence: 0, result: null });
-    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'rejected', status: 400, durationMs: expect.any(Number) }, 'Avatar callback outcome');
+    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'rejected', status: 400, durationMs: expect.any(Number), reason: 'invalid_input' }, 'Avatar callback outcome');
     const logged = JSON.stringify(info.mock.calls);
     for (const privateValue of [secret(), room.sessionId, room.conversationId, room.conversationUrl, 'private', 'unsupported']) expect(logged).not.toContain(privateValue);
   });
@@ -346,7 +361,7 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     await db.query('UPDATE conversations SET turns=30 WHERE id=$1', [session.conversationId]);
     const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
     expect((await callback(room, 'private rejected input')).statusCode).toBe(429);
-    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'rejected', status: 429, durationMs: expect.any(Number) }, 'Avatar callback outcome');
+    expect(info).toHaveBeenCalledExactlyOnceWith({ outcome: 'rejected', status: 429, durationMs: expect.any(Number), reason: 'turn_limit' }, 'Avatar callback outcome');
     expect((await row(room))).toMatchObject({ state: 'ended', credential_hash: '', result: null });
   });
 
@@ -391,20 +406,232 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     expect(turns).toBe(1);
   });
 
-  it('serializes simultaneous callback requests and allows the duplicate to reuse the completed turn', async () => {
+  it('coalesces overlapping identical callbacks into one checked turn without rejecting the provider retries', async () => {
     const entered = deferred(); const release = deferred();
     composer.verify.mockImplementation(async () => { entered.resolve(); await release.promise; return { supported: true, medical: false }; });
     await build();
     const session = await bootstrap(); const room = await started(session);
     const first = callback(room).then(response => response);
     await entered.promise;
-    const overlapping = await callback(room);
-    expect(overlapping.statusCode).toBe(429);
-    release.resolve();
-    expect((await first).statusCode).toBe(200);
+    const observed = observeAdmissions();
+    const overlapping = Array.from({ length: 3 }, () => callback(room).then(response => response));
+    try { await observed.waitFor(3); } finally { observed.restore(); release.resolve(); }
+    const responses = await Promise.all([first, ...overlapping]);
+    expect(responses.map(response => response.statusCode)).toEqual([200, 200, 200, 200]);
+    expect(responses.every(response => response.body.includes(approvedText))).toBe(true);
     expect((await callback(room)).statusCode).toBe(200);
     expect(composer.compose).toHaveBeenCalledOnce();
     expect((await row(room)).sequence).toBe(1);
+  });
+
+  it('runs distinct voice turns in admission order and returns a duplicate its own result when a newer turn follows', async () => {
+    const entered = deferred(); const release = deferred();
+    composer.compose.mockImplementation(async input => ({ segments: [{ text: `Απάντηση: ${input.message}`, productIds: [], factIds: [] }] }));
+    composer.verify.mockImplementationOnce(async () => { entered.resolve(); await release.promise; return { supported: true, medical: false }; });
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const first = callback(room, 'Πρώτη επιλογή').then(response => response);
+    await entered.promise;
+    const observed = observeAdmissions();
+    let second: typeof first | undefined;
+    let duplicate: typeof first | undefined;
+    try {
+      second = callback(room, 'Δεύτερη επιλογή').then(response => response);
+      await observed.waitFor(1);
+      duplicate = callback(room, 'Πρώτη επιλογή').then(response => response);
+      await observed.waitFor(2);
+    } finally { observed.restore(); release.resolve(); }
+    const [one, two, same] = await Promise.all([first, second!, duplicate!]);
+    expect([one, two, same].map(response => response.statusCode)).toEqual([200, 200, 200]);
+    expect(one.body).toContain('Απάντηση: Πρώτη επιλογή');
+    expect(same.body).toContain('Απάντηση: Πρώτη επιλογή');
+    expect(same.body).not.toContain('Απάντηση: Δεύτερη επιλογή');
+    expect(two.body).toContain('Απάντηση: Δεύτερη επιλογή');
+    expect(composer.compose.mock.calls.map(([input]) => input.message)).toEqual(['Πρώτη επιλογή', 'Δεύτερη επιλογή']);
+    expect(composer.compose.mock.calls[1]![0].history.map(item => item.content)).toEqual(['Πρώτη επιλογή', 'Απάντηση: Πρώτη επιλογή']);
+    expect((await row(room)).sequence).toBe(2);
+  });
+
+  it('uses the full message history for duplicate identity rather than only the latest user text', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    expect((await callback(room)).statusCode).toBe(200);
+    expect((await callback(room, 'unused', secret(), [{ role: 'assistant', content: 'Earlier turn' }, { role: 'user', content: 'Γεια σου' }])).statusCode).toBe(200);
+    expect(composer.compose).toHaveBeenCalledTimes(2);
+    expect((await row(room)).sequence).toBe(2);
+  });
+
+  it('keeps a completed retry tied to its own answer while and after a newer turn completes', async () => {
+    composer.compose.mockImplementation(async input => ({ segments: [{ text: `Απάντηση: ${input.message}`, productIds: [], factIds: [] }] }));
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    expect((await callback(room, 'Πρώτη επιλογή')).statusCode).toBe(200);
+    const entered = deferred(); const release = deferred();
+    composer.verify.mockImplementationOnce(async () => { entered.resolve(); await release.promise; return { supported: true, medical: false }; });
+    const second = callback(room, 'Δεύτερη επιλογή').then(response => response);
+    await entered.promise;
+    try {
+      const duplicate = await callback(room, 'Πρώτη επιλογή');
+      expect(duplicate.statusCode).toBe(200);
+      expect(duplicate.body).toContain('Απάντηση: Πρώτη επιλογή');
+      expect(composer.compose).toHaveBeenCalledTimes(2);
+    } finally { release.resolve(); }
+    expect((await second).statusCode).toBe(200);
+    const lateDuplicate = await callback(room, 'Πρώτη επιλογή');
+    expect(lateDuplicate.statusCode).toBe(200);
+    expect(lateDuplicate.body).toContain('Απάντηση: Πρώτη επιλογή');
+    expect(composer.compose).toHaveBeenCalledTimes(2);
+    expect((await row(room)).sequence).toBe(2);
+  });
+
+  it.each(['distinct turns', 'duplicate waiters'] as const)('bounds %s without ending the healthy in-flight turn', async mode => {
+    const entered = deferred(); const release = deferred();
+    composer.verify.mockImplementationOnce(async () => { entered.resolve(); await release.promise; return { supported: true, medical: false }; });
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    const first = callback(room).then(response => response);
+    await entered.promise;
+    const observed = observeAdmissions();
+    const accepted = Array.from({ length: mode === 'distinct turns' ? 3 : 7 }, (_, index) => callback(room, mode === 'distinct turns' ? `Επιλογή ${index}` : 'Γεια σου').then(response => response));
+    try {
+      await observed.waitFor(accepted.length);
+      const rejected = await callback(room, mode === 'distinct turns' ? 'Επιπλέον επιλογή' : 'Γεια σου');
+      expect(rejected.statusCode).toBe(429);
+      expect(info).toHaveBeenCalledWith({ outcome: 'rejected', status: 429, durationMs: expect.any(Number), reason: 'queue_full' }, 'Avatar callback outcome');
+      expect((await row(room)).state).toBe('active');
+      expect(provider.endConversation).not.toHaveBeenCalled();
+    } finally { observed.restore(); release.resolve(); }
+    expect((await Promise.all([first, ...accepted])).every(response => response.statusCode === 200)).toBe(true);
+    expect(composer.compose).toHaveBeenCalledTimes(mode === 'distinct turns' ? 4 : 1);
+    // Slots and promise-map entries are released after settlement.
+    expect((await callback(room, 'Νέα επιλογή')).statusCode).toBe(200);
+  });
+
+  it('waits for an independently held database lease without returning an overlapping 429', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    await db.query("UPDATE avatar_sessions SET busy_until=now()+interval '20 seconds' WHERE id=$1", [room.sessionId]);
+    const queries = vi.spyOn(db, 'query');
+    const pending = callback(room).then(response => response);
+    try {
+      await vi.waitFor(() => expect(queries.mock.calls.some(([sql]) => sql.includes("SET busy_until=now()+interval '35 seconds'"))).toBe(true));
+      expect(composer.compose).not.toHaveBeenCalled();
+      await db.query('UPDATE avatar_sessions SET busy_until=NULL WHERE id=$1', [room.sessionId]);
+    } finally { queries.mockRestore(); }
+    expect((await pending).statusCode).toBe(200);
+    expect(composer.compose).toHaveBeenCalledOnce();
+  });
+
+  it('waits for a draining conversation lease without ending the room or charging a rejected model attempt', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    await db.query("UPDATE conversations SET busy_until=now()+interval '20 seconds' WHERE id=$1", [session.conversationId]);
+    const queries = vi.spyOn(db, 'query');
+    const pending = callback(room).then(response => response);
+    try {
+      await vi.waitFor(() => expect(queries.mock.calls.some(([sql]) => sql.startsWith('SELECT turns FROM conversations'))).toBe(true));
+      expect(composer.compose).not.toHaveBeenCalled();
+      expect(provider.endConversation).not.toHaveBeenCalled();
+      await db.query('UPDATE conversations SET busy_until=NULL WHERE id=$1', [session.conversationId]);
+    } finally { queries.mockRestore(); }
+    expect((await pending).statusCode).toBe(200);
+    expect(composer.compose).toHaveBeenCalledOnce();
+    expect((await db.query('SELECT turns FROM conversations WHERE id=$1', [session.conversationId])).rows[0]!.turns).toBe(1);
+  });
+
+  it.each(['avatar', 'conversation'] as const)('does not save output or clear a replaced %s lease', async leaseType => {
+    const entered = deferred(); const release = deferred();
+    composer.verify.mockImplementation(async () => { entered.resolve(); await release.promise; return { supported: true, medical: false }; });
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    const pending = callback(room).then(response => response);
+    await entered.promise;
+    const table = leaseType === 'avatar' ? 'avatar_sessions' : 'conversations';
+    const id = leaseType === 'avatar' ? room.sessionId : session.conversationId;
+    const replaced = (await db.query(`UPDATE ${table} SET busy_until=now()+interval '60 seconds' WHERE id=$1 RETURNING busy_until::text AS lease`, [id])).rows[0]!.lease;
+    release.resolve();
+    const response = await pending;
+    expect(response.statusCode).toBe(409);
+    expect(response.body).not.toContain(approvedText);
+    expect((await row(room))).toMatchObject({ state: 'active', sequence: 0, result: null });
+    expect((await db.query(`SELECT busy_until::text AS lease FROM ${table} WHERE id=$1`, [id])).rows[0]!.lease).toBe(replaced);
+    expect(info).toHaveBeenCalledWith({ outcome: 'rejected', status: 409, durationMs: expect.any(Number), reason: 'lease_lost' }, 'Avatar callback outcome');
+  });
+
+  it('bounds the callback by the remaining session lifetime and suppresses late uncooperative generation', async () => {
+    const entered = deferred(); const release = deferred();
+    composer.verify.mockImplementation(async () => { entered.resolve(); await release.promise; return { supported: true, medical: false }; });
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    await db.query("UPDATE avatar_sessions SET expires_at=now()+interval '1 second' WHERE id=$1", [room.sessionId]);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    const pending = callback(room).then(response => response);
+    await entered.promise;
+    try {
+      const response = await pending;
+      expect(response.statusCode).toBe(504);
+      expect(response.body).not.toContain(approvedText);
+      expect(info).toHaveBeenCalledWith({ outcome: 'failed', status: 504, durationMs: expect.any(Number), reason: 'deadline' }, 'Avatar callback outcome');
+      expect(provider.endConversation).not.toHaveBeenCalled();
+    } finally { release.resolve(); }
+    await vi.waitFor(async () => expect((await row(room)).busy_until).toBeNull());
+    expect((await row(room))).toMatchObject({ sequence: 0, result: null });
+    const history = (await db.query<{ history: string }>('SELECT history FROM conversations WHERE id=$1', [session.conversationId])).rows[0]!.history;
+    expect(security.decrypt(history, shop)).toEqual([]);
+  });
+
+  it.each(['owner end', 'deadline'] as const)('suppresses a cached reply when %s occurs during its final asynchronous validation', async mode => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    expect((await callback(room)).statusCode).toBe(200);
+    if (mode === 'deadline') await db.query("UPDATE avatar_sessions SET expires_at=now()+interval '1 second' WHERE id=$1", [room.sessionId]);
+    const entered = deferred(); const release = deferred();
+    const original = db.query.bind(db);
+    let validations = 0;
+    const queries = vi.spyOn(db, 'query').mockImplementation(async <T extends Record<string, unknown>>(sql: string, params?: unknown[]) => {
+      const result = await original<T>(sql, params);
+      if (sql.startsWith('SELECT consent,assignment,experiment_id,config_fingerprint,provider FROM conversations') && ++validations === 2) { entered.resolve(); await release.promise; }
+      return result;
+    });
+    const pending = callback(room).then(response => response);
+    await entered.promise;
+    try {
+      if (mode === 'owner end') { expect((await end(session, room)).statusCode).toBe(200); release.resolve(); }
+      const response = await pending;
+      expect(response.statusCode).toBe(mode === 'owner end' ? 401 : 504);
+      expect(response.body).not.toContain(approvedText);
+    } finally { release.resolve(); queries.mockRestore(); }
+    expect(composer.compose).toHaveBeenCalledOnce();
+  });
+
+  it.each(['initial', 'final'] as const)('does not let a late %s validation failure stop a session after its callback deadline', async phase => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    expect((await callback(room)).statusCode).toBe(200);
+    await db.query("UPDATE avatar_sessions SET expires_at=now()+interval '1 second' WHERE id=$1", [room.sessionId]);
+    const entered = deferred(); const release = deferred(); const failed = deferred();
+    const original = db.query.bind(db);
+    let validations = 0;
+    const queries = vi.spyOn(db, 'query').mockImplementation(async <T extends Record<string, unknown>>(sql: string, params?: unknown[]) => {
+      const result = await original<T>(sql, params);
+      if (sql.startsWith('SELECT consent,assignment,experiment_id,config_fingerprint,provider FROM conversations') && ++validations === (phase === 'initial' ? 1 : 2)) {
+        entered.resolve(); await release.promise; failed.resolve(); throw new Error('Private delayed database failure');
+      }
+      return result;
+    });
+    const pending = callback(room).then(response => response);
+    await entered.promise;
+    try {
+      expect((await pending).statusCode).toBe(504);
+      // Simulate a successor's still-valid durable state before the old query fails.
+      await db.query("UPDATE avatar_sessions SET expires_at=now()+interval '180 seconds' WHERE id=$1", [room.sessionId]);
+      release.resolve(); await failed.promise;
+      await new Promise<void>(resolve => setImmediate(resolve));
+      expect((await row(room)).state).toBe('active');
+      expect(provider.endConversation).not.toHaveBeenCalled();
+    } finally { release.resolve(); queries.mockRestore(); }
   });
 
   it('ends the room when the merchant disables the configuration and releases no speech', async () => {
@@ -504,6 +731,31 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     expect(response.statusCode).toBe(401);
     expect(response.body).not.toContain(approvedText);
     expect((await row(room)).result).toBeNull();
+  });
+
+  it('does not resurrect or repeat cleanup when stale queued callbacks finish after owner-end', async () => {
+    const entered = deferred(); const release = deferred();
+    composer.verify.mockImplementationOnce(async () => { entered.resolve(); await release.promise; return { supported: true, medical: false }; });
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const first = callback(room).then(response => response);
+    await entered.promise;
+    const observed = observeAdmissions();
+    const queued = callback(room, 'Δεύτερη επιλογή').then(response => response);
+    const duplicate = callback(room).then(response => response);
+    try {
+      await observed.waitFor(2);
+      expect((await end(session, room)).statusCode).toBe(200);
+      expect((await row(room)).state).toBe('ended');
+    } finally { observed.restore(); release.resolve(); }
+    const responses = await Promise.all([first, queued, duplicate]);
+    expect(responses.map(response => response.statusCode)).toEqual([401, 401, 401]);
+    expect(responses.every(response => !response.body.includes(approvedText))).toBe(true);
+    expect(provider.endConversation).toHaveBeenCalledOnce();
+    expect(provider.deleteConversation).toHaveBeenCalledOnce();
+    expect(provider.deletePal).toHaveBeenCalledOnce();
+    expect((await row(room))).toMatchObject({ state: 'ended', credential_hash: '', result: null, sequence: 0 });
+    expect(composer.compose).toHaveBeenCalledOnce();
   });
 
   it('invalidates credentials and keeps the cost lease on unknown provider failure without a retry', async () => {

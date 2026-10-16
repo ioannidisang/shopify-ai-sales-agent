@@ -17,9 +17,16 @@ export default {
     const localAudio = { state: 'off', persistentTrack: localTrack };
     const canvas = document.createElement('canvas'); canvas.width = 480; canvas.height = 270;
     const context = canvas.getContext('2d');
+    const greenscreen = new URL(location.href).searchParams.get('background') === 'greenscreen';
     const draw = () => {
       frame++;
-      context.fillStyle = '#213e2d'; context.fillRect(0, 0, 480, 270);
+      context.fillStyle = greenscreen ? 'rgb(0,255,155)' : '#213e2d'; context.fillRect(0, 0, 480, 270);
+      if (greenscreen) {
+        context.fillStyle = '#d3946f'; context.beginPath(); context.ellipse(240, 104, 42, 60, 0, 0, Math.PI * 2); context.fill();
+        context.fillStyle = '#233f50'; context.beginPath(); context.ellipse(240, 255, 83, 100, 0, 0, Math.PI * 2); context.fill();
+        context.fillStyle = '#fff'; context.font = '12px system-ui'; context.textAlign = 'center'; context.fillText(`SYNTHETIC ${frame}`, 240, 240);
+        return;
+      }
       context.fillStyle = 'white'; context.font = 'bold 24px system-ui'; context.textAlign = 'center';
       context.fillText('SYNTHETIC AVATAR FIXTURE', 240, 105);
       context.font = '16px system-ui'; context.fillText('No camera / microphone / Tavus connection', 240, 145);

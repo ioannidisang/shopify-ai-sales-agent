@@ -3,6 +3,7 @@ import type { WidgetConnection, EventDetail } from './connection.js';
 import { styles } from './styles.js';
 import { lockPageScroll } from './appearance.js';
 import { avatarModuleUrl } from './module-url.js';
+import { createGreenscreenRenderer, type GreenscreenRenderer } from './greenscreen.js';
 import { isUnpublishedTheme } from './preview.js';
 import type { AnalyticsEventName, ChatResponse, Product, Variant } from './types.js';
 import type { TavusPilot, PilotState, PilotOptions } from './tavus.js';
@@ -30,6 +31,7 @@ const copy = {
     avatarMicCancel: 'Cancel microphone activation', avatarMicStarting: 'Waiting for microphone access. Allow access in your browser.', avatarMicReady: 'Microphone active. You can speak now.', avatarMicFailed: 'The microphone could not be activated. Check browser permissions or continue typing.',
     avatarConnectionEnded: 'The avatar connection was interrupted. You can continue in text.', avatarResultEnded: 'The checked answer could not be retrieved. The avatar stopped; you can continue in text.', avatarDurationEnded: 'The 3-minute trial has ended. You can continue in text.', avatarServerEnded: 'The avatar session has ended. You can continue in text.',
     avatarDiagnostic: 'Connection details for this trial',
+    avatarBackgroundFallback: 'Background removal is unavailable in this browser. Showing the original video; sound and text remain available.',
   },
   el: {
     launch: 'Βοηθός αγορών', subtitle: 'AI βοηθός · Πληροφορίες προϊόντων', hello: 'Βρες αυτό που ψάχνεις.',
@@ -53,6 +55,7 @@ const copy = {
     avatarMicCancel: 'Ακύρωση ανοίγματος μικροφώνου', avatarMicStarting: 'Περιμένουμε πρόσβαση στο μικρόφωνο. Επίτρεψέ την στον browser.', avatarMicReady: 'Το μικρόφωνο είναι ενεργό. Μπορείς να μιλήσεις.', avatarMicFailed: 'Το μικρόφωνο δεν ενεργοποιήθηκε. Έλεγξε την άδεια στον browser ή συνέχισε γραπτά.',
     avatarConnectionEnded: 'Η σύνδεση με το πρόσωπο διακόπηκε. Μπορείς να συνεχίσεις γραπτά.', avatarResultEnded: 'Δεν παραλήφθηκε η ελεγμένη απάντηση. Το πρόσωπο σταμάτησε· μπορείς να συνεχίσεις γραπτά.', avatarDurationEnded: 'Η δοκιμή των 3 λεπτών ολοκληρώθηκε. Μπορείς να συνεχίσεις γραπτά.', avatarServerEnded: 'Η συνεδρία με το πρόσωπο ολοκληρώθηκε. Μπορείς να συνεχίσεις γραπτά.',
     avatarDiagnostic: 'Στοιχεία σύνδεσης της δοκιμής',
+    avatarBackgroundFallback: 'Δεν ήταν δυνατή η αφαίρεση φόντου σε αυτόν τον browser. Προβάλλεται το αρχικό βίντεο· ο ήχος και το κείμενο παραμένουν διαθέσιμα.',
   },
 } as const;
 
@@ -111,6 +114,9 @@ class SalesAssistant {
   private avatarMic?: HTMLButtonElement;
   private avatarInterrupt?: HTMLButtonElement;
   private avatarVideo?: HTMLVideoElement;
+  private avatarCanvas?: HTMLCanvasElement;
+  private avatarRenderer?: GreenscreenRenderer;
+  private avatarBackgroundStatus?: HTMLElement;
   private avatarPlay?: HTMLButtonElement;
   private avatarStatus?: HTMLElement;
   private avatarDiagnostic?: HTMLDetailsElement;
@@ -209,6 +215,8 @@ class SalesAssistant {
     const code = node('input'); code.type = 'password'; code.autocomplete = 'off'; code.maxLength = 160; code.placeholder = this.t.avatarCode; code.setAttribute('aria-label', this.t.avatarCode);
     const start = button(this.t.avatarStart, () => this.startAvatar(), 'primary');
     const video = node('video'); video.playsInline = true; video.autoplay = false; video.setAttribute('aria-label', this.t.avatar); video.hidden = true;
+    const canvas = node('canvas'); canvas.className = 'avatar-cutout'; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', this.t.avatar); canvas.hidden = true;
+    const backgroundStatus = node('p', '', 'avatar-background-status'); backgroundStatus.setAttribute('role', 'status'); backgroundStatus.hidden = true;
     const play = button(this.t.avatarPlay, async () => { try { await video.play(); play.hidden = true; } catch { /* Keep the explicit playback option available. */ } }); play.hidden = true;
     const microphone = button(this.t.avatarMicOn, () => this.avatar?.toggleMicrophone()); microphone.hidden = true; microphone.setAttribute('aria-pressed', 'false');
     // Interrupt the provider's current utterance, keeping the live media stream
@@ -226,8 +234,9 @@ class SalesAssistant {
       status.textContent = '';
     });
     const caption = node('p', '', 'avatar-caption'); caption.hidden = true; caption.setAttribute('aria-label', this.t.avatarCaption);
-    panel.append(code, start, video, play, caption, controls, status, diagnostic);
+    panel.append(code, start, video, canvas, backgroundStatus, play, caption, controls, status, diagnostic);
     this.avatarDiagnostic = diagnostic; this.avatarDiagnosticText = diagnosticText;
+    this.avatarCanvas = canvas; this.avatarBackgroundStatus = backgroundStatus;
     this.avatarPanel = panel; this.avatarCode = code; this.avatarStart = start; this.avatarVideo = video; this.avatarPlay = play; this.avatarMic = microphone; this.avatarInterrupt = interrupt; this.avatarEnd = end; this.avatarStatus = status; this.avatarCaption = caption;
     return panel;
   }
@@ -248,6 +257,7 @@ class SalesAssistant {
     if (this.avatarInterrupt) this.avatarInterrupt.hidden = !active;
     if (this.avatarEnd) { this.avatarEnd.hidden = !active && state !== 'starting'; this.avatarEnd.disabled = state === 'stopping'; }
     if (this.avatarVideo) this.avatarVideo.hidden = !active;
+    if (this.avatarCanvas) this.avatarCanvas.hidden = !active || this.avatarVideo?.getAttribute('data-keyed') !== 'true';
     if (this.avatarStatus) this.avatarStatus.textContent = state === 'starting' ? this.t.avatarStarting : state === 'active' ? this.t.avatarReady : state === 'stopping' ? this.t.avatarStopping : state === 'failed' ? this.t.avatarFailed : '';
     this.send.disabled = state === 'starting' || this.chatPending;
     if (!active && this.avatarPlay) this.avatarPlay.hidden = true;
@@ -304,10 +314,26 @@ class SalesAssistant {
         onTracks: tracks => {
           if (!current() || !this.avatarVideo) return;
           const video = this.avatarVideo;
-          if (!tracks.length) { video.pause(); video.srcObject = null; return; }
+          if (!tracks.length) { this.clearAvatarRenderer(); video.pause(); video.srcObject = null; return; }
           const previous = video.srcObject instanceof MediaStream ? video.srcObject.getTracks() : [];
           if (tracks.length === previous.length && tracks.every(track => previous.includes(track))) return;
+          this.clearAvatarRenderer();
           video.srcObject = new MediaStream(tracks);
+          if (this.session?.avatar?.background === 'greenscreen' && this.avatarCanvas && tracks.some(track => track.kind === 'video')) {
+            this.avatarRenderer = createGreenscreenRenderer(video, this.avatarCanvas, {
+              onReady: () => {
+                if (!current()) return;
+                video.setAttribute('data-keyed', 'true'); video.setAttribute('aria-hidden', 'true');
+                if (this.avatarCanvas) this.avatarCanvas.hidden = this.avatar?.state !== 'active';
+              },
+              onFallback: () => {
+                if (!current()) return;
+                video.removeAttribute('data-keyed'); video.removeAttribute('aria-hidden');
+                if (this.avatarCanvas) this.avatarCanvas.hidden = true;
+                if (this.avatarBackgroundStatus) { this.avatarBackgroundStatus.textContent = this.t.avatarBackgroundFallback; this.avatarBackgroundStatus.hidden = false; }
+              },
+            });
+          }
           void video.play().catch(() => { if (current() && this.avatarPlay) this.avatarPlay.hidden = false; });
         },
         onResult: result => {
@@ -334,6 +360,7 @@ class SalesAssistant {
     if (this.avatarDiagnostic) { this.avatarDiagnostic.hidden = true; this.avatarDiagnostic.open = false; }
     if (this.avatarDiagnosticText) this.avatarDiagnosticText.textContent = '';
     const avatar = this.avatar; this.avatar = undefined;
+    this.clearAvatarRenderer();
     if (this.avatarCode) { this.avatarCode.value = ''; this.avatarCode.removeAttribute('aria-invalid'); }
     if (this.avatarVideo) { this.avatarVideo.pause(); this.avatarVideo.srcObject = null; }
     if (this.avatarCaption) { this.avatarCaption.textContent = ''; this.avatarCaption.hidden = true; }
@@ -344,6 +371,13 @@ class SalesAssistant {
       this.avatarStopping = undefined;
     })();
     return this.avatarStopping;
+  }
+
+  private clearAvatarRenderer(): void {
+    this.avatarRenderer?.dispose(); this.avatarRenderer = undefined;
+    if (this.avatarCanvas) this.avatarCanvas.hidden = true;
+    this.avatarVideo?.removeAttribute('data-keyed'); this.avatarVideo?.removeAttribute('aria-hidden');
+    if (this.avatarBackgroundStatus) { this.avatarBackgroundStatus.textContent = ''; this.avatarBackgroundStatus.hidden = true; }
   }
 
   private post<T>(path: string, body: unknown): Promise<T> { return this.connection.post<T>(path, body); }

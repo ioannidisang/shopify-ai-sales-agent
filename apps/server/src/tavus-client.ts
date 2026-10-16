@@ -9,6 +9,9 @@ const JWT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 export const TAVUS_MAX_CALL_SECONDS = 180;
 export const TAVUS_ABSENT_SECONDS = 30;
 export const TAVUS_DIAGNOSTIC_TIMEOUT_MS = 2_000;
+// Verified stock Phoenix-4 faces; Phoenix-4.5 does not support greenscreen.
+export const TAVUS_GREENSCREEN_FACE_IDS = ['r53a461095cf', 'r90bbd427f71'] as const;
+export interface TavusVoice { externalVoiceId: string; model: 'eleven_multilingual_v2' | 'eleven_flash_v2_5' }
 export const TAVUS_SHUTDOWN_REASONS = [
   'max_call_duration', 'participant_left_timeout', 'participant_absent_timeout',
   'bot_could_not_join_meeting_it_was_probably_ended', 'daily_room_has_been_deleted',
@@ -23,12 +26,14 @@ export interface TavusCreatePalInput extends TavusRequestOptions {
   faceId: string;
   callbackBaseUrl: string;
   callbackSecret: string;
+  voice?: TavusVoice;
 }
 
 export interface TavusCreateConversationInput extends TavusRequestOptions {
   palId: string;
   /** Setup validation only: no avatar joins and the room is returned ended. */
   testMode?: boolean;
+  greenscreen?: boolean;
 }
 
 export interface TavusConversation {
@@ -152,6 +157,10 @@ export class TavusClient implements TavusProvider {
     const faceId = resourceId(input.faceId);
     const baseUrl = callbackUrl(input.callbackBaseUrl);
     if (!SECRET.test(input.callbackSecret)) throw new TavusUnavailableError();
+    const voice = input.voice;
+    if (voice && !['eleven_multilingual_v2', 'eleven_flash_v2_5'].includes(voice.model)) throw new TavusUnavailableError();
+    const tts = voice ? { tts_engine: 'elevenlabs', external_voice_id: resourceId(voice.externalVoiceId), tts_model_name: voice.model }
+      : { tts_engine: 'tavus-auto' };
     const result = object(await this.request('/v2/pals', 'POST', {
       pal_name: 'Private shopping assistant session',
       pipeline_mode: 'full',
@@ -166,7 +175,7 @@ export class TavusClient implements TavusProvider {
       layers: {
         perception: { perception_model: 'off', emotion_recognition: 'limited' },
         stt: { stt_engine: 'tavus-auto' },
-        tts: { tts_engine: 'tavus-auto' },
+        tts,
         conversational_flow: {
           turn_detection_model: 'sparrow-2', turn_taking_patience: 'medium',
           pal_interruptibility: 'high', idle_engagement: 'off',
@@ -182,6 +191,7 @@ export class TavusClient implements TavusProvider {
 
   async createConversation(input: TavusCreateConversationInput): Promise<TavusConversation> {
     if (input.testMode !== undefined && typeof input.testMode !== 'boolean') throw new TavusUnavailableError();
+    if (input.greenscreen !== undefined && typeof input.greenscreen !== 'boolean') throw new TavusUnavailableError();
     const result = object(await this.request('/v2/conversations', 'POST', {
       pal_id: resourceId(input.palId),
       conversation_name: 'Private shopping assistant trial',
@@ -191,6 +201,7 @@ export class TavusClient implements TavusProvider {
       dynamic_greeting: false,
       test_mode: input.testMode ?? false,
       properties: {
+        ...(input.greenscreen ? { apply_greenscreen: true } : {}),
         max_call_duration: TAVUS_MAX_CALL_SECONDS,
         participant_left_timeout: TAVUS_ABSENT_SECONDS,
         participant_absent_timeout: TAVUS_ABSENT_SECONDS,

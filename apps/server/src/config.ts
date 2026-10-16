@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { z } from 'zod';
 import { shopDomain } from './security.js';
 import { previewCatalogSchema } from '../../../packages/shopify/src/preview-catalog.js';
+import { TAVUS_GREENSCREEN_FACE_IDS, type TavusVoice } from './tavus-client.js';
 
 // One active registration chooses one canonical local OAuth route. No URL normalization
 // is allowed here: encoded separators, query strings and alternate paths must fail closed.
@@ -67,7 +68,7 @@ export interface RuntimeEnvironment {
   openaiModel: string | undefined;
   mistralKey: string | undefined;
   mistralModel: string | undefined;
-  tavus?: { apiKey: string; faceId: string; pilotShop: string; accessCodeHash: string };
+  tavus?: { apiKey: string; faceId: string; pilotShop: string; accessCodeHash: string; background?: 'greenscreen'; voice?: TavusVoice };
   tavusApiKey?: string;
 }
 
@@ -82,7 +83,14 @@ export function readEnv(): RuntimeEnvironment {
   const tavus = raw.TAVUS_ENABLED === 'true' ? z.object({
     apiKey: z.string().min(16).max(512), faceId: z.string().regex(/^[a-zA-Z0-9_-]{3,100}$/),
     pilotShop: shopDomain, accessCodeHash: z.string().regex(/^[a-f0-9]{64}$/),
-  }).parse({ apiKey: raw.TAVUS_API_KEY, faceId: raw.TAVUS_FACE_ID, pilotShop: raw.TAVUS_PILOT_SHOP, accessCodeHash: raw.TAVUS_PREVIEW_CODE_SHA256 }) : undefined;
+    background: z.literal('greenscreen').optional(),
+    voice: z.object({ externalVoiceId: z.string().regex(/^[a-zA-Z0-9_-]{3,100}$/), model: z.enum(['eleven_multilingual_v2', 'eleven_flash_v2_5']) }).optional(),
+  }).refine(value => !value.background || TAVUS_GREENSCREEN_FACE_IDS.some(id => id === value.faceId), 'Greenscreen requires a verified compatible Phoenix-4 face')
+    .parse({ apiKey: raw.TAVUS_API_KEY, faceId: raw.TAVUS_FACE_ID, pilotShop: raw.TAVUS_PILOT_SHOP, accessCodeHash: raw.TAVUS_PREVIEW_CODE_SHA256,
+      background: raw.TAVUS_BACKGROUND || undefined,
+      voice: raw.TAVUS_ELEVENLABS_VOICE_ID || raw.TAVUS_ELEVENLABS_MODEL ? {
+        externalVoiceId: raw.TAVUS_ELEVENLABS_VOICE_ID, model: raw.TAVUS_ELEVENLABS_MODEL,
+      } : undefined }) : undefined;
   if (tavus && (parsedUrl.protocol !== 'https:' || !allowedShops.includes(tavus.pilotShop))) throw new Error('Tavus requires HTTPS and an allowlisted pilot shop');
   if (raw.NODE_ENV === 'production' && (parsedUrl.protocol !== 'https:' || !raw.DATABASE_URL)) throw new Error('Production requires HTTPS APP_URL and PostgreSQL DATABASE_URL');
   return {

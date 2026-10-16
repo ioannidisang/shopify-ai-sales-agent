@@ -4,7 +4,9 @@ import type { WidgetConnection } from '../apps/widget/src/connection.js';
 import type { PilotOptions, PilotState } from '../apps/widget/src/tavus.js';
 
 const provider = vi.hoisted(() => ({ createTavusPilot: vi.fn() }));
+const presentation = vi.hoisted(() => ({ createGreenscreenRenderer: vi.fn() }));
 vi.mock('../apps/widget/src/tavus.js', () => provider);
+vi.mock('../apps/widget/src/greenscreen.js', () => presentation);
 vi.mock('../apps/widget/src/module-url.js', () => ({ avatarModuleUrl: () => './tavus.js' }));
 vi.mock('../apps/widget/src/appearance.js', () => ({ lockPageScroll: () => () => {} }));
 
@@ -79,10 +81,73 @@ async function fixture(locale = 'el') {
   return { host, connection, document, window, code, start, status, dialog };
 }
 
-beforeEach(() => { provider.createTavusPilot.mockReset(); });
+beforeEach(() => { provider.createTavusPilot.mockReset(); presentation.createGreenscreenRenderer.mockReset(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('private avatar launch lifecycle', () => {
+  it('activates person-only presentation only for the explicit flag and releases it on replacement and end', async () => {
+    const f = await fixture();
+    Object.assign(f.connection.session.avatar, { background: 'greenscreen' });
+    let callbacks!: PilotOptions;
+    const pilot = { state: 'active', start: vi.fn(async () => callbacks.onState('active')), stop: vi.fn() };
+    provider.createTavusPilot.mockImplementation((options: PilotOptions) => { callbacks = options; return pilot; });
+    const first = { dispose: vi.fn() }, second = { dispose: vi.fn() };
+    presentation.createGreenscreenRenderer.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    f.code.value = 'synthetic-code'; f.start.click();
+    await vi.waitFor(() => expect(pilot.start).toHaveBeenCalledOnce());
+    const video = f.host.shadowRoot!.find(element => element.tagName === 'video');
+    const canvas = f.host.shadowRoot!.find(element => element.className === 'avatar-cutout');
+    const tracks = [{ kind: 'video' }, { kind: 'audio' }] as MediaStreamTrack[];
+    callbacks.onTracks(tracks);
+    expect(canvas.hidden).toBe(true);
+    expect(video.hidden).toBe(false);
+    expect(presentation.createGreenscreenRenderer).toHaveBeenCalledOnce();
+    presentation.createGreenscreenRenderer.mock.calls[0]![2].onReady();
+    expect(canvas.hidden).toBe(false);
+    expect(video.getAttribute('data-keyed')).toBe('true');
+    expect(video.paused).toBe(false);
+    callbacks.onTracks(tracks);
+    expect(presentation.createGreenscreenRenderer).toHaveBeenCalledOnce();
+    callbacks.onTracks([{ kind: 'video' }, tracks[1]!] as MediaStreamTrack[]);
+    expect(first.dispose).toHaveBeenCalledOnce();
+    expect(presentation.createGreenscreenRenderer).toHaveBeenCalledTimes(2);
+    expect(canvas.hidden).toBe(true);
+    presentation.createGreenscreenRenderer.mock.calls[1]![2].onReady();
+    expect(canvas.hidden).toBe(false);
+    callbacks.onTracks([]);
+    expect(second.dispose).toHaveBeenCalledOnce();
+    expect(canvas.hidden).toBe(true);
+    expect(video.getAttribute('data-keyed')).toBeNull();
+    expect(video.srcObject).toBeNull();
+  });
+
+  it('explains background-renderer failure while keeping the original media available', async () => {
+    const f = await fixture();
+    Object.assign(f.connection.session.avatar, { background: 'greenscreen' });
+    let callbacks!: PilotOptions;
+    const pilot = { state: 'active', start: vi.fn(async () => callbacks.onState('active')), stop: vi.fn() };
+    provider.createTavusPilot.mockImplementation((options: PilotOptions) => { callbacks = options; return pilot; });
+    const renderer = { dispose: vi.fn() };
+    presentation.createGreenscreenRenderer.mockReturnValue(renderer);
+    f.code.value = 'synthetic-code'; f.start.click();
+    await vi.waitFor(() => expect(pilot.start).toHaveBeenCalledOnce());
+    callbacks.onTracks([{ kind: 'video' }, { kind: 'audio' }] as MediaStreamTrack[]);
+    const hooks = presentation.createGreenscreenRenderer.mock.calls[0]![2];
+    hooks.onReady(); hooks.onFallback();
+    const video = f.host.shadowRoot!.find(element => element.tagName === 'video');
+    expect(video.hidden).toBe(false);
+    expect(video.getAttribute('data-keyed')).toBeNull();
+    expect(video.paused).toBe(false);
+    expect(f.host.shadowRoot!.find(element => element.className === 'avatar-cutout').hidden).toBe(true);
+    const notice = f.host.shadowRoot!.find(element => element.className === 'avatar-background-status');
+    expect(notice.hidden).toBe(false);
+    expect(notice.textContent).toContain('Προβάλλεται το αρχικό βίντεο');
+    expect(pilot.stop).not.toHaveBeenCalled();
+    f.dialog.close();
+    expect(renderer.dispose).toHaveBeenCalledOnce();
+    expect(notice.hidden).toBe(true);
+  });
+
   it('recovers rejected autoplay explicitly and plays replacement tracks without restarting unchanged media', async () => {
     const f = await fixture();
     let callbacks!: PilotOptions;
@@ -96,6 +161,7 @@ describe('private avatar launch lifecycle', () => {
     const audio = { kind: 'audio' } as MediaStreamTrack;
     const picture = { kind: 'video' } as MediaStreamTrack;
     callbacks.onTracks([picture, audio]);
+    expect(presentation.createGreenscreenRenderer).not.toHaveBeenCalled();
     await vi.waitFor(() => expect(play.hidden).toBe(false));
     expect(video.paused).toBe(true);
     expect(video.srcObject?.getTracks()).toEqual([picture, audio]);

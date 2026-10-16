@@ -14,6 +14,7 @@ const events = [];
 const sessions = new Map();
 let avatar = { sequence: 0, ended: true, userText: '' };
 let mockAvatarBundle;
+let greenscreenBundle;
 async function avatarBundle() {
   if (!mockAvatarBundle) {
     const result = await build({ entryPoints: [fileURLToPath(new URL('../../apps/widget/src/tavus.ts', import.meta.url))], bundle: true, write: false, format: 'esm', platform: 'browser', plugins: [{ name: 'synthetic-daily', setup(builder) { builder.onResolve({ filter: /^@daily-co\/daily-js$/ }, () => ({ path: fileURLToPath(new URL('./mock-daily.mjs', import.meta.url)) })); } }] });
@@ -36,10 +37,22 @@ const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url || '/', 'http://127.0.0.1:3101');
     const path = url.pathname;
+    if (request.method === 'GET' && path === '/__fixture/greenscreen') {
+      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      response.end(await readFile(new URL('./greenscreen.html', import.meta.url))); return;
+    }
+    if (request.method === 'GET' && path === '/__fixture/greenscreen-module.js') {
+      if (!greenscreenBundle) {
+        const built = await build({ entryPoints: [fileURLToPath(new URL('../../apps/widget/src/greenscreen.ts', import.meta.url))], bundle: true, write: false, format: 'esm', platform: 'browser' });
+        greenscreenBundle = built.outputFiles[0].text;
+      }
+      response.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' }); response.end(greenscreenBundle); return;
+    }
     if (request.method === 'GET' && path === '/__fixture/mobile') {
       const query = new URLSearchParams({ locale: 'el' });
       if (url.searchParams.get('avatar') === 'mock') query.set('avatar', 'mock');
       if (url.searchParams.get('playback') === 'block-once') query.set('playback', 'block-once');
+      if (url.searchParams.get('background') === 'greenscreen') query.set('background', 'greenscreen');
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       response.end(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>TEST FIXTURE · 390 × 844 viewport</title><style>body{margin:24px;background:#eceee9;color:#213e2d;font:16px/1.5 system-ui,sans-serif}h1{font-size:22px}iframe{display:block;width:390px;height:844px;border:0;background:white;box-shadow:0 0 0 1px #a8b6a5}a{color:#174c38}</style></head><body><h1>TEST FIXTURE · Fixed 390 × 844 viewport</h1><p>Synthetic catalog only. No Shopify connection or real purchases. The inner frame uses the actual storefront widget.</p><p><a href="/">Full-size fixture</a></p><iframe id="mobile-fixture" title="Synthetic mobile storefront fixture" width="390" height="844" src="/?${query.toString().replaceAll('&', '&amp;')}"></iframe></body></html>`); return;
     }
@@ -77,7 +90,7 @@ const server = createServer(async (request, response) => {
       if (input.id !== '123:fixture-line' || !Number.isInteger(input.quantity)) { send(response, { error: 'invalid fixture line' }, 422); return; }
       quantity = input.quantity; counters.change++; send(response, cart()); return;
     }
-    const endpoint = /^\/apps\/sales-agent(?:-control|-avatar)?(\/.*)$/.exec(path)?.[1];
+    const endpoint = /^\/apps\/sales-agent(?:-control|-avatar|-avatar-green)?(\/.*)$/.exec(path)?.[1];
     if (request.method === 'POST' && endpoint) {
       const input = await body(request);
       if (endpoint === '/bootstrap') {
@@ -86,7 +99,7 @@ const server = createServer(async (request, response) => {
         const assignment = input.analyticsConsent ? path.includes('sales-agent-control') ? 'control' : 'assistant' : 'untracked';
         const token = `fixture-${conversationId}`;
         sessions.set(token, { analyticsConsent: input.analyticsConsent, assignment });
-        send(response, { token, conversationId, assignment, experimentId: 'fixture-v1', brand: 'TEST · Shopping assistant', enabled: true, knowledgeVersion: 'fixture-v1', ...(path.includes('sales-agent-avatar') ? { avatar: { provider: 'tavus', previewOnly: true, maxDurationSeconds: 180 } } : {}) }); return;
+        send(response, { token, conversationId, assignment, experimentId: 'fixture-v1', brand: 'TEST · Shopping assistant', enabled: true, knowledgeVersion: 'fixture-v1', ...(path.includes('sales-agent-avatar') ? { avatar: { provider: 'tavus', previewOnly: true, maxDurationSeconds: 180, ...(path.includes('-avatar-green') ? { background: 'greenscreen' } : {}) } } : {}) }); return;
       }
       const session = sessions.get(input.token);
       if (!session) { send(response, { error: 'fixture session missing' }, 401); return; }
@@ -117,6 +130,7 @@ const server = createServer(async (request, response) => {
       const greek = url.searchParams.get('locale') !== 'en';
       const consent = url.searchParams.get('consent') !== 'no';
       const avatarMock = url.searchParams.get('avatar') === 'mock';
+      const greenscreen = avatarMock && url.searchParams.get('background') === 'greenscreen';
       const themeRole = url.searchParams.get('theme') === 'main' ? 'main' : 'unpublished';
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       response.end(`<!doctype html><html lang="${greek ? 'el' : 'en'}"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>TEST FIXTURE · Sales assistant</title><style>
@@ -137,7 +151,7 @@ document.getElementById('refresh').onclick=evidence;
 document.getElementById('reset').onclick=async()=>{await fetch('/__fixture/reset',{method:'POST'});location.reload();};
 document.getElementById('price').onclick=async()=>{await fetch('/__fixture/price',{method:'POST'});await evidence();};
 document.addEventListener('sales-agent:cart-updated',evidence);setInterval(evidence,1500);evidence();
-</script>${avatarMock ? '<p style="padding:16px">SYNTHETIC AVATAR MODE · Code: test-only. Animated canvas and synthetic audio tracks; no Tavus, camera or physical microphone. After starting, expand Synthetic media controls in the assistant to simulate permission, errors and track replacement. Add playback=block-once to the URL to test playback recovery.</p>' : ''}<div data-sales-agent data-ui-url="/sales-assistant-ui.js" data-avatar-url="/sales-assistant-avatar.js" data-endpoint="/apps/sales-agent${control ? '-control' : avatarMock ? '-avatar' : ''}" data-root="${greek ? '/el/' : '/'}" data-country="GR" data-locale="${greek ? 'el' : 'en'}"></div><script src="/sales-assistant.js" defer></script></body></html>`); return;
+</script>${avatarMock ? '<p style="padding:16px">SYNTHETIC AVATAR MODE · Code: test-only. Animated canvas and synthetic audio tracks; no Tavus, camera or physical microphone. After starting, expand Synthetic media controls in the assistant to simulate permission, errors and track replacement. Add playback=block-once to the URL to test playback recovery.</p>' : ''}<div data-sales-agent data-ui-url="/sales-assistant-ui.js" data-avatar-url="/sales-assistant-avatar.js" data-endpoint="/apps/sales-agent${control ? '-control' : avatarMock ? greenscreen ? '-avatar-green' : '-avatar' : ''}" data-root="${greek ? '/el/' : '/'}" data-country="GR" data-locale="${greek ? 'el' : 'en'}"></div><script src="/sales-assistant.js" defer></script></body></html>`); return;
     }
     send(response, { error: 'unknown fixture route' }, 404);
   } catch { send(response, { error: 'fixture request failed' }, 500); }

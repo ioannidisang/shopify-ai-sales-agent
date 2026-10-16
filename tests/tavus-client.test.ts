@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { TavusAllocationCleanupError, TavusClient, TavusUnavailableError } from '../apps/server/src/tavus-client.js';
+import { TavusAllocationCleanupError, TavusClient, TavusUnavailableError, type TavusVoice } from '../apps/server/src/tavus-client.js';
 
 const pal = {
   faceId: 'r123face', callbackBaseUrl: 'https://shop.example.com/api/tavus/llm',
@@ -36,11 +36,35 @@ describe('Tavus private full-pipeline adapter', () => {
       },
     });
     expect(Object.keys(payload.layers.llm).sort()).toEqual(['api_key', 'base_url', 'model', 'speculative_inference']);
+    expect(payload.layers.tts).toEqual({ tts_engine: 'tavus-auto' });
     for (const forbidden of ['tools', 'document_ids', 'document_tags', 'participant_tags', 'memory_stores', 'objectives_id', 'guardrail_ids', 'guardrail_tags']) {
       expect(payload).not.toHaveProperty(forbidden);
     }
     expect(payload.layers).not.toHaveProperty('mcp');
     expect(payload.layers).not.toHaveProperty('conferencing');
+  });
+
+  it.each(['eleven_multilingual_v2', 'eleven_flash_v2_5'] as const)('pins a public external voice to %s without forwarding other voice fields', async model => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({ pal_id: 'p123trial' }));
+    const voice = { externalVoiceId: 'aTP4J5SJLQl74WTSRXKW', model,
+      api_key: 'must-not-be-forwarded', voice_id: 'must-not-be-forwarded', voice_settings: { speed: 99 } };
+    await client(fetcher).createPal({ ...pal, voice });
+    const payload = body(fetcher);
+    expect(payload.layers.tts).toEqual({ tts_engine: 'elevenlabs', external_voice_id: voice.externalVoiceId, tts_model_name: model });
+    expect(payload.languages).toEqual(['el']);
+    expect(payload.layers.perception.perception_model).toBe('off');
+    expect(payload.layers.llm).toEqual({ model: 'shopify-grounded', base_url: pal.callbackBaseUrl, api_key: pal.callbackSecret, speculative_inference: false });
+    expect(JSON.stringify(payload)).not.toContain('must-not-be-forwarded');
+  });
+
+  it.each([
+    { externalVoiceId: 'voice123', model: 'unknown-model' },
+    { externalVoiceId: 'https://example.test/private', model: 'eleven_multilingual_v2' },
+    { externalVoiceId: '', model: 'eleven_multilingual_v2' },
+  ])('rejects invalid voice configuration before any provider request', async voice => {
+    const fetcher = vi.fn<typeof fetch>();
+    await expect(client(fetcher).createPal({ ...pal, voice: voice as TavusVoice })).rejects.toBeInstanceOf(TavusUnavailableError);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it('creates a private short room with recordings disabled and no persistent-memory tags', async () => {
@@ -62,6 +86,27 @@ describe('Tavus private full-pipeline adapter', () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({ ...conversation, status: 'ended' }));
     expect((await client(fetcher).createConversation({ palId: 'p123trial', testMode: true })).status).toBe('ended');
     expect(body(fetcher).test_mode).toBe(true);
+  });
+
+  it('adds greenscreen without changing authentication, recording, duration or other room settings', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => json({ ...conversation, status: 'ended' }));
+    const adapter = client(fetcher);
+    await adapter.createConversation({ palId: 'p123trial', testMode: true });
+    await adapter.createConversation({ palId: 'p123trial', testMode: true, greenscreen: true });
+    const baseline = body(fetcher, 0), greenscreen = body(fetcher, 1);
+    const { apply_greenscreen, ...properties } = greenscreen.properties;
+    expect(apply_greenscreen).toBe(true);
+    expect({ ...greenscreen, properties }).toEqual(baseline);
+  });
+
+  it('omits disabled greenscreen and rejects nonboolean requests before allocating a room', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json(conversation));
+    const adapter = client(fetcher);
+    await adapter.createConversation({ palId: 'p123trial', greenscreen: false });
+    expect(body(fetcher).properties).not.toHaveProperty('apply_greenscreen');
+    fetcher.mockClear();
+    await expect(adapter.createConversation({ palId: 'p123trial', greenscreen: 'true' as never })).rejects.toBeInstanceOf(TavusUnavailableError);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it('keeps normal end, deletion and explicit hard deletion separate', async () => {

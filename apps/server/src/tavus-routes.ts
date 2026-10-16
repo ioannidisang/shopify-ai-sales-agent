@@ -9,6 +9,11 @@ import { constantEqual, tokenPayload, type Security, type SessionClaims } from '
 import { TavusClient, TavusAllocationCleanupError, TAVUS_MAX_CALL_SECONDS, TAVUS_DIAGNOSTIC_TIMEOUT_MS, TAVUS_SHUTDOWN_REASONS, type TavusProvider } from './tavus-client.js';
 
 const MAX_STARTS_PER_DAY = 3;
+const CALLBACK_DEADLINE_MS = 30_000;
+const MAX_PENDING_TURNS = 4;
+const MAX_CALLBACK_WAITERS = 8;
+const CALLBACK_REASONS = ['ok', 'invalid_input', 'session_guard', 'config_guard', 'queue_full', 'deadline', 'lease_lost', 'conversation_busy', 'turn_limit', 'model_budget', 'generation_failed'] as const;
+export type AvatarCallbackReason = typeof CALLBACK_REASONS[number];
 const bearerBody = z.object({ token: z.string().min(1).max(2048) });
 const ownerBody = bearerBody.extend({ sessionId: z.uuid() });
 const unavailableSpeech = 'Η σύνδεση διακόπηκε. Μπορείς να συνεχίσεις γραπτά με τον βοηθό.';
@@ -22,10 +27,10 @@ interface Dependencies {
   authenticate(req: FastifyRequest, token: string): Promise<Context>;
   authenticateEnd(req: FastifyRequest, token: string): Promise<SessionClaims>;
   validate(claims: SessionClaims): Promise<Context>;
-  chat(claims: SessionClaims, message: string): Promise<ChatResponse>;
+  chat(claims: SessionClaims, message: string, signal: AbortSignal): Promise<ChatResponse>;
   provider?: TavusProvider;
 }
-class AvatarError extends Error { constructor(public statusCode: number) { super('Avatar request unavailable'); } }
+class AvatarError extends Error { constructor(public statusCode: number, public avatarReason?: AvatarCallbackReason) { super('Avatar request unavailable'); } }
 
 export function avatarAvailable(env: RuntimeEnvironment, config: ShopConfig): boolean {
   return Boolean(env.tavus && env.tavus.pilotShop === config.shop && env.allowedShops.includes(config.shop)
@@ -39,10 +44,142 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
   const cleanupKey = env.tavus?.apiKey ?? env.tavusApiKey;
   const provider = deps.provider ?? (cleanupKey ? new TavusClient({ apiKey: cleanupKey }) : undefined);
   const owned = new Set<string>();
-  const callbackStarted = new WeakMap<FastifyRequest, number>();
+  const callbackStarted = new WeakMap<FastifyRequest, { started: number; reason?: AvatarCallbackReason }>();
+  type PendingTurn = { promise: Promise<ChatResponse> };
+  type CallbackQueue = {
+    turns: Map<string, PendingTurn>; tail: Promise<void>; waiters: number; invalidated: boolean;
+    completed: Map<string, { result: string; expiresAt: number }>; expiryTimer?: ReturnType<typeof setTimeout>;
+  };
+  const callbackQueues = new Map<string, CallbackQueue>();
   let sweeping = false;
   function available(config: ShopConfig) { if (!provider || !avatarAvailable(env, config)) throw new AvatarError(403); }
   async function get(id: string) { return (await db.query<Row>('SELECT * FROM avatar_sessions WHERE id=$1', [id])).rows[0]; }
+  function active(row: Row | undefined): asserts row is Row {
+    if (!row || row.state !== 'active' || new Date(row.expires_at).getTime() <= Date.now()) throw new AvatarError(401, 'session_guard');
+  }
+  function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+    if (signal.aborted) { void work.catch(() => {}); return Promise.reject(signal.reason); }
+    return new Promise((resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+      work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+    });
+  }
+  async function waitForLease(signal: AbortSignal): Promise<void> {
+    await new Promise<void>(resolve => {
+      const done = () => { clearTimeout(timer); signal.removeEventListener('abort', done); resolve(); };
+      const timer = setTimeout(done, 100);
+      signal.addEventListener('abort', done, { once: true });
+      if (signal.aborted) done();
+    });
+    signal.throwIfAborted();
+  }
+  function pruneQueue(id: string, queue: CallbackQueue): void {
+    clearTimeout(queue.expiryTimer);
+    for (const [hash, completed] of queue.completed) if (completed.expiresAt <= Date.now()) queue.completed.delete(hash);
+    if (!queue.turns.size && !queue.waiters && !queue.completed.size) {
+      if (callbackQueues.get(id) === queue) callbackQueues.delete(id);
+    } else if (queue.completed.size) {
+      const nextExpiry = Math.min(...Array.from(queue.completed.values(), entry => entry.expiresAt));
+      queue.expiryTimer = setTimeout(() => pruneQueue(id, queue), Math.max(1, nextExpiry - Date.now()));
+      queue.expiryTimer.unref();
+    }
+  }
+  async function checkedTurn(row: Row, claims: SessionClaims, message: string, requestHash: string, signal: AbortSignal): Promise<ChatResponse> {
+    let lease: string | undefined;
+    try {
+      // The process-local FIFO reduces contention; this database lease remains the
+      // authority when a second process is draining or completing the same session.
+      for (;;) {
+        signal.throwIfAborted();
+        const current = await get(row.id); active(current);
+        const context = await deps.validate(claims); available(context.tenant.config);
+        signal.throwIfAborted();
+        if (current.last_request_hash === requestHash && current.result) return security.decrypt<ChatResponse>(current.result, row.shop);
+        const lock = await db.query<{ lease: string }>("UPDATE avatar_sessions SET busy_until=now()+interval '35 seconds' WHERE id=$1 AND state='active' AND expires_at>now() AND (busy_until IS NULL OR busy_until<now()) RETURNING busy_until::text AS lease", [row.id]);
+        if (lock.rows[0]) { lease = lock.rows[0].lease; break; }
+        await waitForLease(signal);
+      }
+      signal.throwIfAborted();
+      const locked = await get(row.id); active(locked);
+      if (locked.last_request_hash === requestHash && locked.result) return security.decrypt<ChatResponse>(locked.result, row.shop);
+      let response: ChatResponse;
+      for (;;) {
+        signal.throwIfAborted();
+        try { response = await deps.chat(claims, message, signal); break; }
+        catch (error) {
+          // A text turn or a draining worker can still own the conversation lease.
+          // Retrying this fixed busy reason spends no additional model turn.
+          const reason = error && typeof error === 'object' && 'avatarReason' in error ? error.avatarReason : undefined;
+          if (reason !== 'conversation_busy') throw error;
+          await waitForLease(signal);
+        }
+      }
+      signal.throwIfAborted();
+      const current = await deps.validate(claims); available(current.tenant.config);
+      signal.throwIfAborted();
+      const saved = await db.query("UPDATE avatar_sessions SET result=$2,sequence=sequence+1,last_request_hash=$3 WHERE id=$1 AND state='active' AND expires_at>now() AND busy_until=$4::timestamptz AND busy_until>now() RETURNING id", [row.id, security.encrypt(response, row.shop), requestHash, lease]);
+      if (!saved.rows.length) {
+        active(await get(row.id));
+        throw new AvatarError(409, 'lease_lost');
+      }
+      return response;
+    } catch (error) {
+      // A bounded queue wait does not revoke a healthy room or another worker's
+      // lease. Configuration, shopper-session and generation failures still do.
+      if (signal.aborted) throw signal.reason;
+      const reason = error && typeof error === 'object' && 'avatarReason' in error ? error.avatarReason : undefined;
+      if (reason !== 'deadline' && reason !== 'lease_lost') await stop(row);
+      throw error;
+    } finally {
+      // A delayed worker must never clear a lease acquired by its successor.
+      if (lease) await db.query('UPDATE avatar_sessions SET busy_until=NULL WHERE id=$1 AND busy_until=$2::timestamptz', [row.id, lease]);
+    }
+  }
+  async function queuedTurn(row: Row, claims: SessionClaims, message: string, requestHash: string, deadline: number, requestSignal: AbortSignal): Promise<ChatResponse> {
+    let queue = callbackQueues.get(row.id);
+    if (!queue) { queue = { turns: new Map(), tail: Promise.resolve(), waiters: 0, completed: new Map(), invalidated: false }; callbackQueues.set(row.id, queue); }
+    if (queue.invalidated) throw new AvatarError(401, 'session_guard');
+    const completed = queue.completed.get(requestHash);
+    if (completed && completed.expiresAt > Date.now()) { pruneQueue(row.id, queue); return security.decrypt<ChatResponse>(completed.result, row.shop); }
+    // The database also covers a retry after a process restart or a cache expiry.
+    if (row.last_request_hash === requestHash && row.result) { pruneQueue(row.id, queue); return security.decrypt<ChatResponse>(row.result, row.shop); }
+    const existing = queue.turns.get(requestHash);
+    if (queue.waiters >= MAX_CALLBACK_WAITERS || (!existing && queue.turns.size >= MAX_PENDING_TURNS)) throw new AvatarError(429, 'queue_full');
+    queue.waiters++;
+    try {
+      let turn = existing;
+      if (!turn) {
+        const controller = new AbortController();
+        const remaining = Math.max(0, deadline - Date.now());
+        const timer = setTimeout(() => controller.abort(new AvatarError(504, 'deadline')), remaining);
+        timer.unref();
+        const signal = AbortSignal.any([controller.signal, requestSignal]);
+        const previous = queue.tail;
+        const work = previous.then(() => { signal.throwIfAborted(); return checkedTurn(row, claims, message, requestHash, signal); });
+        const promise = abortable(work, signal);
+        turn = { promise };
+        queue.turns.set(requestHash, turn);
+        const ownedTurn = turn;
+        queue.tail = promise.then(response => {
+          if (queue!.invalidated) return;
+          const expiresAt = Math.min(Date.now() + CALLBACK_DEADLINE_MS, new Date(row.expires_at).getTime(), claims.exp * 1000);
+          queue!.completed.set(requestHash, { result: security.encrypt(response, row.shop), expiresAt });
+          while (queue!.completed.size > MAX_PENDING_TURNS) queue!.completed.delete(queue!.completed.keys().next().value!);
+        }, () => {}).finally(() => {
+          clearTimeout(timer);
+          if (queue!.turns.get(requestHash) === ownedTurn) queue!.turns.delete(requestHash);
+          pruneQueue(row.id, queue!);
+        });
+      }
+      // Every coalesced callback retains this exact checked result, even when a
+      // different queued turn has already replaced the database's latest result.
+      return await turn.promise;
+    } finally {
+      queue.waiters--;
+      pruneQueue(row.id, queue);
+    }
+  }
   async function recordShutdownReason(conversationId: string): Promise<void> {
     if (!provider?.getConversationDiagnostics) return;
     const controller = new AbortController();
@@ -62,9 +199,15 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
     finally { clearTimeout(timeout); controller.abort(); }
   }
   async function stop(row: Row): Promise<void> {
-    if (!provider || row.state === 'ended' || row.state === 'failed') return;
+    if (!provider) return;
+    const queue = callbackQueues.get(row.id);
+    if (queue) { queue.invalidated = true; queue.completed.clear(); pruneQueue(row.id, queue); }
     // Invalidate the callback before any network call, including in-flight generation.
-    await db.query("UPDATE avatar_sessions SET state='ending',credential_hash='',result=NULL WHERE id=$1", [row.id]);
+    // Use the current durable state and IDs: a delayed callback can hold a stale
+    // active row after owner-end has already completed cleanup.
+    const revoked = await db.query<Row>("UPDATE avatar_sessions SET state='ending',credential_hash='',result=NULL WHERE id=$1 AND state IN ('starting','active','ending') RETURNING *", [row.id]);
+    if (!revoked.rows[0]) { owned.delete(row.id); return; }
+    row = revoked.rows[0];
     // Unknown create outcomes retain the durable lease until the provider hard ceiling.
     if (!row.provider_conversation_id && new Date(row.expires_at).getTime() > Date.now()) return;
     try {
@@ -116,11 +259,12 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
     owned.add(id);
     try {
       const { palId } = await provider!.createPal({ faceId: env.tavus!.faceId,
-        callbackBaseUrl: `${env.appUrl.replace(/\/$/, '')}/api/avatar/${id}/v1`, callbackSecret: secret });
+        callbackBaseUrl: `${env.appUrl.replace(/\/$/, '')}/api/avatar/${id}/v1`, callbackSecret: secret,
+        ...(env.tavus!.voice ? { voice: env.tavus!.voice } : {}) });
       await db.query('UPDATE avatar_sessions SET provider_pal_id=$2 WHERE id=$1', [id, palId]);
       const pending = await get(id);
       if (!pending || pending.state !== 'starting' || new Date(pending.expires_at).getTime() <= Date.now()) throw new AvatarError(409);
-      const room = await provider!.createConversation({ palId });
+      const room = await provider!.createConversation({ palId, ...(env.tavus!.background === 'greenscreen' ? { greenscreen: true } : {}) });
       await db.query('UPDATE avatar_sessions SET provider_conversation_id=$2 WHERE id=$1', [id, room.conversationId]);
       const fresh = await deps.validate(claims); available(fresh.tenant.config);
       if (room.status !== 'active') throw new AvatarError(503);
@@ -166,15 +310,16 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
   app.post('/api/avatar/:id/v1/chat/completions', {
     config: { rateLimit: { max: 90, timeWindow: 60000 } },
     onResponse: async (req, reply) => {
-      const started = callbackStarted.get(req);
-      if (started === undefined) return;
+      const diagnostic = callbackStarted.get(req);
+      if (!diagnostic) return;
       callbackStarted.delete(req);
       // Only an authenticated callback is measured. This describes HTTP completion,
       // not audible delivery; never copy provider data or request/session identifiers.
       const status = [200, 400, 401, 403, 404, 409, 413, 429, 500, 502, 503, 504].includes(reply.statusCode) ? reply.statusCode : 500;
       const outcome = status === 200 ? 'completed' : status < 500 ? 'rejected' : 'failed';
-      const durationMs = Math.max(0, Math.min(60_000, Math.round(performance.now() - started)));
-      try { app.log.info({ outcome, status, durationMs }, 'Avatar callback outcome'); }
+      const durationMs = Math.max(0, Math.min(60_000, Math.round(performance.now() - diagnostic.started)));
+      const reason = diagnostic.reason ?? (status === 200 ? 'ok' : 'generation_failed');
+      try { app.log.info({ outcome, status, durationMs, reason }, 'Avatar callback outcome'); }
       catch { /* Operational diagnostics cannot interfere with response cleanup. */ }
     },
   }, async (req, reply) => {
@@ -184,46 +329,49 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
     if (!row || row.state !== 'active' || new Date(row.expires_at).getTime() <= Date.now()
       || typeof authorization !== 'string' || !/^Bearer [A-Za-z0-9_-]{32,256}$/.test(authorization)
       || !constantEqual(security.hashClient(row.shop, `avatar:${authorization.slice(7)}`), row.credential_hash)) throw new AvatarError(401);
-    callbackStarted.set(req, performance.now());
-    const claims = tokenPayload.parse(row.claims);
-    try { const { tenant } = await deps.validate(claims); available(tenant.config); }
-    catch (error) { await stop(row); throw error; }
-    // All upstream system text, history, tools and assistant messages are untrusted.
-    // The authoritative conversation context is loaded from our encrypted history.
-    const body = z.object({ stream: z.boolean().optional(), messages: z.array(z.object({ role: z.string(), content: z.unknown() }).passthrough()).min(1).max(100) }).passthrough().parse(req.body);
-    const last = body.messages.at(-1)!;
-    if (last.role !== 'user') throw new AvatarError(400);
-    const message = z.string().trim().min(1).max(2000).parse(last.content);
-    const requestHash = security.hashClient(row.shop, `avatar-turn:${JSON.stringify(body.messages)}`);
-    let response: ChatResponse | undefined;
-    if (row.last_request_hash === requestHash && row.result) response = security.decrypt<ChatResponse>(row.result, row.shop);
-    else {
-      const lock = await db.query("UPDATE avatar_sessions SET busy_until=now()+interval '30 seconds' WHERE id=$1 AND state='active' AND expires_at>now() AND (busy_until IS NULL OR busy_until<now()) RETURNING id", [id]);
-      if (!lock.rows.length) throw new AvatarError(429);
-      try {
-        const locked = await get(id);
-        if (locked?.last_request_hash === requestHash && locked.result) response = security.decrypt<ChatResponse>(locked.result, row.shop);
-        else {
-          response = await deps.chat(claims, message);
-          const current = await deps.validate(claims); available(current.tenant.config);
-          const saved = await db.query("UPDATE avatar_sessions SET result=$2,sequence=sequence+1,last_request_hash=$3 WHERE id=$1 AND state='active' AND expires_at>now() RETURNING id", [id, security.encrypt(response, row.shop), requestHash]);
-          if (!saved.rows.length) throw new AvatarError(401);
-        }
-      } catch (error) {
-        await stop(row); throw error;
-      } finally { await db.query('UPDATE avatar_sessions SET busy_until=NULL WHERE id=$1', [id]); }
-    }
-    // One final state check before emitting anything audible; no unchecked token streaming.
-    const final = await get(id);
-    if (!final || final.state !== 'active' || new Date(final.expires_at).getTime() <= Date.now()) throw new AvatarError(401);
-    try { const current = await deps.validate(claims); available(current.tenant.config); }
-    catch (error) { await stop(final); throw error; }
-    const text = response?.text || unavailableSpeech;
-    const completionId = `chatcmpl-${randomUUID()}`; const created = Math.floor(Date.now() / 1000);
-    if (body.stream === false) return { id: completionId, object: 'chat.completion', created, model: 'shopify-grounded', choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }] };
-    const chunk = (delta: object, finish: string | null) => `data: ${JSON.stringify({ id: completionId, object: 'chat.completion.chunk', created, model: 'shopify-grounded', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
-    return reply.type('text/event-stream').header('X-Accel-Buffering', 'no')
-      .send(chunk({ role: 'assistant', content: text }, null) + chunk({}, 'stop') + 'data: [DONE]\n\n');
+    const diagnostic: { started: number; reason?: AvatarCallbackReason } = { started: performance.now() };
+    callbackStarted.set(req, diagnostic);
+    const deadline = Math.min(Date.now() + CALLBACK_DEADLINE_MS, new Date(row.expires_at).getTime());
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new AvatarError(504, 'deadline')), Math.max(0, deadline - Date.now()));
+    timeout.unref();
+    try {
+      return await abortable((async () => {
+        const claims = tokenPayload.parse(row.claims);
+        try { const { tenant } = await deps.validate(claims); available(tenant.config); }
+        catch (error) { if (controller.signal.aborted) throw controller.signal.reason; await stop(row); throw error; }
+        controller.signal.throwIfAborted();
+        // All upstream system text, history, tools and assistant messages are untrusted.
+        // The authoritative conversation context is loaded from our encrypted history.
+        const body = z.object({ stream: z.boolean().optional(), messages: z.array(z.object({ role: z.string(), content: z.unknown() }).passthrough()).min(1).max(100) }).passthrough().parse(req.body);
+        const last = body.messages.at(-1)!;
+        if (last.role !== 'user') throw new AvatarError(400);
+        const message = z.string().trim().min(1).max(2000).parse(last.content);
+        const requestHash = security.hashClient(row.shop, `avatar-turn:${JSON.stringify(body.messages)}`);
+        const response = await queuedTurn(row, claims, message, requestHash, Math.min(deadline, claims.exp * 1000), controller.signal);
+        controller.signal.throwIfAborted();
+        // One final state check before emitting anything audible; no unchecked token streaming.
+        try { const current = await deps.validate(claims); available(current.tenant.config); }
+        catch (error) { if (controller.signal.aborted) throw controller.signal.reason; await stop(row); throw error; }
+        controller.signal.throwIfAborted();
+        // Read after the last async validation so owner-end wins during that wait too.
+        active(await get(id));
+        controller.signal.throwIfAborted();
+        const text = response?.text || unavailableSpeech;
+        const completionId = `chatcmpl-${randomUUID()}`; const created = Math.floor(Date.now() / 1000);
+        if (body.stream === false) return { id: completionId, object: 'chat.completion', created, model: 'shopify-grounded', choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }] };
+        const chunk = (delta: object, finish: string | null) => `data: ${JSON.stringify({ id: completionId, object: 'chat.completion.chunk', created, model: 'shopify-grounded', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
+        reply.type('text/event-stream').header('X-Accel-Buffering', 'no');
+        return chunk({ role: 'assistant', content: text }, null) + chunk({}, 'stop') + 'data: [DONE]\n\n';
+      })(), controller.signal);
+    } catch (error) {
+      const tagged = (error && typeof error === 'object' ? error : {}) as { avatarReason?: unknown; statusCode?: unknown };
+      diagnostic.reason = CALLBACK_REASONS.includes(tagged.avatarReason as AvatarCallbackReason) ? tagged.avatarReason as AvatarCallbackReason
+        : error instanceof z.ZodError || tagged.statusCode === 400 ? 'invalid_input'
+          : tagged.statusCode === 401 ? 'session_guard'
+            : tagged.statusCode === 403 || tagged.statusCode === 409 ? 'config_guard' : 'generation_failed';
+      throw error;
+    } finally { clearTimeout(timeout); }
   });
 
   const timer = setInterval(() => { void sweep().catch(() => app.log.warn('Avatar reconciliation pending')); }, 15000);
@@ -231,6 +379,8 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
   app.addHook('onClose', async () => {
     clearInterval(timer);
     for (const id of owned) { const row = await get(id); if (row) await stop(row); }
+    for (const queue of callbackQueues.values()) clearTimeout(queue.expiryTimer);
+    callbackQueues.clear();
   });
   return { stopShop: async (shop: string) => {
     const rows = await db.query<Row>("SELECT * FROM avatar_sessions WHERE shop=$1 AND state IN ('starting','active','ending')", [shop]);

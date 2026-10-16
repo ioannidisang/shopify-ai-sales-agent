@@ -16,7 +16,7 @@ import { Security, constantEqual, configurationFingerprint, assignmentSchema, sh
 import { type Database, takeBudget, purgeExpired } from './database.js';
 import { configSchema, factSchema, readTenantFiles, type readEnv } from './config.js';
 import { registerInstallation, REQUIRED_SHOPIFY_SCOPES } from './installation.js';
-import { registerAvatarRoutes, avatarAvailable } from './tavus-routes.js';
+import { registerAvatarRoutes, avatarAvailable, type AvatarCallbackReason } from './tavus-routes.js';
 import type { TavusProvider } from './tavus-client.js';
 
 declare module 'fastify' { interface FastifyRequest { rawBody?: string } }
@@ -37,7 +37,7 @@ const pixelEvent = z.object({
   totalAmount: z.string().regex(/^\d{1,9}(?:\.\d{1,4})?$/).optional(), currency: z.string().regex(/^[A-Z]{3}$/).optional(),
 }).strict();
 
-class HttpError extends Error { constructor(public statusCode: number, message: string) { super(message); } }
+class HttpError extends Error { constructor(public statusCode: number, message: string, public avatarReason?: AvatarCallbackReason) { super(message); } }
 
 export async function buildApp(env: Environment, db: Database, services: Services = {}) {
   const app = Fastify({ bodyLimit: 32768, requestTimeout: 35000, logger: { level: 'info', redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'] }, disableRequestLogging: true });
@@ -179,7 +179,8 @@ export async function buildApp(env: Environment, db: Database, services: Service
     await db.query('INSERT INTO conversations(shop,id,history,expires_at,consent,assignment,experiment_id,visitor_hash,config_fingerprint,provider) VALUES($1,$2,$3,to_timestamp($4),$5,$6,$7,$8,$9,$10)', [shop, id, security!.encrypt([], shop), claims.exp, consent, assignment, experimentId, visitorHash, digest, provider ?? null]);
     if (experiment.enabled && visitorHash) await db.query('INSERT INTO eligible_exposures(shop,experiment_id,visitor_hash,assignment,config_fingerprint) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING', [shop, experimentId, visitorHash, assignment, digest]);
     return { token: security!.sign(claims), conversationId: id, assignment, experimentId, brand: tenant.config.brand, enabled: true, knowledgeVersion: tenant.config.knowledgeVersion,
-      ...(avatarAvailable(env, tenant.config) ? { avatar: { provider: 'tavus', previewOnly: true, maxDurationSeconds: 180 } } : {}) };
+      ...(avatarAvailable(env, tenant.config) ? { avatar: { provider: 'tavus', previewOnly: true, maxDurationSeconds: 180,
+        ...(env.tavus?.background ? { background: env.tavus.background } : {}) } } : {}) };
   });
   app.post('/proxy/chat', async (req) => {
     const body = baseBody.extend({ message: z.string().trim().min(1).max(2000), ...contextSchema }).strict().parse(req.body);
@@ -188,35 +189,42 @@ export async function buildApp(env: Environment, db: Database, services: Service
     if (body.country !== claims.country || body.locale !== claims.locale) throw new HttpError(400, 'Market changed, start a new session');
     return groundedTurn({ tenant, claims, row }, body.message);
   });
-  async function groundedTurn({ tenant, claims, row }: Awaited<ReturnType<typeof session>>, message: string) {
+  async function groundedTurn({ tenant, claims, row }: Awaited<ReturnType<typeof session>>, message: string, callbackSignal?: AbortSignal) {
     const body = { message, country: claims.country, locale: claims.locale };
     if (claims.assignment === 'control') throw new HttpError(403, 'Control arm');
     market(tenant, body.country);
     const usage: ModelUsage[] = [];
-    const turnSignal = AbortSignal.timeout(25000);
+    const turnSignal = callbackSignal ? AbortSignal.any([AbortSignal.timeout(25000), callbackSignal]) : AbortSignal.timeout(25000);
+    callbackSignal?.throwIfAborted();
     const model = providerModel(claims.provider!, item => usage.push(item), turnSignal);
-    const lock = await db.query<{ history: string }>('UPDATE conversations SET busy_until=now()+interval \'45 seconds\', turns=turns+1 WHERE shop=$1 AND id=$2 AND expires_at>now() AND turns<30 AND (busy_until IS NULL OR busy_until<now()) RETURNING history', [claims.shop, claims.sid]);
-    if (!lock.rows.length) throw new HttpError(429, 'Conversation busy or limit reached');
+    const lock = await db.query<{ history: string; lease: string }>('UPDATE conversations SET busy_until=now()+interval \'45 seconds\', turns=turns+1 WHERE shop=$1 AND id=$2 AND expires_at>now() AND turns<30 AND (busy_until IS NULL OR busy_until<now()) RETURNING history,busy_until::text AS lease', [claims.shop, claims.sid]);
+    if (!lock.rows.length) {
+      const current = (await db.query<{ turns: number }>('SELECT turns FROM conversations WHERE shop=$1 AND id=$2', [claims.shop, claims.sid])).rows[0];
+      throw new HttpError(429, 'Conversation busy or limit reached', current && current.turns >= 30 ? 'turn_limit' : 'conversation_busy');
+    }
     try {
       const day = new Date().toISOString().slice(0, 10);
-      if (!await takeBudget(db, claims.shop, `${day}:model`, 2000)) throw new HttpError(429, 'Daily limit');
+      if (!await takeBudget(db, claims.shop, `${day}:model`, 2000)) throw new HttpError(429, 'Daily limit', 'model_budget');
       // Read the history held by the acquired turn lock; an earlier pre-lock read can be stale.
       const history = security!.decrypt<History>(lock.rows[0]!.history, claims.shop);
       const response = await respond({ shop: tenant.config, facts: tenant.facts, catalog: catalog(tenant), ...model, message: body.message, history, country: body.country, locale: body.locale, signal: turnSignal });
+      callbackSignal?.throwIfAborted();
       // Merchant revocation/config changes during generation must not release the older evidence.
       const latest = await db.query<{ config: unknown; facts: unknown }>('SELECT config,facts FROM shops WHERE shop=$1 AND active=true', [claims.shop]);
       const current = latest.rows[0];
       if (!current) throw new HttpError(403, 'Shop no longer active');
       const currentConfig = configSchema.parse(current.config);
       if (!currentConfig.enabled || fingerprint({ ...tenant, config: currentConfig, facts: z.array(factSchema).parse(current.facts) }) !== claims.configFingerprint) throw new HttpError(409, 'Knowledge changed during generation');
+      callbackSignal?.throwIfAborted();
       // Keep the safety boundary for follow-ups without retaining a shopper's health disclosure.
       // Raw context is encrypted, expires after 30 minutes and never enters analytics or logs.
       const nextHistory = [...history, { role: 'user' as const, content: response.policy === 'medical' ? MEDICAL_HISTORY_MARKER : body.message }, { role: 'assistant' as const, content: response.text, context: { productIds: response.products.map(product => product.id), factIds: response.facts.map(fact => fact.id) } }].slice(-10);
-      await db.query('UPDATE conversations SET history=$3 WHERE shop=$1 AND id=$2', [claims.shop, claims.sid, security!.encrypt(nextHistory, claims.shop)]);
+      const saved = await db.query('UPDATE conversations SET history=$3 WHERE shop=$1 AND id=$2 AND busy_until=$4::timestamptz AND busy_until>now() AND expires_at>now() RETURNING id', [claims.shop, claims.sid, security!.encrypt(nextHistory, claims.shop), lock.rows[0]!.lease]);
+      if (!saved.rows.length) throw new HttpError(409, 'Conversation lease no longer active', 'lease_lost');
       const { policy: _internalPolicy, ...publicResponse } = response;
       return publicResponse;
     } finally {
-      await db.query('UPDATE conversations SET busy_until=NULL WHERE shop=$1 AND id=$2', [claims.shop, claims.sid]);
+      await db.query('UPDATE conversations SET busy_until=NULL WHERE shop=$1 AND id=$2 AND busy_until=$3::timestamptz', [claims.shop, claims.sid, lock.rows[0]!.lease]);
       // Operational totals never contain a visitor/session ID or customer text, even with consent.
       for (const item of usage) await db.query(`INSERT INTO model_usage(shop,day,experiment_id,assignment,provider,model,knowledge_version,config_fingerprint,operation,requests,successful_requests,input_tokens,output_tokens,unknown_token_requests,duration_ms)
         VALUES($1,current_date,$2,$3,$4,$5,$6,$7,$8,1,$9,$10,$11,$12,$13)
@@ -232,7 +240,7 @@ export async function buildApp(env: Environment, db: Database, services: Service
       catch { throw new HttpError(401, 'Invalid session'); }
     },
     validate: async claims => validatedSession(await tenantForShop(claims.shop), claims),
-    chat: async (claims, message) => groundedTurn(await validatedSession(await tenantForShop(claims.shop), claims), message),
+    chat: async (claims, message, signal) => groundedTurn(await validatedSession(await tenantForShop(claims.shop), claims), message, signal),
     provider: services.tavus,
   }) : undefined;
   app.post('/proxy/variants/verify', async (req) => {
