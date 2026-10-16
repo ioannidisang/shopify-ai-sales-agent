@@ -7,21 +7,21 @@
   "appId": "435011715073",
   "clientId": "6eba3e1d30cecfb04b13698e8b055416",
   "callbackUrl": "https://shopify-ai-sales-agent-smka.onrender.com/auth/bionera/callback",
-  "verifiedOn": "2026-10-15",
+  "verifiedOn": "2026-10-16",
   "version": {
-    "name": "bionera-avatar-diagnostics-752c49b",
-    "id": "1168785670145"
+    "name": "bionera-avatar-review-e6e3d4b",
+    "id": "1169555816449"
   },
   "extensions": {
     "sales-assistant": {
       "type": "theme",
       "uid": "5a62595f-e2e0-42c5-370d-1ee264e5462a7da03a8d",
-      "verifiedVersionId": "1168785670145"
+      "verifiedVersionId": "1169555816449"
     },
     "sales-analytics": {
       "type": "web_pixel_extension",
       "uid": "cf80051d-738b-118b-d80d-eebad45da897d5af0a6e",
-      "verifiedVersionId": "1168785670145"
+      "verifiedVersionId": "1169555816449"
     }
   }
 }
