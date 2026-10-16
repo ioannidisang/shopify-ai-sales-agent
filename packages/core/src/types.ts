@@ -34,6 +34,8 @@ export interface ShopConfig {
 }
 export interface CatalogContext { country: string; locale: Locale; signal?: AbortSignal }
 export interface Catalog {
+  /** Fresh, complete buyer-context catalog within the small-catalog bounds, or null when ineligible. Never a partial page. */
+  getCompleteSmallCatalog?(context: CatalogContext): Promise<Product[] | null>;
   search(query: string, context: CatalogContext): Promise<Product[]>;
   getProducts(ids: string[], context: CatalogContext): Promise<Product[]>;
   getVariant(id: string, context: CatalogContext): Promise<{ product: Product; variant: ProductVariant } | null>;

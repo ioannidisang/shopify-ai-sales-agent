@@ -3,7 +3,7 @@ import { conversationDraftSchema, type ConversationInput, type ModelOptions, typ
 import type { PlannerInput } from './types.js';
 
 /** Bump whenever prompts, context, output contracts or server response validation rules change. */
-export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v5';
+export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v6';
 
 export const planSchema = z.object({
   intent: z.enum(['search', 'facts', 'add_to_cart', 'clarify', 'greeting', 'medical', 'unsupported']),
@@ -83,7 +83,8 @@ Return only the required JSON object of text segments. This is a fresh reply, no
 ${writingRules}`;
 
 export const selectionComposerInstructions = `Select relevant catalog products and approved facts, then write one concise shopping reply.
-Return only the required JSON object containing plan and draft. This replaces the second selection pass and a separate writing pass.
+Return only the required JSON object containing plan and draft. Classify the latest request yourself using its relevant history;
+the supplied intent is only a hint and may be classify_and_select when the server already obtained a complete small live catalog.
 The supplied products and facts are CANDIDATES, not an already selected recommendation or displayed UI.
 Select at most 4 productIds and at most 4 factIds. Only select provided IDs. A product-specific fact requires its selected product.
 Set searchQuery to an empty string; this stage cannot request another search. Never invent an ID or a source.

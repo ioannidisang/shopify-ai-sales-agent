@@ -1,7 +1,7 @@
 import type { Catalog, Planner } from '../../../packages/core/src/types.js';
 import type { ConversationModel } from '../../../packages/core/src/conversation.js';
 
-const stages = ['plan', 'compose', 'verify', 'catalogSearch', 'catalogProducts', 'catalogVariant'] as const;
+const stages = ['plan', 'compose', 'verify', 'catalogComplete', 'catalogSearch', 'catalogProducts', 'catalogVariant'] as const;
 type Stage = typeof stages[number];
 type Measurement = { calls: number; failed: number; durationMs: number };
 type Model = { planner: Planner; composer?: ConversationModel };
@@ -14,6 +14,7 @@ export class TurnTimings {
     plan: { calls: 0, failed: 0, durationMs: 0 },
     compose: { calls: 0, failed: 0, durationMs: 0 },
     verify: { calls: 0, failed: 0, durationMs: 0 },
+    catalogComplete: { calls: 0, failed: 0, durationMs: 0 },
     catalogSearch: { calls: 0, failed: 0, durationMs: 0 },
     catalogProducts: { calls: 0, failed: 0, durationMs: 0 },
     catalogVariant: { calls: 0, failed: 0, durationMs: 0 },
@@ -32,6 +33,8 @@ export class TurnTimings {
 
   catalog(catalog: Catalog): Catalog {
     return {
+      ...(catalog.getCompleteSmallCatalog ? { getCompleteSmallCatalog: (context: Parameters<NonNullable<Catalog['getCompleteSmallCatalog']>>[0]) =>
+        this.measure('catalogComplete', () => catalog.getCompleteSmallCatalog!(context)) } : {}),
       search: (query, context) => this.measure('catalogSearch', () => catalog.search(query, context)),
       getProducts: (ids, context) => this.measure('catalogProducts', () => catalog.getProducts(ids, context)),
       getVariant: (id, context) => this.measure('catalogVariant', () => catalog.getVariant(id, context)),

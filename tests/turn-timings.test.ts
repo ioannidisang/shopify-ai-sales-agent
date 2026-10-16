@@ -24,6 +24,7 @@ describe('private turn duration measurements', () => {
     expect(timings.snapshot()).toEqual({ durationMs: 550, stages: {
       plan: { calls: 1, failed: 0, durationMs: 125 }, compose: { calls: 1, failed: 0, durationMs: 250 },
       verify: { calls: 1, failed: 0, durationMs: 175 }, catalogSearch: { calls: 0, failed: 0, durationMs: 0 },
+      catalogComplete: { calls: 0, failed: 0, durationMs: 0 },
       catalogProducts: { calls: 0, failed: 0, durationMs: 0 }, catalogVariant: { calls: 0, failed: 0, durationMs: 0 },
     } });
     const snapshot = JSON.stringify(timings.snapshot());
@@ -73,6 +74,20 @@ describe('private turn duration measurements', () => {
     expect(timings.snapshot().stages.compose).toEqual({ calls: 1, failed: 0, durationMs: 200 });
     expect(timings.snapshot().stages.plan.calls).toBe(0);
     expect(JSON.stringify(timings.snapshot())).not.toContain('private');
+  });
+
+  it('preserves optional complete-catalog capability, receiver and incomplete results', async () => {
+    let now = 0;
+    const timings = new TurnTimings(() => now);
+    const context: CatalogContext = { country: 'GR', locale: 'el' };
+    const catalog: Catalog = {
+      async getCompleteSmallCatalog(input) { expect(this).toBe(catalog); expect(input).toBe(context); now += 120; return null; },
+      async search() { return []; }, async getProducts() { return []; }, async getVariant() { return null; },
+    };
+    expect(await timings.catalog(catalog).getCompleteSmallCatalog!(context)).toBeNull();
+    expect(timings.snapshot().stages.catalogComplete).toEqual({ calls: 1, failed: 0, durationMs: 120 });
+    const { getCompleteSmallCatalog: _ignored, ...legacy } = catalog;
+    expect(timings.catalog(legacy).getCompleteSmallCatalog).toBeUndefined();
   });
 
   it('bounds accumulated values and records failed calls without exposing their exceptions', async () => {

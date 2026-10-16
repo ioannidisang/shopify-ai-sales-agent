@@ -2,8 +2,9 @@ import { conversationSelectionSchema, plannerContext, planSchema } from './model
 import { hasExplicitAddIntent, isMedicalRequest, usableFacts } from './policy.js';
 import { currentSourceFacts, retrieveFacts } from './knowledge.js';
 import { composeGrounded, CompositionRejected, verifyGrounded } from './grounding.js';
-import type { ConversationDraft, ConversationInput } from './conversation.js';
-import type { AssistantResponse, Locale, RespondInput } from './types.js';
+import { fitsSmallCatalogContext } from './catalog-bounds.js';
+import type { ConversationDraft, ConversationInput, ConversationSelection } from './conversation.js';
+import type { ApprovedFact, AssistantResponse, Locale, Plan, Product, RespondInput } from './types.js';
 
 const templates = {
   el: {
@@ -69,36 +70,51 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
   try {
     const context = { country, locale, ...(input.signal ? { signal: input.signal } : {}) };
     input.signal?.throwIfAborted();
-    // IDs are stored by the server in display order. Re-read them rather than trusting old prices.
+    // IDs are stored by the server in display order. Never use historical commerce.
     const lastDisplay = history.slice().reverse().find(turn => turn.role === 'assistant' && turn.context?.productIds.length);
     const rememberedIds = [...new Set(lastDisplay?.context?.productIds ?? [])].filter(id => /^gid:\/\/shopify\/Product\/\d+$/.test(id)).slice(0, 4);
-    const remembered = rememberedIds.length ? await catalog.getProducts(rememberedIds, context) : [];
-    const rememberedProducts = rememberedIds.flatMap(id => remembered.filter(product => product.id === id));
-    const initialInput = { ...base, products: rememberedProducts };
-    const initial = planSchema.parse(await planner.plan(initialInput));
-    if (initial.intent === 'medical') return policyResponse(locale, 'medical');
-    if (initial.intent === 'greeting' || initial.intent === 'unsupported') return await finish(policyResponse(locale, initial.intent), initial.intent);
-    const searched = initial.searchQuery.trim() ? await catalog.search(initial.searchQuery, context) : [];
-    const candidates = [...new Map([...rememberedProducts, ...searched].map(product => [product.id, product])).values()].slice(0, 12);
+    // A complete, bounded live catalog needs no model-authored search. The same
+    // selection model still classifies meaning and the independent verifier still
+    // receives full relevant history. Larger catalogs retain the search pipeline.
+    const complete = input.composer?.selectAndCompose && catalog.getCompleteSmallCatalog && !hasExplicitAddIntent(input.message)
+      ? await catalog.getCompleteSmallCatalog(context) : null;
+    let candidates: Product[];
+    let scopedFacts: ApprovedFact[];
+    let combined: ConversationSelection | undefined;
+    let plan: Plan;
+    if (complete !== null && fitsSmallCatalogContext(complete)) {
+      candidates = [...rememberedIds.flatMap(id => complete.filter(product => product.id === id)),
+        ...complete.filter(product => !rememberedIds.includes(product.id))];
+      scopedFacts = retrieveFacts(input.facts, shop.shop, locale, query, candidates.map(product => product.id), 24);
+      combined = conversationSelectionSchema.parse(await input.composer!.selectAndCompose!({
+        ...base, facts: scopedFacts, products: candidates, brand: shop.brand,
+        instructions: profile?.instructions ?? '', examples: profile?.examples ?? [], intent: 'classify_and_select',
+      }));
+      plan = combined.plan;
+    } else {
+      const remembered = rememberedIds.length ? await catalog.getProducts(rememberedIds, context) : [];
+      const rememberedProducts = rememberedIds.flatMap(id => remembered.filter(product => product.id === id));
+      const initialInput = { ...base, products: rememberedProducts };
+      const initial = planSchema.parse(await planner.plan(initialInput));
+      if (initial.intent === 'medical') return policyResponse(locale, 'medical');
+      if (initial.intent === 'greeting' || initial.intent === 'unsupported') return await finish(policyResponse(locale, initial.intent), initial.intent);
+      const searched = initial.searchQuery.trim() ? await catalog.search(initial.searchQuery, context) : [];
+      candidates = [...new Map([...rememberedProducts, ...searched].map(product => [product.id, product])).values()].slice(0, 12);
+      const candidateIds = new Set(candidates.map(product => product.id));
+      scopedFacts = input.composer
+        ? retrieveFacts(input.facts, shop.shop, locale, query, [...candidateIds], 24)
+        : facts.filter(fact => fact.productId === null || candidateIds.has(fact.productId));
+      const selectionInput = { ...base, facts: scopedFacts, products: candidates };
+      // Reuse only identical no-search planning context; never skip final live reads.
+      const samePlanningContext = !initial.searchQuery.trim()
+        && JSON.stringify(plannerContext(initialInput)) === JSON.stringify(plannerContext(selectionInput));
+      combined = !samePlanningContext && initial.intent !== 'add_to_cart' && input.composer?.selectAndCompose
+        ? conversationSelectionSchema.parse(await input.composer.selectAndCompose({
+          ...selectionInput, brand: shop.brand, instructions: profile?.instructions ?? '', examples: profile?.examples ?? [], intent: initial.intent,
+        })) : undefined;
+      plan = combined?.plan ?? (samePlanningContext ? initial : planSchema.parse(await planner.plan(selectionInput)));
+    }
     const allowedProductIds = new Set(candidates.map(product => product.id));
-    const scopedFacts = input.composer
-      ? retrieveFacts(input.facts, shop.shop, locale, query, [...allowedProductIds], 24)
-      : facts.filter(fact => fact.productId === null || allowedProductIds.has(fact.productId));
-    const selectionInput = { ...base, facts: scopedFacts, products: candidates };
-    // Reusing a plan is safe only when no search happened and the provider would
-    // receive exactly the same context. Keep the final live lookup and all claim
-    // checks below; this removes duplicate planning, never evidence validation.
-    const samePlanningContext = !initial.searchQuery.trim()
-      && JSON.stringify(plannerContext(initialInput)) === JSON.stringify(plannerContext(selectionInput));
-    // Production combines selection and writing, but the draft remains untrusted.
-    // Its only validation context is the final selected evidence AFTER fresh live
-    // reads below, never the wider search candidates or old commerce values.
-    // Known cart requests retain the separate post-validation composition path.
-    const combined = !samePlanningContext && initial.intent !== 'add_to_cart' && input.composer?.selectAndCompose
-      ? conversationSelectionSchema.parse(await input.composer.selectAndCompose({
-        ...selectionInput, brand: shop.brand, instructions: profile?.instructions ?? '', examples: profile?.examples ?? [], intent: initial.intent,
-      })) : undefined;
-    const plan = combined?.plan ?? (samePlanningContext ? initial : planSchema.parse(await planner.plan(selectionInput)));
     if (plan.intent === 'medical') return policyResponse(locale, 'medical');
     if (combined && !combined.draft && plan.intent !== 'add_to_cart') throw new CompositionRejected();
     const selectedDraft = combined?.draft ?? undefined;

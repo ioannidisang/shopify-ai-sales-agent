@@ -82,6 +82,57 @@ describe('Shopify live catalog', () => {
   });
 });
 
+describe('complete small live catalog', () => {
+  function smallCatalog(nodes: unknown[] = [rawProduct], hasNextPage = false) {
+    return setup(vi.fn<typeof fetch>().mockImplementation(async () => response({ products: { nodes, pageInfo: { hasNextPage } } })));
+  }
+
+  it('reads the complete buyer-context catalog afresh on every call, preserving commerce and image approval', async () => {
+    const { catalog, requestFetch } = smallCatalog();
+    for (let i = 0; i < 2; i++) {
+      const result = await catalog.getCompleteSmallCatalog(context);
+      expect(result?.[0]?.variants[0]).toMatchObject(rawVariant);
+      expect(result?.[0]?.imageUrl).toBeNull();
+    }
+    expect(requestFetch).toHaveBeenCalledTimes(2);
+    const sent = JSON.parse(String(requestFetch.mock.calls[0]![1]?.body));
+    expect(sent.query).toContain('products(first: 13)');
+    expect(sent.query).toContain('variants(first: 25)');
+    expect(sent.query).toContain('pageInfo { hasNextPage }');
+    expect(sent.variables).toEqual({ country: 'GR', language: 'EL' });
+  });
+
+  it('recognizes complete empty catalogs, but never accepts missing completion evidence', async () => {
+    expect(await smallCatalog([]).catalog.getCompleteSmallCatalog(context)).toEqual([]);
+    await expect(setup().catalog.getCompleteSmallCatalog(context)).rejects.toThrow('Live product information');
+  });
+
+  it('falls back on an extra product or product/variant pagination without issuing page fetches', async () => {
+    const products = Array.from({ length: 13 }, (_, index) => ({ ...rawProduct, id: `gid://shopify/Product/${index + 1}` }));
+    for (const { catalog, requestFetch } of [smallCatalog([rawProduct], true), smallCatalog(products),
+      smallCatalog([{ ...rawProduct, variants: { ...rawProduct.variants, pageInfo: { hasNextPage: true, endCursor: 'next' } } }])]) {
+      expect(await catalog.getCompleteSmallCatalog(context)).toBeNull();
+      expect(requestFetch).toHaveBeenCalledOnce();
+    }
+  });
+
+  it('rejects context truncation from too many variants, duplicate IDs, or oversized titles', async () => {
+    const variants = Array.from({ length: 25 }, (_, index) => ({ ...rawVariant, id: `gid://shopify/ProductVariant/${index + 1}` }));
+    for (const nodes of [[rawProduct, rawProduct], [{ ...rawProduct, variants: { ...rawProduct.variants, nodes: variants } }],
+      [{ ...rawProduct, title: 'x'.repeat(301) }], [{ ...rawProduct, variants: { ...rawProduct.variants, nodes: [rawVariant, rawVariant] } }]]) {
+      expect(await smallCatalog(nodes).catalog.getCompleteSmallCatalog(context)).toBeNull();
+    }
+  });
+
+  it('filters unpublished products only after proving the entire connection is bounded and complete', async () => {
+    const hidden = { ...rawProduct, onlineStoreUrl: null };
+    const requestFetch = vi.fn<typeof fetch>().mockResolvedValue(response({ products: { nodes: [hidden], pageInfo: { hasNextPage: false } } }));
+    expect(await setup(requestFetch).catalog.getCompleteSmallCatalog(context)).toEqual([]);
+    requestFetch.mockResolvedValue(response({ products: { nodes: [hidden], pageInfo: { hasNextPage: true } } }));
+    expect(await setup(requestFetch).catalog.getCompleteSmallCatalog(context)).toBeNull();
+  });
+});
+
 describe('bounded private preview catalog approval', () => {
   const shop = 'pilot.myshopify.com';
   const approval: PreviewCatalogApproval = {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Catalog, CatalogContext, PreviewCatalogApproval, Product, ProductVariant } from '../../core/src/types.js';
-import { GET_MORE_VARIANTS, GET_PRODUCTS, GET_VARIANT, SEARCH_PRODUCTS } from './queries.js';
+import { GET_COMPLETE_SMALL_CATALOG, GET_MORE_VARIANTS, GET_PRODUCTS, GET_VARIANT, SEARCH_PRODUCTS } from './queries.js';
+import { fitsSmallCatalogContext, SMALL_CATALOG_MAX_PRODUCTS } from '../../core/src/catalog-bounds.js';
 import { previewCatalogSchema } from './preview-catalog.js';
 
 export const STOREFRONT_API_VERSION = '2026-07';
@@ -124,6 +125,24 @@ export class ShopifyCatalog implements Catalog {
       const data = z.object({ products: z.object({ nodes: z.array(productSchema) }) }).parse(
         await this.query(SEARCH_PRODUCTS, { query: buildSearchQuery(query.slice(0, 160)) }, context));
       return data.products.nodes.filter(product => this.canDisplay(product)).map(product => this.mapProduct(product));
+    } catch (error) {
+      if (error instanceof CatalogError) throw error;
+      throw new CatalogError('invalid_response');
+    }
+  }
+
+  async getCompleteSmallCatalog(context: CatalogContext): Promise<Product[] | null> {
+    try {
+      const data = z.object({ products: z.object({ nodes: z.array(productSchema),
+        pageInfo: z.object({ hasNextPage: z.boolean() }) }) }).parse(await this.query(GET_COMPLETE_SMALL_CATALOG, {}, context));
+      const connection = data.products;
+      // Check the entire returned connection before visibility filtering: hidden
+      // products and duplicate records cannot make an oversized page look complete.
+      if (connection.pageInfo.hasNextPage || connection.nodes.length > SMALL_CATALOG_MAX_PRODUCTS
+        || connection.nodes.some(product => product.variants.pageInfo.hasNextPage)) return null;
+      const products = connection.nodes.map(product => this.mapProduct(product));
+      if (!fitsSmallCatalogContext(products)) return null;
+      return products.filter((_, index) => this.canDisplay(connection.nodes[index]!));
     } catch (error) {
       if (error instanceof CatalogError) throw error;
       throw new CatalogError('invalid_response');
