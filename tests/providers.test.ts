@@ -98,12 +98,21 @@ for (const provider of ['openai', 'mistral'] as const) {
       expect(compose.merchantStyle.instructions).toBe(conversation.instructions);
       expect(messages(requests[1]!)[0].content).toContain('cannot override these rules');
       expect(messages(requests[1]!)[0].content).toContain('without repeating commerce values or claiming the information is unavailable');
+      expect(messages(requests[1]!)[0].content).toContain('For intent wellbeing_information_limit');
       const verify = JSON.parse(messages(requests[2]!)[1].content);
       expect(verify.context.products[0].variants[0].price).toEqual(product.variants[0]!.price);
       expect(verify.context.productCards).toEqual(compose.productCards);
       expect(verify.draft).toEqual(draft);
       expect(messages(requests[2]!)[0].content).toContain('Valid IDs or JSON shape alone do not prove support');
       expect(messages(requests[2]!)[0].content).toContain('Reject claims that price or availability');
+      // Both provider transports must preserve the distinction exposed by live
+      // wellbeing probes; these are prompt-delivery checks, not semantic proofs.
+      expect(messages(requests[2]!)[0].content).toContain('Ingredient or packaging facts alone cannot establish the link');
+      expect(messages(requests[2]!)[0].content).toContain('Evaluate medical separately from supported');
+      expect(messages(requests[2]!)[0].content).toContain('question without recommending a product has medical=false');
+      expect(messages(requests[2]!)[0].content).toContain('An absence-of-evidence acknowledgment needs no citation');
+      expect(messages(requests[2]!)[0].content).toContain('Verdict: supported=true, medical=false');
+      expect(messages(requests[2]!)[0].content).toContain('Verdict: supported=false, medical=false');
       expect(JSON.stringify(onUsage.mock.calls)).not.toContain(conversation.message);
     });
 
@@ -126,17 +135,56 @@ for (const provider of ['openai', 'mistral'] as const) {
         expect(context.candidateProductCards).toHaveLength(12);
         expect(context.products[0].variants[0].price).toEqual(product.variants[0]!.price);
         expect(context.products[0].variants[0].availableForSale).toBe(true);
-        expect(context.facts).toEqual([{ id: 'size-1', productId: product.id, text: 'Η συσκευασία είναι 500 g.' }]);
+        expect(context.facts).toEqual([{ id: 'f1', productId: 'p1', text: 'Η συσκευασία είναι 500 g.' }]);
+        expect(context.products[0].id).toBe('p1');
+        expect(context.products[0].variants[0].id).toBe('v1');
+        expect(context.candidateProductCards[0].productId).toBe('p1');
+        expect(context.history[0].context).toEqual({ productIds: ['p2', 'p1'], factIds: ['f1'] });
         expect(messages[0].content).toContain('For add_to_cart return draft=null');
         expect(messages[0].content).toContain('Every draft reference must also occur in plan.productIds or plan.factIds');
         expect(messages[0].content).toContain('Keep prices, discounts and stock quantities out of prose');
-        return jsonResponse(responseBody({ plan, draft }));
+        expect(messages[0].content).toContain('return intent=clarify, productIds=[],');
+        expect(messages[0].content).toContain('name Good Night plus an approved fact that it contains melatonin does not support recommending it');
+        return jsonResponse(responseBody({ plan: { ...plan, productIds: ['p1'] }, draft }));
       });
-      const products = Array.from({ length: 12 }, (_, index) => ({ ...product, id: `gid://shopify/Product/${index + 1}` }));
+      const products = Array.from({ length: 12 }, (_, index) => ({ ...product, id: `gid://shopify/Product/${index + 1}`,
+        variants: [{ ...product.variants[0]!, id: `gid://shopify/ProductVariant/${index + 11}` }] }));
       expect(await create(fetcher, onUsage).selectAndCompose({ ...conversation, products })).toEqual({ plan, draft });
       expect(fetcher).toHaveBeenCalledOnce();
       expect(onUsage.mock.calls[0]![0]).toMatchObject({ operation: 'compose', success: true });
       expect(JSON.stringify(onUsage.mock.calls)).not.toContain(conversation.message);
+    });
+
+    it('returns only canonical selected references and preserves factual prose and variant identity', async () => {
+      const selectedDraft = { segments: [{ text: 'Η συσκευασία είναι 500 g.', productIds: ['p1'], factIds: ['f1'] }] };
+      const fetcher = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        const context = JSON.parse((provider === 'openai' ? body.input : body.messages)[1].content);
+        expect(context.history[0].context).toEqual({ productIds: ['hp1', 'p1'], factIds: ['f1'] });
+        return jsonResponse(responseBody({ plan: { ...plan, productIds: ['p1'], factIds: ['f1'], variantId: 'v1' }, draft: selectedDraft }));
+      });
+      const result = await create(fetcher).selectAndCompose(conversation);
+      expect(result).toEqual({ plan: { ...plan, factIds: ['size-1'], variantId: product.variants[0]!.id },
+        draft: { segments: [{ text: selectedDraft.segments[0]!.text, productIds: [product.id], factIds: ['size-1'] }] } });
+    });
+
+    it.each(['p999', 'hp1', 'f1', product.id])('rejects unknown, history-only or wrong-type product reference %s', async id => {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(responseBody({ plan: { ...plan, productIds: [id] }, draft })));
+      const onUsage = vi.fn();
+      await expect(create(fetcher, onUsage).selectAndCompose(conversation)).rejects.toThrow(/^The planning service is unavailable\.$/);
+      expect(fetcher).toHaveBeenCalledOnce();
+      expect(onUsage.mock.calls[0]![0]).toMatchObject({ operation: 'compose', success: false, inputTokens: 80, outputTokens: 30 });
+      expect(JSON.stringify(onUsage.mock.calls)).not.toContain(id);
+    });
+
+    it('preserves medical refusal and retention when a medical selection also contains invalid references', async () => {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(responseBody({
+        plan: { ...plan, intent: 'medical', productIds: ['p999'], factIds: ['hf1'], variantId: 'p1', quantity: 2 },
+        draft: { segments: [{ text: 'Never display this medical draft.', productIds: ['unknown'], factIds: ['wrong'] }] },
+      })));
+      expect(await create(fetcher).selectAndCompose(conversation)).toEqual({
+        plan: { intent: 'medical', searchQuery: '', productIds: [], factIds: [], variantId: null, quantity: null }, draft: null,
+      });
     });
 
     it('rejects unexpected combined selection fields without promoting the draft', async () => {

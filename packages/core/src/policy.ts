@@ -14,6 +14,7 @@ const capsuleCountQuestion = /(?:ποσεσ?|ποσες)\s+καψουλ\p{L}*/gu
 const packageCountPredicate = /^\s+(?:εχει|περιεχει|περιλαμβανει)(?=$|[^\p{L}])/u;
 const consumptionContext = /(?<!\p{L})(?:(?:ξανα)?(?:παιρν|παρ(?:ω|ει|ουμε|ετε|ουν|τε)|λαμβαν|καταπιν|καταναλων)|χορηγ|ληψ|δοση|δοσε[ιςσ]|ημερησι|καθημεριν|(?:την|τη|ανα|καθε)\s+(?:ημερα|μερα)|ανα\s+ωρα|πρωι|βραδ|(?:take|swallow|consume|daily|dose|dosing)\b|per\s+(?:day|dose))/u;
 const hiddenMedical = /(?:pregnant|pregnancy|diabetes|diagnose|medication|warfarin|εγκυος|φαρμακα|διαβητης)/u;
+const sleepSymptoms = /(?:\binsomnia\b|αυπν\p{L}*|δεν\s+μπορ\p{L}*\s+να\s+κοιμ\p{L}*|(?:\bcan(?:not|'t)|\bunable\s+to)\s+sleep\b)/u;
 
 function hasCapsuleDosageQuestion(text: string): boolean {
   const questions = [...text.matchAll(capsuleCountQuestion)];
@@ -26,7 +27,29 @@ function hasCapsuleDosageQuestion(text: string): boolean {
 
 function hasCurrentMedicalRequest(text: string): boolean {
   return text === MEDICAL_HISTORY_MARKER || medicalTerms.test(text) || personalSuitability.test(text)
-    || hasCapsuleDosageQuestion(text) || hiddenMedical.test(text.replace(/[^\p{L}\p{N}]/gu, ''));
+    || sleepSymptoms.test(text) || hasCapsuleDosageQuestion(text) || hiddenMedical.test(text.replace(/[^\p{L}\p{N}]/gu, ''));
+}
+
+/**
+ * Narrow, conservative scope for recognized Greek/English sleep goals. Approval
+ * of ingredients or packaging does not authorize a sleep-effect recommendation.
+ * This is not a general health-intent classifier or an effect-approval mechanism.
+ * Only the latest request is examined: a later independent product question
+ * must not inherit an earlier wellbeing goal. Clinical screening runs first.
+ */
+export function isSleepWellbeingRequest(message: string): boolean {
+  const text = normalizeInput(message);
+  if (hasCurrentMedicalRequest(text)
+    || !/(?<!\p{L})(?:υπν\p{L}*|κοιμ\p{L}*|sleep(?:ing)?)(?!\p{L})/u.test(text)) return false;
+  const effect = /(?:βελτιω|καλυτερ|ποιοτικ|ξεκουραστ|ηρεμ|χαλαρ|υποστηρι|συμβαλλ|ιδανικ|καταλληλ|\bbetter\b|\bimprov\w*|\brestful\b|\bquality\b|\bpromot\w*|\bsupport\w*)/u.test(text);
+  const benefitQuestion = /(?:βοηθ\p{L}*.{0,50}(?:υπν|κοιμ)|(?:υπν|κοιμ)\p{L}*.{0,50}βοηθ|\bhelp\w*\b.{0,50}\bsleep|\bsleep\b.{0,50}\bhelp\w*)/u.test(text);
+  const factual = /(?:τι\s+περιεχει|συστατικ|συνθεση|συσκευασ|ποσα\s+γραμμαρια|ποσεσ?\s+καψουλ|ποσο\s+κοστιζει|\bingredients?\b|\bcontain\w*|\bpackag\w*|\bpack\s+size\b|\bprice\b)/u.test(text);
+  // A product category may include the word sleep. Explicit ingredients/package
+  // questions remain factual unless the message also asks for an effect.
+  if (factual && !effect && !benefitQuestion) return false;
+  return effect || benefitQuestion
+    || /(?:για\s+(?:(?:τον|το)\s+)?υπν|για\s+να\s+κοιμ|\bfor\s+(?:my\s+)?sleep\b|\bsleep\s+(?:aid|supplement)\w*\b)/u.test(text)
+    || /(?:θελω|θα\s+ηθελα|ενδιαφερ|ψαχν|προτειν|συστην|\bi\s+(?:want|would\s+like)\b|\blooking\s+for\b|\brecommend\w*\b|\binterested\b)/u.test(text);
 }
 
 // A new, fully stated catalog request may proceed to semantic classification

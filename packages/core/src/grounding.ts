@@ -1,5 +1,5 @@
 import { conversationDraftSchema, verificationSchema, type ConversationDraft, type ConversationInput, type ConversationModel } from './conversation.js';
-import { containsForbiddenClaim, normalizeInput } from './policy.js';
+import { containsForbiddenClaim, isSleepWellbeingRequest, normalizeInput } from './policy.js';
 
 export class CompositionRejected extends Error {
   constructor(public readonly medical = false) { super('The response could not be verified.'); }
@@ -15,10 +15,21 @@ export async function composeGrounded(model: ConversationModel, input: Conversat
 /** A draft composed alongside selection has exactly the same final validation boundary. */
 export async function verifyGrounded(model: ConversationModel, input: ConversationInput, untrusted: ConversationDraft): Promise<string> {
   const draft = conversationDraftSchema.parse(untrusted);
+  // Even a bare product card can imply that it meets the shopper's sleep goal.
+  // The current approval flow has no separate permission for such effects: a
+  // permissive verifier cannot promote ingredients/package facts into that role.
+  // Do not inspect older goals here; independent later factual queries are valid.
+  if ((input.intent === 'wellbeing_information_limit' || isSleepWellbeingRequest(input.message))
+    && (input.products.length > 0 || input.facts.some(fact => fact.productId !== null) || input.pendingAction)) {
+    throw new CompositionRejected();
+  }
   const products = new Map(input.products.map(product => [product.id, product]));
   const facts = new Map(input.facts.map(fact => [fact.id, fact]));
   for (const segment of draft.segments) {
     if (segment.productIds.some(id => !products.has(id)) || segment.factIds.some(id => !facts.has(id))) throw new CompositionRejected();
+    // Also reject an unsolicited sleep-effect claim in an otherwise factual
+    // product answer; ingredient citations cannot legitimize that extra claim.
+    if (segment.productIds.length > 0 && isSleepWellbeingRequest(segment.text)) throw new CompositionRejected();
     const normal = normalizeInput(segment.text);
     if (containsForbiddenClaim(segment.text)) throw new CompositionRejected(true);
     // Links and markup come from the application; commercial prices remain in live cards.

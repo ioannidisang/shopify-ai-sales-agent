@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { conversationDraftSchema, verificationSchema, type ConversationDraft, type ConversationInput, type ConversationModel, type ConversationSelection, type ModelOptions, type ModelUsage, type Verification } from './conversation.js';
-import { composerInstructions, conversationContext, conversationSelectionSchema, measuredCall, PlannerError, plannerContext, plannerInstructions, planSchema, selectionComposerInstructions, selectionConversationContext, verifierInstructions } from './model-protocol.js';
+import { composerInstructions, conversationContext, conversationSelectionSchema, measuredCall, PlannerError, plannerContext, plannerInstructions, planSchema, selectionComposerInstructions, verifierInstructions } from './model-protocol.js';
+import { compactSelectionReferences, selectionReferenceInstructions } from './selection-references.js';
 import type { Planner, PlannerInput, Plan } from './types.js';
 
 const completionSchema = z.object({
@@ -28,7 +29,7 @@ export class MistralPlanner implements Planner, ConversationModel {
     this.signal = options.signal;
   }
 
-  private request<T>(operation: ModelUsage['operation'], instructions: string, context: unknown, schema: z.ZodType<T>, maxTokens: number): Promise<T> {
+  private request<T>(operation: ModelUsage['operation'], instructions: string, context: unknown, schema: z.ZodType<T>, maxTokens: number, decode: (value: T) => T = value => value): Promise<T> {
     return measuredCall({ provider: 'mistral', model: this.model, operation }, this.onUsage, async report => {
       this.signal?.throwIfAborted();
       const response = await this.fetcher('https://api.mistral.ai/v1/chat/completions', {
@@ -60,7 +61,7 @@ export class MistralPlanner implements Planner, ConversationModel {
       report(payload.usage?.prompt_tokens, payload.usage?.completion_tokens);
       const choice = payload.choices[0]!;
       if (choice.finish_reason !== 'stop' || choice.message.tool_calls?.length) throw new PlannerError();
-      return schema.parse(JSON.parse(choice.message.content));
+      return decode(schema.parse(JSON.parse(choice.message.content)));
     });
   }
 
@@ -72,8 +73,9 @@ export class MistralPlanner implements Planner, ConversationModel {
     return this.request('compose', composerInstructions, conversationContext(input), conversationDraftSchema, 1600);
   }
 
-  selectAndCompose(input: ConversationInput): Promise<ConversationSelection> {
-    return this.request('compose', selectionComposerInstructions, selectionConversationContext(input), conversationSelectionSchema, 1600);
+  async selectAndCompose(input: ConversationInput): Promise<ConversationSelection> {
+    const { context, decode } = compactSelectionReferences(input);
+    return this.request('compose', `${selectionComposerInstructions}\n${selectionReferenceInstructions}`, context, conversationSelectionSchema, 1600, decode);
   }
 
   verify(input: ConversationInput, draft: ConversationDraft): Promise<Verification> {

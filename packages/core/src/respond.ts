@@ -1,5 +1,5 @@
 import { conversationSelectionSchema, plannerContext, planSchema } from './model-protocol.js';
-import { hasExplicitAddIntent, isMedicalRequest, usableFacts } from './policy.js';
+import { hasExplicitAddIntent, isMedicalRequest, isSleepWellbeingRequest, usableFacts } from './policy.js';
 import { currentSourceFacts, retrieveFacts } from './knowledge.js';
 import { composeGrounded, CompositionRejected, verifyGrounded } from './grounding.js';
 import { fitsSmallCatalogContext } from './catalog-bounds.js';
@@ -70,6 +70,13 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
   try {
     const context = { country, locale, ...(input.signal ? { signal: input.signal } : {}) };
     input.signal?.throwIfAborted();
+    // Ingredient/package approval is not permission to recommend a sleep effect.
+    // Keep this narrow goal route naturally generated and independently checked,
+    // but remove catalog cues that could turn product names into inferred benefits.
+    // A future reviewed effect policy is required before this scope can rank items.
+    if (isSleepWellbeingRequest(input.message)) {
+      return await finish(policyResponse(locale, 'noFacts'), 'wellbeing_information_limit');
+    }
     // IDs are stored by the server in display order. Never use historical commerce.
     const lastDisplay = history.slice().reverse().find(turn => turn.role === 'assistant' && turn.context?.productIds.length);
     const rememberedIds = [...new Set(lastDisplay?.context?.productIds ?? [])].filter(id => /^gid:\/\/shopify\/Product\/\d+$/.test(id)).slice(0, 4);

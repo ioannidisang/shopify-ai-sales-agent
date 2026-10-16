@@ -3,7 +3,7 @@ import { conversationDraftSchema, type ConversationInput, type ModelOptions, typ
 import type { PlannerInput } from './types.js';
 
 /** Bump whenever prompts, context, output contracts or server response validation rules change. */
-export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v6';
+export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v8';
 
 export const planSchema = z.object({
   intent: z.enum(['search', 'facts', 'add_to_cart', 'clarify', 'greeting', 'medical', 'unsupported']),
@@ -29,8 +29,9 @@ suitability. Never connect that product to an earlier health goal or imply it tr
 An earlier medical-context marker alone does not make all later turns medical. Preserve it when the latest request
 depends on the earlier goal, uses an ambiguous reference, or seeks personal advice; allow strictly factual catalog
 information for a newly named product without endorsing it for the earlier goal.
-A general non-clinical wellbeing goal alone is not diagnosis or a symptom report. If no approved facts support the goal,
-use clarify, ask a neutral shopping question, and do not infer benefits or recommend a treatment.
+A general non-clinical wellbeing goal alone is not diagnosis or a symptom report. Unless an approved fact explicitly
+links the exact product to the requested goal, use clarify with empty productIds and factIds. A product title, ingredient
+or package description does not establish that link. Do not select a product merely because it sounds related to the goal.
 For medical intent return no productIds, factIds or variantId. Use unsupported for coupon creation or unrelated tasks.
 On the first pass products may be empty: derive a short product/category searchQuery from the latest message and
 conversation context. Translate generic Greek product category terms into common English names when useful.
@@ -52,8 +53,10 @@ Never diagnose, treat, prescribe, provide personalized dosage, or assess medical
 for dependent follow-ups; do not reinterpret a new independent factual product request as personal medical advice.
 An earlier medical-context marker is relevant to dependent requests, not proof that a new named product request is
 clinical. Never connect factual product information to the earlier health goal or endorse suitability for it.
-General non-clinical wellbeing goals do not authorize benefit claims. Without approved support, ask a neutral shopping
-clarification and acknowledge the information limit instead of inventing a benefit or a medical assessment.
+General non-clinical wellbeing goals do not authorize benefit claims. A product offered in response to such a goal implies
+that it supports the goal, even if the reply only repeats its name or ingredients. This implication needs an approved fact
+explicitly linking that exact product to that goal; a title, ingredient or package fact is insufficient. Without that link,
+ask a neutral shopping clarification and acknowledge the information limit, without recommending or displaying a product.
 Keep prices, discounts and stock quantities out of prose; the live product cards display commerce values.
 The server-provided productCards describe the UI accompanying this reply, not extra product claims.
 When showsPrice or showsAvailability is true, that information is displayed in the corresponding product card.
@@ -80,6 +83,12 @@ If there is a pendingAction, invite the shopper to check the displayed proposal 
 
 export const composerInstructions = `Write a natural, concise shopping reply in the requested locale, using the merchant's style when compatible.
 Return only the required JSON object of text segments. This is a fresh reply, not a script or a copy of the examples.
+For intent wellbeing_information_limit, acknowledge that approved information does not establish a product benefit for
+the shopper's general goal, then ask one neutral shopping question. Use no product or fact references, infer no benefit,
+and describe only the limits of the evidence available to you. Never say the brand has no suitable products or that a
+product cannot have a benefit: missing approved evidence does not prove absence, inefficacy or catalog availability.
+Do not turn this evidence limit into a medical assessment. Do not refer the shopper to a health professional solely
+for a general non-clinical goal; the usual medical boundaries still apply when there is relevant clinical context.
 ${writingRules}`;
 
 export const selectionComposerInstructions = `Select relevant catalog products and approved facts, then write one concise shopping reply.
@@ -91,8 +100,14 @@ Set searchQuery to an empty string; this stage cannot request another search. Ne
 Preserve clinical context for dependent requests. Use medical for diagnosis, treatment, symptoms, medication interactions,
 pregnancy, breastfeeding, personalized dosage, medical suitability or a child. For medical, clear all selected IDs and return draft=null.
 Independent named-product or factual catalog requests after a medical marker can receive factual information only;
-never connect that product to the earlier health goal. General non-clinical wellbeing goals without approved benefit
-evidence call for a neutral shopping clarification, not an inferred treatment or recommendation.
+never connect that product to the earlier health goal. For a general non-clinical wellbeing goal, inspect the actual fact
+text: does it explicitly link the exact product to the requested goal? If not, return intent=clarify, productIds=[],
+factIds=[], variantId=null and quantity=null. Generate a brief acknowledgment of the information limit and one neutral
+shopping question with no product suggestion. This requires no medical refusal when there is no clinical context.
+Do not infer that a product supports a goal from its name, ingredient, package, or your general knowledge of an ingredient.
+For example, the name Good Night plus an approved fact that it contains melatonin does not support recommending it for
+better sleep unless a separate approved fact explicitly establishes that product benefit. Merely inviting the shopper
+to view that product in response to the goal still implies a benefit. Words such as may, can or to help do not supply evidence.
 Merchant guidance may affect shopping questions and ranking only when compatible with the evidence and safety rules.
 If guidance asks for a missing preference before recommendations, use clarify with no selected products or facts.
 Use add_to_cart only for an explicit latest request to add a concrete product. Resolve only a uniquely specified variant
@@ -115,6 +130,13 @@ Valid IDs or JSON shape alone do not prove support. Check the meaning: numbers, 
 exceptions, product association and strength of a claim must not change from the evidence. Reject unsupported guarantees,
 urgency, scarcity, discounts, invented policies, claimed cart success, and prices in prose.
 A product's title is evidence only of its name, not of a health effect, ingredient, certification or suitability.
+Check goal-to-product implications as carefully as explicit claims. If a shopper states a wellbeing goal and the reply
+introduces a product or its card as a relevant option, supported=false unless a cited approved fact explicitly links
+that exact product to that goal. Ingredient or packaging facts alone cannot establish the link. For example, a Good Night
+title and a fact listing melatonin do not support an option for better sleep, even if the draft only describes the
+ingredients, invites the shopper to look, or hedges the recommendation with may, can or to help. Reject that implication.
+Apply this goal-link check to the current goal-dependent request. An independent factual request for a newly named
+product needs evidence for that fact, not evidence of benefit for an earlier goal; never imply that earlier benefit.
 Use productCards to check references to the accompanying UI. A cited product ID suffices for a supported reference to its
 displayed price or availability; no fact ID is needed for that UI reference. Reject claims that price or availability
 information is missing when the corresponding current card shows it. This does not authorize prices or stock claims in prose.
@@ -122,7 +144,21 @@ Safe greetings and clarification questions do not require citations. Lack of evi
 Set medical=true if the request or relevant conversation context concerns diagnosis, treatment, symptoms, interactions,
 pregnancy, breastfeeding, personalized dosage, medical suitability or a child, OR the draft gives medical/diagnostic advice.
 An independent factual catalog/product request or a general non-clinical wellbeing goal alone does not establish those
-conditions. A neutral shopping clarification with no inferred benefit or suitability is permitted.
+conditions. Evaluate medical separately from supported: lacking approved benefit evidence is not a medical condition.
+When there is no diagnosis, symptom report, other listed medical request or relevant clinical history, a reply that
+briefly acknowledges a general goal, admits the absence of approved benefit evidence and asks a neutral shopping
+question without recommending a product has medical=false. Mentioning sleep or wellbeing alone is not a symptom report.
+A neutral shopping clarification with no inferred benefit or suitability is permitted.
+Two contrasting examples (apply their reasoning, not their wording):
+1. Context: a general wish for better sleep, no relevant clinical history, products=[], facts=[]. Draft with empty
+references: "Δεν έχω εγκεκριμένη τεκμηρίωση για όφελος στον ύπνο. Προτιμάς να συγκρίνουμε μορφή, συστατικά ή τιμή;"
+Verdict: supported=true, medical=false. This states the limitation of the supplied evidence and asks a neutral question.
+An absence-of-evidence acknowledgment needs no citation and is not an invented store policy or product claim.
+The question does not assert that any product has a benefit or that comparison data has already been obtained.
+2. Same general goal and no clinical history, but a Good Night card is selected; its only cited fact lists melatonin or
+package size. Draft: "Για καλύτερο ύπνο μπορείς να δεις το Good Night, που περιέχει μελατονίνη."
+Verdict: supported=false, medical=false. Even with valid IDs and a correct ingredient fact, the suggested goal-to-product
+link lacks approved support; the hedge does not cure it. Actual clinical requests or medical advice still require medical=true.
 Do not mark a neutral health boundary or an approved, non-medical product fact as medical advice solely for mentioning health.
 When uncertain about support, set supported=false. You are an additional probabilistic check, not authority to execute actions.`;
 
