@@ -9,19 +9,19 @@
   "callbackUrl": "https://shopify-ai-sales-agent-smka.onrender.com/auth/bionera/callback",
   "verifiedOn": "2026-10-16",
   "version": {
-    "name": "bionera-avatar-review-e6e3d4b",
-    "id": "1169555816449"
+    "name": "bionera-avatar-voice-b9aa2fd",
+    "id": "1169604345857"
   },
   "extensions": {
     "sales-assistant": {
       "type": "theme",
       "uid": "5a62595f-e2e0-42c5-370d-1ee264e5462a7da03a8d",
-      "verifiedVersionId": "1169555816449"
+      "verifiedVersionId": "1169604345857"
     },
     "sales-analytics": {
       "type": "web_pixel_extension",
       "uid": "cf80051d-738b-118b-d80d-eebad45da897d5af0a6e",
-      "verifiedVersionId": "1169555816449"
+      "verifiedVersionId": "1169604345857"
     }
   }
 }
