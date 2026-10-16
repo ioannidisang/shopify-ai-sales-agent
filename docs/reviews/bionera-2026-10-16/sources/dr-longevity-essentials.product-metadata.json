@@ -1,0 +1,39 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-longevity-essentials.js",
+  "retrievedAt": "2026-10-16T09:58:42.088Z",
+  "rawResponseSha256": "2ce3547fdb95ec58a280a848c32bb444a64105f13f8904a87e040ea44194fc14",
+  "id": "gid://shopify/Product/16261255496067",
+  "handle": "dr-longevity-essentials",
+  "title": "Dr. Longevity Essentials",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. Longevity Essentials συνδυάζει 17 επιλεγμένα συστατικά σε μία ολοκληρωμένη καθημερινή φόρμουλα. Οι βιταμίνες B6, B12 και C και το μαγνήσιο συμβάλλουν στη μείωση της κούρασης και της κόπωσης.\n\n60 κάψουλες · 30 ημερήσιες δόσεις",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/62432859619715",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-longevity-essentials-primary-colour-calibrated-v2.png?v=1788953871",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/02-dr-longevity-17-ingredients.jpg?v=1787387147",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/03-dr-longevity-daily-routine.jpg?v=1787387147",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/04-dr-longevity-formula-families.jpg?v=1787387147",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/05-dr-longevity-fatigue.jpg?v=1787387149",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/06-dr-longevity-immunity.jpg?v=1787387147",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/07-dr-longevity-antioxidant.jpg?v=1787387148",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/08-dr-longevity-lifestyle.jpg?v=1787387149",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/09-dr-longevity-label-details.jpg?v=1787387149",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Longevity_Essentials_back.png?v=1776773884",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-longevity-infographic-01-17-ingredients.jpg?v=1787320651",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-longevity-infographic-02-daily-routine.jpg?v=1787320651",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-longevity-infographic-03-formula-families.jpg?v=1787320650",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-longevity-infographic-04-fatigue.jpg?v=1787320651",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-longevity-infographic-05-immunity.jpg?v=1787320651",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-longevity-infographic-06-antioxidant.jpg?v=1787320651",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-longevity-selected-lifestyle.jpg?v=1787320651"
+  ]
+}

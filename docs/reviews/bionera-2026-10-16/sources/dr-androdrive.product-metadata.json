@@ -1,0 +1,33 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-androdrive.js",
+  "retrievedAt": "2026-10-16T09:58:40.328Z",
+  "rawResponseSha256": "09cff3669dbf1bc56630da82923cb608fcfd0b338f33a2e31c94735bed990382",
+  "id": "gid://shopify/Product/15717421842819",
+  "handle": "dr-androdrive",
+  "title": "Dr. AndroDrive",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. AndroDrive της BioNera είναι μια ισχυρή, ολοκληρωμένη φόρμουλα υψηλής απόδοσης, σχεδιασμένη για άνδρες που θέλουν να ανεβάσουν τη σεξουαλική τους λειτουργία, την ενέργεια και τη ζωτικότητά τους σε ανώτερο επίπεδο. Ο επιστημονικά δομημένος συνδυασμός δρα στοχευμένα στην ενίσχυση της παραγωγής μονοξειδίου του αζώτου (NO), υποστηρίζοντας τη βέλτιστη αιματική ροή και συμβάλλοντας στη βελτίωση της στυτικής λειτουργίας.\n\nΠαράλληλα, η σύνθεση υποστηρίζει τη σωματική αντοχή, τη λίμπιντο και τη συνολική ανδρική ευεξία, προσφέροντας μια ολοκληρωμένη προσέγγιση που συνδυάζει απόδοση και αυτοπεποίθηση. Αν επιδιώκεις μεγιστοποίηση της σεξουαλικής σου απόδοσης και της ενεργειακής σου κατάστασης, το Dr. AndroDrive αποτελεί μια premium επιλογή με στοχευμένο μηχανισμό δράσης.",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/57404879339907",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-androdrive-primary-colour-calibrated-v2.png?v=1788953868",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Andro_Drive_back.png?v=1776773878",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_AndroDrive_italian_spritz.png?v=1776955912",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_AndroDrive_luxurious_essentials.png?v=1776955913",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_AndroDrive_clean_label.png?v=1776955909",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_AndroDrive_what_it_does.png?v=1776955909",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_AndroDrive_andriki_apodosh.png?v=1776955910",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_AndroDrive_drasi_opou_metraei.png?v=1776955910",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_AndroDrive_eksipni_synthesi.png?v=1776955912",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_AndroDrive_enishisi_libido.png?v=1776955912",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_AndroDrive_ritual_apodosis.png?v=1776955913"
+  ]
+}

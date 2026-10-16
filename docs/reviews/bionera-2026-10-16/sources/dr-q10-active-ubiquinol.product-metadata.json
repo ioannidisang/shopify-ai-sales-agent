@@ -1,0 +1,29 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-q10-active-ubiquinol.js",
+  "retrievedAt": "2026-10-16T09:58:44.237Z",
+  "rawResponseSha256": "dd20bc87820c2f2546e730b5f98277f777f3512cb3a1cd329339fe305e7717cc",
+  "id": "gid://shopify/Product/16207515451779",
+  "handle": "dr-q10-active-ubiquinol",
+  "title": "Dr. Q10 Active Ubiquinol",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. Q10 Active Ubiquinol της Bionera παρέχει 200 mg ubiquinol (CoQ10) ανά ημερήσια δόση. Το ubiquinol είναι η αναγμένη μορφή του συνενζύμου Q10. Η σύνθεση διατίθεται σε κάψουλες, με μία κάψουλα ανά δόση. Κάθε συσκευασία περιλαμβάνει 30 κάψουλες, δηλαδή 30 ημερήσιες δόσεις.",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/62208905904515",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-q10-active-ubiquinol-primary-colour-calibrated-v2.png?v=1788953871",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-q10-active-ubiquinol-rear-transparent-2026-09-11.webp?v=1789126068",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/q10-facts-infographic.png?v=1785248895",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/q10-athens-lifestyle.png?v=1785248895",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/q10-ubiquinol-education-v2_0cc8383e-b419-452e-bbea-ec5d725ecb07.png?v=1787136561",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/q10-30-doses-graphic-v3_81852b35-eede-4324-a729-69a3b4f01559.png?v=1787136561",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/q10-luxury-studio-v3_6ab0f0a7-3c2c-4784-b5bc-3b2fac114e9c.png?v=1787136663"
+  ]
+}

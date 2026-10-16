@@ -1,0 +1,33 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-womandrive.js",
+  "retrievedAt": "2026-10-16T09:58:45.371Z",
+  "rawResponseSha256": "fbdd5c2292a240889c9a0dff3ca923198ee15583d539992e6a23556c502e1de3",
+  "id": "gid://shopify/Product/15704597987715",
+  "handle": "dr-womandrive",
+  "title": "Dr. WomanDrive",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. WomanDrive της BioNera είναι μια υψηλής ποιότητας, επιστημονικά σχεδιασμένη φυτική φόρμουλα, δημιουργημένη για τη σύγχρονη γυναίκα που θέλει να διατηρεί τη σταθερότητα, τη ζωτικότητα και την εσωτερική της ισορροπία κατά τη διάρκεια της περιεμμηνόπαυσης και της εμμηνόπαυσης.\n\nΤο Dr. WomanDrive δεν περιέχει ορμόνες. Πρόκειται για μια στοχευμένη, πολυεπίπεδη νευροενδοκρινική υποστήριξη που βασίζεται σε κλινικά δεδομένα και αξιοποιεί επιλεγμένα φυτικά εκχυλίσματα με μελετημένη δράση στους μηχανισμούς που επηρεάζονται κατά την ορμονική μετάβαση.\n\nΣτόχος του δεν είναι να «αντικαταστήσει» τις ορμόνες, αλλά να υποστηρίξει τον οργανισμό ώστε να προσαρμοστεί πιο ομαλά στις φυσιολογικές μεταβολές αυτής της φάσης ζωής — με ασφάλεια, ισορροπία και σεβασμό στη γυναικεία φυσιολογία.",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/57394949915011",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-womandrive-primary-colour-calibrated-v2.png?v=1788953870",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_back_396a171e-e5dc-44b1-afe3-7be74768320e.png?v=1776959432",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_iremia_eveksia.png?v=1776959451",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_gynaikeia_kathimerinotita.png?v=1776959451",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_isorropia_stin_allagi.png?v=1776959450",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_1_kapsoula_tin_imera.png?v=1776959451",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_nea_routina.png?v=1776959451",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_epilegmena_fytika_systatika.png?v=1776959451",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_backed_by_science.png?v=1776959447",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_choris_ormones.png?v=1776959451",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_WomanDrive_first_month.png?v=1776959450"
+  ]
+}

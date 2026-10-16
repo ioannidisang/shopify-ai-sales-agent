@@ -1,0 +1,358 @@
+{
+  "schemaVersion": 1,
+  "shop": "bionera-gr.myshopify.com",
+  "origin": "https://bionera.gr",
+  "startedAt": "2026-10-16T09:58:37.755Z",
+  "completedAt": "2026-10-16T09:58:45.391Z",
+  "purpose": "Complete public product intake for merchant review only; no approval or runtime changes",
+  "completeness": {
+    "sitemapCount": 1,
+    "sitemapProducts": 12,
+    "listingPages": 2,
+    "listingProducts": 12,
+    "fetchedProducts": 12,
+    "missingFromListing": [],
+    "missingFromSitemap": [],
+    "duplicateProductIds": 0
+  },
+  "products": [
+    {
+      "id": "gid://shopify/Product/15978008772995",
+      "title": "Collagen Peptides Nucleotides+",
+      "handle": "collagen-peptides-nucleotides",
+      "sourceUrl": "https://bionera.gr/products/collagen-peptides-nucleotides"
+    },
+    {
+      "id": "gid://shopify/Product/15716885627267",
+      "title": "D3max + K2 (MK7)",
+      "handle": "d3max-k2-mk7",
+      "sourceUrl": "https://bionera.gr/products/d3max-k2-mk7"
+    },
+    {
+      "id": "gid://shopify/Product/15717421842819",
+      "title": "Dr. AndroDrive",
+      "handle": "dr-androdrive",
+      "sourceUrl": "https://bionera.gr/products/dr-androdrive"
+    },
+    {
+      "id": "gid://shopify/Product/15978008740227",
+      "title": "Dr. ArthroPlast",
+      "handle": "dr-arthroplast",
+      "sourceUrl": "https://bionera.gr/products/dr-arthroplast"
+    },
+    {
+      "id": "gid://shopify/Product/15717615731075",
+      "title": "Dr. Good Night",
+      "handle": "dr-good-night",
+      "sourceUrl": "https://bionera.gr/products/dr-good-night"
+    },
+    {
+      "id": "gid://shopify/Product/16261255496067",
+      "title": "Dr. Longevity Essentials",
+      "handle": "dr-longevity-essentials",
+      "sourceUrl": "https://bionera.gr/products/dr-longevity-essentials"
+    },
+    {
+      "id": "gid://shopify/Product/16256686391683",
+      "title": "Dr. Magnesium Bisglycinate",
+      "handle": "dr-magnesium-bisglycinate",
+      "sourceUrl": "https://bionera.gr/products/dr-magnesium-bisglycinate"
+    },
+    {
+      "id": "gid://shopify/Product/15717064245635",
+      "title": "Dr. Metabolic Control",
+      "handle": "dr-metabolic-control",
+      "sourceUrl": "https://bionera.gr/products/dr-metabolic-control"
+    },
+    {
+      "id": "gid://shopify/Product/15717959336323",
+      "title": "Dr. Omega Krill",
+      "handle": "dr-omega-krill",
+      "sourceUrl": "https://bionera.gr/products/dr-omega-krill"
+    },
+    {
+      "id": "gid://shopify/Product/16207515451779",
+      "title": "Dr. Q10 Active Ubiquinol",
+      "handle": "dr-q10-active-ubiquinol",
+      "sourceUrl": "https://bionera.gr/products/dr-q10-active-ubiquinol"
+    },
+    {
+      "id": "gid://shopify/Product/16281663668611",
+      "title": "Dr. Vitamin C Liposomal",
+      "handle": "dr-vitamin-c-liposomal",
+      "sourceUrl": "https://bionera.gr/products/dr-vitamin-c-liposomal"
+    },
+    {
+      "id": "gid://shopify/Product/15704597987715",
+      "title": "Dr. WomanDrive",
+      "handle": "dr-womandrive",
+      "sourceUrl": "https://bionera.gr/products/dr-womandrive"
+    }
+  ],
+  "sources": [
+    {
+      "kind": "sitemap_index",
+      "url": "https://bionera.gr/sitemap.xml",
+      "retrievedAt": "2026-10-16T09:58:38.224Z",
+      "sha256": "89f8a58141bd29824642f6c8c21ec683136b934a746b1b8b23fb3d3973e883f3",
+      "bytes": 1307,
+      "snapshot": "sources/sitemap.xml"
+    },
+    {
+      "kind": "product_sitemap",
+      "url": "https://bionera.gr/sitemap_products_1.xml?from=15704597987715&to=16281663668611",
+      "retrievedAt": "2026-10-16T09:58:38.408Z",
+      "sha256": "32b24bca8efa4be19466d209ef00a7e8f3b289c6aa2515838141f064d4badbdf",
+      "bytes": 6621,
+      "snapshot": "sources/sitemap-products-1.xml"
+    },
+    {
+      "kind": "public_listing",
+      "url": "https://bionera.gr/products.json?limit=250&page=1",
+      "retrievedAt": "2026-10-16T09:58:38.576Z",
+      "sha256": "a57cf692fc541538732f0113a25d6b09e24b3126fd21fd96c653e6c7faaff495",
+      "bytes": 62431,
+      "itemCount": 12,
+      "snapshot": null,
+      "note": "Raw commerce fields deliberately not stored; identity list recorded in manifest."
+    },
+    {
+      "kind": "public_listing",
+      "url": "https://bionera.gr/products.json?limit=250&page=2",
+      "retrievedAt": "2026-10-16T09:58:38.741Z",
+      "sha256": "86d8b086af0fc30d06856e218fcfdb6b803f91b45f50b1b753d8deac627fc054",
+      "bytes": 15,
+      "itemCount": 0,
+      "snapshot": null,
+      "note": "Raw commerce fields deliberately not stored; identity list recorded in manifest."
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/collagen-peptides-nucleotides",
+      "retrievedAt": "2026-10-16T09:58:39.125Z",
+      "rawResponseSha256": "d9334f2ea3d2fd656391172ab852335b4ebff70c1ad85d02d1328654eccbc241",
+      "bytes": 497810,
+      "snapshot": "sources/collagen-peptides-nucleotides.page-content.json",
+      "snapshotSha256": "2b8397096958a835a9c710953580478b09d2d5cfdabcd29a1ebd6bafa240d807",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/collagen-peptides-nucleotides.js",
+      "retrievedAt": "2026-10-16T09:58:39.272Z",
+      "rawResponseSha256": "6f1db43db93aaa4e3eddf81e938a809180bbb1be6dc8d02880586bd3a335fa4b",
+      "bytes": 6976,
+      "snapshot": "sources/collagen-peptides-nucleotides.product-metadata.json",
+      "snapshotSha256": "accf2fab3c2396eca5a4f7cbfde062d6ba8947add6451738595e0ef6b173baa9"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/d3max-k2-mk7",
+      "retrievedAt": "2026-10-16T09:58:39.670Z",
+      "rawResponseSha256": "2f50ca86adf530f734fd8f28ffe4d9d8174ac8dc676c9b4a98cb567d624ff898",
+      "bytes": 508705,
+      "snapshot": "sources/d3max-k2-mk7.page-content.json",
+      "snapshotSha256": "7091c8a47d505011016e35b8eae618c140f9919d2dc5be119033ce616649d264",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/d3max-k2-mk7.js",
+      "retrievedAt": "2026-10-16T09:58:39.829Z",
+      "rawResponseSha256": "fd4218443449db66cb143146e6c24beddbf7ba70645b4b802633f79e2dc49f23",
+      "bytes": 7916,
+      "snapshot": "sources/d3max-k2-mk7.product-metadata.json",
+      "snapshotSha256": "19af70059dd4b0bfc39db1a09806a7ca5e5fc443602819893ad68c5cfcbe2e65"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-androdrive",
+      "retrievedAt": "2026-10-16T09:58:40.177Z",
+      "rawResponseSha256": "8f7de69770568049d87d41b64dd39e389967c936d0d73609610abb2b53deb917",
+      "bytes": 501424,
+      "snapshot": "sources/dr-androdrive.page-content.json",
+      "snapshotSha256": "c36fa969de754f46102af9122251e59b865609a9e932772b14effb1dc48000f8",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-androdrive.js",
+      "retrievedAt": "2026-10-16T09:58:40.328Z",
+      "rawResponseSha256": "09cff3669dbf1bc56630da82923cb608fcfd0b338f33a2e31c94735bed990382",
+      "bytes": 9276,
+      "snapshot": "sources/dr-androdrive.product-metadata.json",
+      "snapshotSha256": "88d48aaafd797af1395b1415a74bcfed4221c34423b06b91d476ecd9f87d5445"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-arthroplast",
+      "retrievedAt": "2026-10-16T09:58:40.662Z",
+      "rawResponseSha256": "546306e629908a7081c4a6a7a074ed4b2a5d287944b69103d140e93d07ee8419",
+      "bytes": 491224,
+      "snapshot": "sources/dr-arthroplast.page-content.json",
+      "snapshotSha256": "80d95a50356b231af422a273b153a5fc8aacb0eff93f86893cb91b68e725e4fb",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-arthroplast.js",
+      "retrievedAt": "2026-10-16T09:58:40.831Z",
+      "rawResponseSha256": "f63ac3843ad5ee7931058d0e4980853b4ed0fa7cf2df68d14e45baf572535ca0",
+      "bytes": 7109,
+      "snapshot": "sources/dr-arthroplast.product-metadata.json",
+      "snapshotSha256": "dec19c2527e2fcf6d61d4ae1ddfadf70a798364cfbd4f8833387248c64e43227"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-good-night",
+      "retrievedAt": "2026-10-16T09:58:41.205Z",
+      "rawResponseSha256": "088b98912bd1e4e70ef2febf80692240aebc7f4242de46c56ccbd31f306c9efd",
+      "bytes": 539137,
+      "snapshot": "sources/dr-good-night.page-content.json",
+      "snapshotSha256": "e54fc178f35c646bfcedbbf3a7a29ee062fbe5bd4e5448263094e9471f4d97dc",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-good-night.js",
+      "retrievedAt": "2026-10-16T09:58:41.399Z",
+      "rawResponseSha256": "39ca85fb775e1a056b4b49f572c870cfdea967441b21dae2a2b09c3acefa5efe",
+      "bytes": 10677,
+      "snapshot": "sources/dr-good-night.product-metadata.json",
+      "snapshotSha256": "6b99e744eaacb0fd238478ac6d117fa3a3a377de360f4e78af38ceed5734dd54"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-longevity-essentials",
+      "retrievedAt": "2026-10-16T09:58:41.946Z",
+      "rawResponseSha256": "0d5df943ed43be2a724a5930ffc94930f63a875492eb2a8c748444005a061f43",
+      "bytes": 508036,
+      "snapshot": "sources/dr-longevity-essentials.page-content.json",
+      "snapshotSha256": "04c5d71ef807fe717b7dbcf849bb2d27b5b95283c99bfa8a82f90c74d847eca2",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-longevity-essentials.js",
+      "retrievedAt": "2026-10-16T09:58:42.088Z",
+      "rawResponseSha256": "2ce3547fdb95ec58a280a848c32bb444a64105f13f8904a87e040ea44194fc14",
+      "bytes": 11259,
+      "snapshot": "sources/dr-longevity-essentials.product-metadata.json",
+      "snapshotSha256": "48bbe02ca1b7a88978b2d6a675cabbee6076add63581c19898cde278c6cc064d"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-magnesium-bisglycinate",
+      "retrievedAt": "2026-10-16T09:58:42.455Z",
+      "rawResponseSha256": "b14ac553f3d2160c61523e5c1febc8bd568300707fe40ade873d2aaf3a682718",
+      "bytes": 486094,
+      "snapshot": "sources/dr-magnesium-bisglycinate.page-content.json",
+      "snapshotSha256": "a01990c6adc5b75ef8863ddc9e326d86d8837c534aa10d69f111f57e1cf09f77",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-magnesium-bisglycinate.js",
+      "retrievedAt": "2026-10-16T09:58:42.599Z",
+      "rawResponseSha256": "7cc5e3ac57ccb0c936ac036fc24b9a92b2800a538917a47189e858ae01d900cb",
+      "bytes": 7273,
+      "snapshot": "sources/dr-magnesium-bisglycinate.product-metadata.json",
+      "snapshotSha256": "58822843fb9f3c7b8e63b605b2c1b0417322c50c3adfdcdb5127c8514a92e001"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-metabolic-control",
+      "retrievedAt": "2026-10-16T09:58:43.169Z",
+      "rawResponseSha256": "bc4a148d985f2d0e6d0f2e8aa062c9bf0feda26e31bc308936508bc2af248015",
+      "bytes": 510193,
+      "snapshot": "sources/dr-metabolic-control.page-content.json",
+      "snapshotSha256": "e65f84e2cf5f214827d053b6fbb9b991263f4580a989971650e6775174bf7c93",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-metabolic-control.js",
+      "retrievedAt": "2026-10-16T09:58:43.330Z",
+      "rawResponseSha256": "e27b3bd7e98405f4f7b684bd2757848350d6a11f1b33a06ef524c874e2dea2c2",
+      "bytes": 11146,
+      "snapshot": "sources/dr-metabolic-control.product-metadata.json",
+      "snapshotSha256": "ca9f128d2f4bb2f6684b8a865a51e860ff9f892b20ecb4150513b7b9c35234ee"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-omega-krill",
+      "retrievedAt": "2026-10-16T09:58:43.662Z",
+      "rawResponseSha256": "1ee10b306bf8a93dfacd650e79b837330aa9c2cef6b686d6e3fb94bfa80d9d07",
+      "bytes": 523024,
+      "snapshot": "sources/dr-omega-krill.page-content.json",
+      "snapshotSha256": "92d4ec2be097e5effb46ad64756ffd0f378def352aa0552578a30ad24d9d2b6c",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-omega-krill.js",
+      "retrievedAt": "2026-10-16T09:58:43.796Z",
+      "rawResponseSha256": "d7cc6995b2816440818cffe381991571079254ee2d27d2345ad08ee0c671d01e",
+      "bytes": 9619,
+      "snapshot": "sources/dr-omega-krill.product-metadata.json",
+      "snapshotSha256": "1d4064afeeb48604012dff14a6af4d0cd3c5c168c5a80835d9c48e72d7fa3521"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-q10-active-ubiquinol",
+      "retrievedAt": "2026-10-16T09:58:44.090Z",
+      "rawResponseSha256": "3ce7ad34f4609032bd8aa08b1571840b3c8e2698f28339ab1866bfcd9c8dc6b2",
+      "bytes": 486395,
+      "snapshot": "sources/dr-q10-active-ubiquinol.page-content.json",
+      "snapshotSha256": "56b0e8b77471053e7e3a4dcd644d2dd26fc5384bb964e908a95c189246121e31",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-q10-active-ubiquinol.js",
+      "retrievedAt": "2026-10-16T09:58:44.237Z",
+      "rawResponseSha256": "dd20bc87820c2f2546e730b5f98277f777f3512cb3a1cd329339fe305e7717cc",
+      "bytes": 6217,
+      "snapshot": "sources/dr-q10-active-ubiquinol.product-metadata.json",
+      "snapshotSha256": "ca7ce180434f890de6db6e92c11f2d80548cb8f563a975a94f175a4234bbf1ae"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-vitamin-c-liposomal",
+      "retrievedAt": "2026-10-16T09:58:44.591Z",
+      "rawResponseSha256": "90bbd2110892004c04cb22ba1799a69be2ab5af1cecd0c99db11dd5a9aeb5078",
+      "bytes": 481396,
+      "snapshot": "sources/dr-vitamin-c-liposomal.page-content.json",
+      "snapshotSha256": "ce749de346407ac55ea5fa45f84f6e054b8e84d8c3b3b1dc44dc80d143b48361",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-vitamin-c-liposomal.js",
+      "retrievedAt": "2026-10-16T09:58:44.754Z",
+      "rawResponseSha256": "6245179d399b3186df2cc0ea701b3d7c4a788b551962a74859897d9e1bd8be26",
+      "bytes": 5928,
+      "snapshot": "sources/dr-vitamin-c-liposomal.product-metadata.json",
+      "snapshotSha256": "ea98b67bad10039a5b2b9f60772f4ee03d1b9663656f9b8cd2b2c583e49361a7"
+    },
+    {
+      "kind": "product_page",
+      "url": "https://bionera.gr/products/dr-womandrive",
+      "retrievedAt": "2026-10-16T09:58:45.209Z",
+      "rawResponseSha256": "4a28c4fac9b4a8fbbb72d9cf0fa54e37afcc16f17342da8b7437b10d6721d070",
+      "bytes": 503542,
+      "snapshot": "sources/dr-womandrive.page-content.json",
+      "snapshotSha256": "a390b0b19f3451c902742e0029970f6780061cdc46d329588e02303ab462c032",
+      "sectionCount": 7
+    },
+    {
+      "kind": "product_metadata",
+      "url": "https://bionera.gr/products/dr-womandrive.js",
+      "retrievedAt": "2026-10-16T09:58:45.371Z",
+      "rawResponseSha256": "fbdd5c2292a240889c9a0dff3ca923198ee15583d539992e6a23556c502e1de3",
+      "bytes": 10231,
+      "snapshot": "sources/dr-womandrive.product-metadata.json",
+      "snapshotSha256": "47fb42331e1a78aa0eea6c201221402c952f291f5eb1200a52e67cad41b1cf18"
+    }
+  ]
+}

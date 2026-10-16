@@ -1,0 +1,31 @@
+{
+  "sourceUrl": "https://bionera.gr/products/d3max-k2-mk7.js",
+  "retrievedAt": "2026-10-16T09:58:39.829Z",
+  "rawResponseSha256": "fd4218443449db66cb143146e6c24beddbf7ba70645b4b802633f79e2dc49f23",
+  "id": "gid://shopify/Product/15716885627267",
+  "handle": "d3max-k2-mk7",
+  "title": "D3max + K2 (MK7)",
+  "productType": "Βιταμίνες",
+  "vendor": "Bionera",
+  "descriptionText": "Η Dr. D3/K2 Max MK7 της BioNera είναι μια υψηλής ισχύος, επιστημονικά σχεδιασμένη φόρμουλα που συνδυάζει βιταμίνη D3 με βιταμίνη K2 στη μορφή MK-7, με στόχο τη βέλτιστη αξιοποίηση του ασβεστίου και την ολοκληρωμένη υποστήριξη οστικής και καρδιαγγειακής υγείας. Η βιταμίνη D3 δεν συμβάλλει μόνο στην απορρόφηση του ασβεστίου, αλλά υποστηρίζει το ανοσοποιητικό σύστημα, τη μυϊκή λειτουργία και πολλαπλές βασικές διεργασίες του οργανισμού. Παράλληλα, η K2 (MK-7) βοηθά στην ορθή κατανομή του ασβεστίου — κατευθύνοντάς το προς τα οστά και απομακρύνοντάς το από τα αγγεία.\n\nΟ συνεργικός αυτός συνδυασμός ενισχύει την οστική πυκνότητα, τη μυϊκή απόδοση και τη μακροπρόθεσμη αγγειακή ισορροπία, αποτελώντας μια premium επιλογή για καθημερινή πρόληψη και ολιστική υποστήριξη της συνολικής υγείας.",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/57404563882371",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/d3max-k2-mk7-primary-colour-calibrated-v2.png?v=1788953869",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_D3-K2_back.png?v=1776773884",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr._D3_K2_1_kapsoula_tin_imera.png?v=1776943300",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr._D3_K2_I_eggyisi_bionera.png?v=1776943298",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr._D3_K2_I_teleia_symmachia.png?v=1776943298",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr._D3_K2_aporrofisi_asvestiou.png?v=1776943300",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr._D3_K2_ierotelestia_ygeias.png?v=1776943300",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr._D3_K2_kathimerini_ypostiriksi_soma.png?v=1776943300",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr._D3_K2_kathimerini_ypostiriksi.png?v=1776943300"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-good-night.js",
+  "retrievedAt": "2026-10-16T09:58:41.399Z",
+  "rawResponseSha256": "39ca85fb775e1a056b4b49f572c870cfdea967441b21dae2a2b09c3acefa5efe",
+  "id": "gid://shopify/Product/15717615731075",
+  "handle": "dr-good-night",
+  "title": "Dr. Good Night",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. Good Night της BioNera είναι μια ολοκληρωμένη, πολυεπίπεδη και επιστημονικά σχεδιασμένη φόρμουλα για όσους δυσκολεύονται να «κατεβάσουν ρυθμούς» το βράδυ και αναζητούν έναν ουσιαστικά ποιοτικό, βαθύ και αναζωογονητικό ύπνο. Ο συνδυασμός δισγλυκινικού μαγνησίου, γλυκίνης, GABA, L-θεανίνης, βαλεριάνας και μελατονίνης δρα συνεργικά, υποστηρίζοντας τη χαλάρωση του κεντρικού νευρικού συστήματος και των μυών, τη ρύθμιση του κιρκάδιου ρυθμού και την ταχύτερη έλευση του ύπνου, ενώ συμβάλλει στη βελτίωση του βάθους και της συνολικής ποιότητάς του.\n\nΗ απαλή γεύση βανίλια-φράουλα μετατρέπει τη βραδινή ρουτίνα σε μια ευχάριστη, χαλαρωτική τελετουργία, προετοιμάζοντας ιδανικά σώμα και νου για μια ήρεμη νύχτα και ένα πραγματικά ξεκούραστο πρωινό.",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/57405056024963",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-good-night-primary-colour-calibrated-v2.png?v=1788953869",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_back_98493244-9322-4c1a-ae28-d9ec70c1c7a7.png?v=1776964789",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_poiotikos_ypnos_kalyteri_zoi.png?v=1776964810",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_synthesi_me_skopo_ypnos_me_noima.png?v=1776964812",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_iremei_to_myalo.png?v=1776964811",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_epistimi_asfaleia_apotelesma.png?v=1776964811",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_apotelesmatiko.png?v=1776964811",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_backed_by_science.png?v=1776964806",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_clean_label.png?v=1776964806",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_sleep_formula.png?v=1776964809",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_vradyni_routina.png?v=1776964811",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Good_Night_wind_down.png?v=1776964810"
+  ]
+}

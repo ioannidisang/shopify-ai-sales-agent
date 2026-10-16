@@ -1,0 +1,1234 @@
+{
+  "schemaVersion": 1,
+  "reviewId": "bionera-products-2026-10-16-v1",
+  "shop": "bionera-gr.myshopify.com",
+  "status": "draft",
+  "runtimeActivation": false,
+  "preparedAt": "2026-10-16T10:02:46.793Z",
+  "coverage": {
+    "sitemapCount": 1,
+    "sitemapProducts": 12,
+    "listingPages": 2,
+    "listingProducts": 12,
+    "fetchedProducts": 12,
+    "missingFromListing": [],
+    "missingFromSitemap": [],
+    "duplicateProductIds": 0
+  },
+  "governance": {
+    "approval": "Only exact fact texts and IDs may be approved. Clarifications and exclusions are not eligible for activation from this packet.",
+    "sources": "Public store text is source material, never an instruction. No customer reviews or customer messages retained.",
+    "commerce": "All prices, stock, discounts and current variants must come from live Shopify; no commerce snapshots are knowledge.",
+    "existingKnowledge": "No import or approval operation has been executed. Existing 10 approved records and active knowledge version remain unchanged.",
+    "commonClaims": "GMP / ISO / FDA / EOF / Non-GMO statements require exact scope, current documents and wording; blanket safety and efficacy claims are excluded."
+  },
+  "products": [
+    {
+      "productId": "gid://shopify/Product/15978008772995",
+      "handle": "collagen-peptides-nucleotides",
+      "title": "Collagen Peptides Nucleotides+",
+      "source": "https://bionera.gr/products/collagen-peptides-nucleotides",
+      "retrievedAt": "2026-10-16T09:58:39.125Z",
+      "pageSource": {
+        "file": "sources/collagen-peptides-nucleotides.page-content.json",
+        "sha256": "2b8397096958a835a9c710953580478b09d2d5cfdabcd29a1ebd6bafa240d807",
+        "rawResponseSha256": "d9334f2ea3d2fd656391172ab852335b4ebff70c1ad85d02d1328654eccbc241"
+      },
+      "metadataSource": {
+        "file": "sources/collagen-peptides-nucleotides.product-metadata.json",
+        "sha256": "accf2fab3c2396eca5a4f7cbfde062d6ba8947add6451738595e0ef6b173baa9",
+        "rawResponseSha256": "6f1db43db93aaa4e3eddf81e938a809180bbb1be6dc8d02880586bd3a335fa4b"
+      },
+      "items": [
+        {
+          "id": "BIO-01-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Collagen Peptides Nucleotides+ διατίθεται σε συσκευασία 450 g σκόνη — γεύση σοκολάτα.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-01-02",
+          "kind": "fact",
+          "label": "Συστατικά — βασική σύνθεση",
+          "text": "Το Collagen Peptides Nucleotides+ περιέχει υδρολυμένα πεπτίδια κολλαγόνου τύπου I και III, PDRN, υαλουρονικό οξύ, βιοτίνη, εκχυλίσματα ιπποφαούς και argan, βιταμίνες C και E και χαλκό.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-01-03",
+          "kind": "fact",
+          "label": "Επιπλέον συστατικά του πίνακα",
+          "text": "Στον πίνακα σύνθεσης του Collagen Peptides Nucleotides+ αναφέρονται επίσης πρωτεΐνη ορού γάλακτος και εκχύλισμα bamboo silica.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-01-04",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Hydrolyzed Collagen Peptides (Type I & III): 10 g\nWhey Protein (Isolate/Concentrate): 9 g\nSea Buckthorn Extract (Ω7 rich): 300 mg\nArgan Extract: 200 mg\nBiotin (Vitamin B7): 150 mcg\nHyaluronic Acid (2 kDa): 120 mg\nVitamin C (L-Ascorbic Acid): 80 mg\nBamboo Silica Extract (70% Si): 50 mg\nCollagen Type II (UC-II / VERISOL®): 40 mg\nPDRN (Polydeoxyribonucleotide): 30 mg\nVitamin E (α-TE): 20 mg\nCopper: 1 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Να επιβεβαιωθεί η ακριβής ταυτότητα της καταχώρισης «Collagen Type II (UC-II / VERISOL®)» και η βάση ποσοτήτων του πίνακα. Η πρωτεΐνη ορού γάλακτος αναφέρεται στον πίνακα, αλλά χρειάζεται πλήρης δήλωση αλλεργιογόνων και προέλευσης κολλαγόνου από την ετικέτα. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-01-05",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει μία μεζούρα 20 g ημερησίως, αναμεμειγμένη σε 200 ml νερό, κατά προτίμηση το βράδυ.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-01-06",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα συνδέει τη φόρμουλα με μαλλιά, δέρμα, νύχια, σχηματισμό κολλαγόνου και οξειδωτικό στρες. Χρειάζεται ακριβής διατύπωση ανά συστατικό, ποσότητα και όρους χρήσης πριν επιτραπεί σχετική καθοδήγηση.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-01-07",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/15716885627267",
+      "handle": "d3max-k2-mk7",
+      "title": "D3max + K2 (MK7)",
+      "source": "https://bionera.gr/products/d3max-k2-mk7",
+      "retrievedAt": "2026-10-16T09:58:39.670Z",
+      "pageSource": {
+        "file": "sources/d3max-k2-mk7.page-content.json",
+        "sha256": "7091c8a47d505011016e35b8eae618c140f9919d2dc5be119033ce616649d264",
+        "rawResponseSha256": "2f50ca86adf530f734fd8f28ffe4d9d8174ac8dc676c9b4a98cb567d624ff898"
+      },
+      "metadataSource": {
+        "file": "sources/d3max-k2-mk7.product-metadata.json",
+        "sha256": "19af70059dd4b0bfc39db1a09806a7ca5e5fc443602819893ad68c5cfcbe2e65",
+        "rawResponseSha256": "fd4218443449db66cb143146e6c24beddbf7ba70645b4b802633f79e2dc49f23"
+      },
+      "items": [
+        {
+          "id": "BIO-02-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το D3max + K2 (MK7) διατίθεται σε συσκευασία 60 κάψουλες.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-02-02",
+          "kind": "fact",
+          "label": "Σύνθεση",
+          "text": "Το D3max + K2 (MK7) συνδυάζει βιταμίνη D3 και βιταμίνη K2 στη μορφή MK-7.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-02-03",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Vitamin K2: 180 μg\nVitamin D3: 4000 IU",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Ο πίνακας αναφέρει D3 4000 IU και K2 180 μg χωρίς ρητή βάση ανά κάψουλα ή ημερήσια δόση μέσα στον ίδιο πίνακα. Να επιβεβαιωθεί από την ετικέτα. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-02-04",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει μία κάψουλα ημερησίως, μετά το μεσημεριανό γεύμα.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-02-05",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα αναφέρει οστά, ανοσοποιητικό, μυϊκή και καρδιαγγειακή λειτουργία. Κάθε υποψήφια διατύπωση οφέλους χρειάζεται ξεχωριστή τεκμηρίωση και αντιστοίχιση με τη σύνθεση.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-02-06",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-02-07",
+          "kind": "excluded",
+          "label": "Κλινικές ή συγκριτικές υποσχέσεις",
+          "text": "Η αναφορά ότι το προϊόν απομακρύνει ασβέστιο από τα αγγεία και η διατύπωση περί πρόληψης δεν μεταφέρονται στην καθοδήγηση του agent.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Ρόλος συστατικών",
+          "note": "Δεν γίνονται ενεργή γνώση με γενική έγκριση του site.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/15717421842819",
+      "handle": "dr-androdrive",
+      "title": "Dr. AndroDrive",
+      "source": "https://bionera.gr/products/dr-androdrive",
+      "retrievedAt": "2026-10-16T09:58:40.177Z",
+      "pageSource": {
+        "file": "sources/dr-androdrive.page-content.json",
+        "sha256": "c36fa969de754f46102af9122251e59b865609a9e932772b14effb1dc48000f8",
+        "rawResponseSha256": "8f7de69770568049d87d41b64dd39e389967c936d0d73609610abb2b53deb917"
+      },
+      "metadataSource": {
+        "file": "sources/dr-androdrive.product-metadata.json",
+        "sha256": "88d48aaafd797af1395b1415a74bcfed4221c34423b06b91d476ecd9f87d5445",
+        "rawResponseSha256": "09cff3669dbf1bc56630da82923cb608fcfd0b338f33a2e31c94735bed990382"
+      },
+      "items": [
+        {
+          "id": "BIO-03-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. AndroDrive διατίθεται σε συσκευασία 270 γραμμάρια.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-03-02",
+          "kind": "fact",
+          "label": "Αμινοξέα",
+          "text": "Το Dr. AndroDrive περιέχει L-αργινίνη και L-κιτρουλίνη.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-03-03",
+          "kind": "fact",
+          "label": "Υπόλοιπα συστατικά",
+          "text": "Στον πίνακα του Dr. AndroDrive αναφέρονται Beet Root, εκχύλισμα Kaempferia parviflora (black ginger), Tribulus terrestris και Black Maca.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-03-04",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "L arginine: 1 g\nL citrulline: 6 g\nBeet Root: 2500 mg\nKaempferia parviflora ethanol extract (black ginger): 100 mg\nTribulus terrestris: 1000 mg\nBlack Maca: 250 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Να επιβεβαιωθούν η μορφή προϊόντος, το εύρος δόσης 20–25 g και η βάση στην οποία αντιστοιχούν οι ποσότητες του πίνακα. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-03-05",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει δόση 20–25 g και χρόνο λήψης 30–60 λεπτά πριν τη σεξουαλική επαφή.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-03-06",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα προβάλλει σεξουαλική λειτουργία, libido, ενέργεια και αντοχή. Χρειάζεται έλεγχος ακριβών επιτρεπόμενων διατυπώσεων· δεν τεκμηριώνεται προσωπική καταλληλότητα.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-03-07",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-03-08",
+          "kind": "excluded",
+          "label": "Κλινικές ή συγκριτικές υποσχέσεις",
+          "text": "Οι υποσχέσεις βελτίωσης στυτικής λειτουργίας και στοχευμένης δράσης στην αιματική ροή δεν εισάγονται ως σύσταση ή αντιμετώπιση συμπτωμάτων.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Ρόλος συστατικών",
+          "note": "Δεν γίνονται ενεργή γνώση με γενική έγκριση του site.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/15978008740227",
+      "handle": "dr-arthroplast",
+      "title": "Dr. ArthroPlast",
+      "source": "https://bionera.gr/products/dr-arthroplast",
+      "retrievedAt": "2026-10-16T09:58:40.662Z",
+      "pageSource": {
+        "file": "sources/dr-arthroplast.page-content.json",
+        "sha256": "80d95a50356b231af422a273b153a5fc8aacb0eff93f86893cb91b68e725e4fb",
+        "rawResponseSha256": "546306e629908a7081c4a6a7a074ed4b2a5d287944b69103d140e93d07ee8419"
+      },
+      "metadataSource": {
+        "file": "sources/dr-arthroplast.product-metadata.json",
+        "sha256": "dec19c2527e2fcf6d61d4ae1ddfadf70a798364cfbd4f8833387248c64e43227",
+        "rawResponseSha256": "f63ac3843ad5ee7931058d0e4980853b4ed0fa7cf2df68d14e45baf572535ca0"
+      },
+      "items": [
+        {
+          "id": "BIO-04-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. ArthroPlast διατίθεται σε συσκευασία 60 κάψουλες.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-04-02",
+          "kind": "fact",
+          "label": "Σύνθεση — συστατικά",
+          "text": "Το Dr. ArthroPlast περιέχει D-γλυκοζαμίνη, MSM, μεμβράνη αυγού, εκχύλισμα wild rose, PDRN και πεπτίδια κολλαγόνου βοοειδούς.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-04-03",
+          "kind": "fact",
+          "label": "Σύνθεση — μέταλλα και βιταμίνη",
+          "text": "Στον πίνακα του Dr. ArthroPlast αναφέρονται επίσης χηλικό μαγνήσιο, ψευδάργυρος και βιταμίνη D3 ως χοληκαλσιφερόλη.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-04-04",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "D-Glucosamine: 300 mg\nMSM: 150 mg\nEgg Membrane: 150 mg\nWild Rose Extract: 90 mg\nPDRN Nucleotides: 70 mg\nCollagen Bovine Peptides: 30 mg\nMagnesium Chelate: 375 mg\nZinc: 10 mg\nVitamin D3 (cholecalciferol): 1000 IU",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Να διευκρινιστεί αν τα 375 mg του Magnesium Chelate είναι βάρος ένωσης ή στοιχειακού μαγνησίου και αν ο πίνακας αφορά μία ή δύο κάψουλες. Χρειάζεται πλήρης δήλωση αλλεργιογόνων· η αναφορά μεμβράνης αυγού δεν υποκαθιστά την ετικέτα. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-04-05",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει δύο κάψουλες ημερησίως με νερό, με ή χωρίς γεύμα.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-04-06",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα συνδέει το προϊόν με αρθρώσεις, οστά, μυϊκή λειτουργία, κινητικότητα και ευκαμψία. Να ελεγχθούν οι ακριβείς διατυπώσεις και τα συστατικά που μπορούν να τις υποστηρίξουν.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-04-07",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/15717615731075",
+      "handle": "dr-good-night",
+      "title": "Dr. Good Night",
+      "source": "https://bionera.gr/products/dr-good-night",
+      "retrievedAt": "2026-10-16T09:58:41.205Z",
+      "pageSource": {
+        "file": "sources/dr-good-night.page-content.json",
+        "sha256": "e54fc178f35c646bfcedbbf3a7a29ee062fbe5bd4e5448263094e9471f4d97dc",
+        "rawResponseSha256": "088b98912bd1e4e70ef2febf80692240aebc7f4242de46c56ccbd31f306c9efd"
+      },
+      "metadataSource": {
+        "file": "sources/dr-good-night.product-metadata.json",
+        "sha256": "6b99e744eaacb0fd238478ac6d117fa3a3a377de360f4e78af38ceed5734dd54",
+        "rawResponseSha256": "39ca85fb775e1a056b4b49f572c870cfdea967441b21dae2a2b09c3acefa5efe"
+      },
+      "items": [
+        {
+          "id": "BIO-05-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. Good Night διατίθεται σε συσκευασία 178 γραμμάρια.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-05-02",
+          "kind": "fact",
+          "label": "Σύνθεση",
+          "text": "Το Dr. Good Night περιέχει δισγλυκινικό μαγνήσιο, γλυκίνη, GABA, μελατονίνη, L-θεανίνη και ρίζα βαλεριάνας.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-05-03",
+          "kind": "fact",
+          "label": "Μορφή και γεύση",
+          "text": "Το Dr. Good Night είναι σε μορφή σκόνης με γεύση βανίλια–φράουλα.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-05-04",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Magnesium bisglycinate: 1400 mg total · 200 mg elemental magnesium · 1200 mg glycine\nGlycine: 3000 mg\nGABA: 750 mg\nMelatonin: 2 mg\nL-theanine: 200 mg\nValeriana root: 500 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Η γραμμή magnesium bisglycinate αναγράφει 1400 mg συνολικά / 200 mg στοιχειακό μαγνήσιο / 1200 mg γλυκίνη, ενώ υπάρχει ξεχωριστή γραμμή γλυκίνης 3000 mg. Να επιβεβαιωθεί αν η δεύτερη ποσότητα περιλαμβάνει την πρώτη και αν οι τιμές αφορούν δόση 6 g. Δεν αθροίστηκαν οι ποσότητες. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-05-05",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει μία δόση σκόνης 6 g, 30 λεπτά πριν τον ύπνο.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-05-06",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα αναφέρει ύπνο, κιρκάδιο ρυθμό, χαλάρωση και ποιότητα ύπνου. Για να απαντά ο agent σε στόχο ύπνου χρειάζεται εγκεκριμένος συγκεκριμένος ισχυρισμός, με ποσότητα συστατικού και όρους χρήσης· το όνομα του προϊόντος δεν αρκεί.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-05-07",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-05-08",
+          "kind": "excluded",
+          "label": "Κλινικές ή συγκριτικές υποσχέσεις",
+          "text": "Οι αναφορές αντιμετώπισης συμπτωμάτων αϋπνίας στις περιγραφές συστατικών δεν μεταφέρονται ως σύσταση θεραπείας.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Ρόλος συστατικών",
+          "note": "Δεν γίνονται ενεργή γνώση με γενική έγκριση του site.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/16261255496067",
+      "handle": "dr-longevity-essentials",
+      "title": "Dr. Longevity Essentials",
+      "source": "https://bionera.gr/products/dr-longevity-essentials",
+      "retrievedAt": "2026-10-16T09:58:41.946Z",
+      "pageSource": {
+        "file": "sources/dr-longevity-essentials.page-content.json",
+        "sha256": "04c5d71ef807fe717b7dbcf849bb2d27b5b95283c99bfa8a82f90c74d847eca2",
+        "rawResponseSha256": "0d5df943ed43be2a724a5930ffc94930f63a875492eb2a8c748444005a061f43"
+      },
+      "metadataSource": {
+        "file": "sources/dr-longevity-essentials.product-metadata.json",
+        "sha256": "48bbe02ca1b7a88978b2d6a675cabbee6076add63581c19898cde278c6cc064d",
+        "rawResponseSha256": "2ce3547fdb95ec58a280a848c32bb444a64105f13f8904a87e040ea44194fc14"
+      },
+      "items": [
+        {
+          "id": "BIO-06-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. Longevity Essentials διατίθεται σε συσκευασία 60 κάψουλες.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-06-02",
+          "kind": "fact",
+          "label": "Βιταμίνες",
+          "text": "Ο πίνακας του Dr. Longevity Essentials περιλαμβάνει βιταμίνες B6, B12, C, D3 και K2, καθώς και φολικό οξύ.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-06-03",
+          "kind": "fact",
+          "label": "Μέταλλα και λοιπά συστατικά",
+          "text": "Το Dr. Longevity Essentials περιέχει μαγνήσιο, ψευδάργυρο, συνένζυμο Q10, μηλικό οξύ και NAD.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-06-04",
+          "kind": "fact",
+          "label": "Υπόλοιπα συστατικά",
+          "text": "Στον πίνακα του Dr. Longevity Essentials αναφέρονται επίσης βασιλικός πολτός, εκχύλισμα Panax ginseng, χλωροφύλλη τύπου A, πεπτίδια καλαμποκιού, τρυπτοφάνη και L-τυροσίνη.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-06-05",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Vitamin B6 (pyridoxine HCL): 25 mg — 178,5% Σ.Η.Π.\nVitamin B12 (methylcobalamin): 500 mcg — 20.000% Σ.Η.Π.\nVitamin C (ascorbic acid as ester): 100 mg — 166,7% Σ.Η.Π.\nVitamin D3 (cholecalciferol): 2.000 IU — 500% Σ.Η.Π.\nVitamin K2 (Menaquinone 7): 20 mcg — 100% Σ.Η.Π.\nFolic acid: 200 mcg — 100% Σ.Η.Π.\nMagnesium as Chelate (bisglycinate): 200 mg — 50% Σ.Η.Π.\nZinc (citrate): 20 mg — 200% Σ.Η.Π.\nCoenzyme Q10 10%: 20 mg\nMalic acid: 20 mg\nNAD (nicotinamide adenine): 70 mg\nRoyal Jelly: 250 mg\nPanax Ginseng extract: 120 mg\nChlorophyll type A: 90 mg\nCorn peptides: 40 mg\nTryptophan: 20 mg\nL-Tyrosine: 10 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Στα σύντομα στοιχεία της σελίδας εμφανίζεται βιταμίνη A, αλλά απουσιάζει από τον πίνακα των 17 συστατικών. Να επιβεβαιωθούν η σωστή λίστα, η βάση δόσης, τα ποσοστά Σ.Η.Π. και η ένδειξη «Coenzyme Q10 10%». Τα ποσοστά δεν επανυπολογίστηκαν ούτε εγκρίθηκαν. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-06-06",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει δύο κάψουλες ημερησίως μαζί με ένα ποτήρι νερό.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-06-07",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα αναφέρει κόπωση, ανοσοποιητικό και προστασία από οξειδωτικό στρες. Χρειάζεται αντιστοίχιση κάθε διατύπωσης με συγκεκριμένα συστατικά και επιβεβαιωμένες ποσότητες.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-06-08",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/16256686391683",
+      "handle": "dr-magnesium-bisglycinate",
+      "title": "Dr. Magnesium Bisglycinate",
+      "source": "https://bionera.gr/products/dr-magnesium-bisglycinate",
+      "retrievedAt": "2026-10-16T09:58:42.455Z",
+      "pageSource": {
+        "file": "sources/dr-magnesium-bisglycinate.page-content.json",
+        "sha256": "a01990c6adc5b75ef8863ddc9e326d86d8837c534aa10d69f111f57e1cf09f77",
+        "rawResponseSha256": "b14ac553f3d2160c61523e5c1febc8bd568300707fe40ade873d2aaf3a682718"
+      },
+      "metadataSource": {
+        "file": "sources/dr-magnesium-bisglycinate.product-metadata.json",
+        "sha256": "58822843fb9f3c7b8e63b605b2c1b0417322c50c3adfdcdb5127c8514a92e001",
+        "rawResponseSha256": "7cc5e3ac57ccb0c936ac036fc24b9a92b2800a538917a47189e858ae01d900cb"
+      },
+      "items": [
+        {
+          "id": "BIO-07-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. Magnesium Bisglycinate διατίθεται σε συσκευασία 90 κάψουλες.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-07-02",
+          "kind": "fact",
+          "label": "Σύνθεση",
+          "text": "Το Dr. Magnesium Bisglycinate περιέχει μαγνήσιο και γλυκίνη.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-07-03",
+          "kind": "fact",
+          "label": "Δηλωμένες ποσότητες",
+          "text": "Η περιγραφή του Dr. Magnesium Bisglycinate αναφέρει 400 mg στοιχειακού μαγνησίου και 800 mg γλυκίνης ανά ημερήσια δόση.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "Προς επιβεβαίωση με την τελική ετικέτα πριν την έγκριση.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-07-04",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Magnesium bisglycinate: 1.200 mg\nεκ των οποίων στοιχειακό μαγνήσιο: 400 mg — 107% Σ.Η.Π.\nγλυκίνη: 800 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Να διασταυρωθεί με την τελική ετικέτα η αντιστοίχιση 1200 mg magnesium bisglycinate / 400 mg στοιχειακό μαγνήσιο / 800 mg γλυκίνη. Η πρόταση γνώσης για ποσότητες αποδίδει μόνο όσα δηλώνει η περιγραφή· δεν αποδεικνύει χημική σύσταση ή καταλληλότητα δόσης. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-07-05",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει τρεις κάψουλες ημερησίως πριν τον ύπνο.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-07-06",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα αποδίδει στο μαγνήσιο συμβολή στη μείωση κόπωσης, στη λειτουργία μυών και νευρικού συστήματος και στον μεταβολισμό παραγωγής ενέργειας. Να ελεγχθούν η ακριβής διατύπωση και οι προϋποθέσεις χρήσης.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-07-07",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/15717064245635",
+      "handle": "dr-metabolic-control",
+      "title": "Dr. Metabolic Control",
+      "source": "https://bionera.gr/products/dr-metabolic-control",
+      "retrievedAt": "2026-10-16T09:58:43.169Z",
+      "pageSource": {
+        "file": "sources/dr-metabolic-control.page-content.json",
+        "sha256": "e65f84e2cf5f214827d053b6fbb9b991263f4580a989971650e6775174bf7c93",
+        "rawResponseSha256": "bc4a148d985f2d0e6d0f2e8aa062c9bf0feda26e31bc308936508bc2af248015"
+      },
+      "metadataSource": {
+        "file": "sources/dr-metabolic-control.product-metadata.json",
+        "sha256": "ca9f128d2f4bb2f6684b8a865a51e860ff9f892b20ecb4150513b7b9c35234ee",
+        "rawResponseSha256": "e27b3bd7e98405f4f7b684bd2757848350d6a11f1b33a06ef524c874e2dea2c2"
+      },
+      "items": [
+        {
+          "id": "BIO-08-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. Metabolic Control διατίθεται σε συσκευασία 270 κάψουλες.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-08-02",
+          "kind": "fact",
+          "label": "Σύνθεση",
+          "text": "Το Dr. Metabolic Control περιέχει βερβερίνη, άλφα-λιποϊκό οξύ και χρώμιο ως πικολινικό.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-08-03",
+          "kind": "fact",
+          "label": "Υπόλοιπα συστατικά",
+          "text": "Στον πίνακα του Dr. Metabolic Control αναφέρονται επίσης μυοϊνοσιτόλη, εκχύλισμα πράσινου τσαγιού και D-chiro-inositol.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-08-04",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Berberine: 1500 mg\nAlpha Lipoic Acid: 600 mg\nChromium (as Picolinate): 200 μg\nMyoinositol: 3000 mg\nGreen Tea Extract (50% EGCG): 200 mg\nD-Chiro-Inositol: 50 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Να επιβεβαιωθούν οι οδηγίες εννέα καψουλών, η βάση των ποσοτήτων και η ακριβής περιεκτικότητα/σήμανση EGCG. Δεν μετατρέπουμε την οδηγία του site σε εξατομικευμένη δοσολογία. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-08-05",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει εννέα κάψουλες ημερησίως: τρεις κάψουλες, τρεις φορές την ημέρα, πριν από τα κύρια γεύματα.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-08-06",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η βασική περιγραφή συνδέει το χρώμιο με φυσιολογικά επίπεδα γλυκόζης και μεταβολισμό μακροθρεπτικών. Χρειάζεται χωριστός έλεγχος αυτών των συγκεκριμένων διατυπώσεων, ποσότητας και όρων χρήσης.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-08-07",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-08-08",
+          "kind": "excluded",
+          "label": "Κλινικές ή συγκριτικές υποσχέσεις",
+          "text": "Οι εκτενείς αναφορές σε αντίσταση στην ινσουλίνη, PCOS, φλεγμονή και απώλεια λίπους δεν εισάγονται ως αντιμετώπιση πάθησης, εγγύηση αποτελέσματος ή προσωπική σύσταση.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Ρόλος συστατικών",
+          "note": "Δεν γίνονται ενεργή γνώση με γενική έγκριση του site.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/15717959336323",
+      "handle": "dr-omega-krill",
+      "title": "Dr. Omega Krill",
+      "source": "https://bionera.gr/products/dr-omega-krill",
+      "retrievedAt": "2026-10-16T09:58:43.662Z",
+      "pageSource": {
+        "file": "sources/dr-omega-krill.page-content.json",
+        "sha256": "92d4ec2be097e5effb46ad64756ffd0f378def352aa0552578a30ad24d9d2b6c",
+        "rawResponseSha256": "1ee10b306bf8a93dfacd650e79b837330aa9c2cef6b686d6e3fb94bfa80d9d07"
+      },
+      "metadataSource": {
+        "file": "sources/dr-omega-krill.product-metadata.json",
+        "sha256": "1d4064afeeb48604012dff14a6af4d0cd3c5c168c5a80835d9c48e72d7fa3521",
+        "rawResponseSha256": "d7cc6995b2816440818cffe381991571079254ee2d27d2345ad08ee0c671d01e"
+      },
+      "items": [
+        {
+          "id": "BIO-09-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. Omega Krill διατίθεται σε συσκευασία 60 μαλακές κάψουλες (soft gel).",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-09-02",
+          "kind": "fact",
+          "label": "Σύνθεση",
+          "text": "Το Dr. Omega Krill περιέχει έλαιο krill, ωμέγα-3 EPA και DHA σε φωσφολιπίδια και ασταξανθίνη.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-09-03",
+          "kind": "fact",
+          "label": "Δηλωμένη ποσότητα ελαίου",
+          "text": "Η περιγραφή του Dr. Omega Krill αναφέρει 2000 mg ελαίου krill ανά δόση. Η ποσότητα αυτή αφορά το έλαιο krill και όχι χωριστή ποσότητα EPA ή DHA.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-09-04",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Krill Oil: 2000 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Δεν βρέθηκαν χωριστές ποσότητες EPA, DHA ή ασταξανθίνης. Να επιβεβαιωθεί ότι η δηλωμένη δόση 2000 mg αντιστοιχεί στις δύο κάψουλες και να προσκομιστεί πλήρης δήλωση αλλεργιογόνων. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-09-05",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει δύο κάψουλες ημερησίως, μετά το μεσημεριανό γεύμα.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-09-06",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα αναφέρει καρδιαγγειακή και γνωστική λειτουργία, λιπίδια και αντιοξειδωτική δράση. Χρειάζονται επιμέρους ποσότητες EPA/DHA και ακριβείς τεκμηριωμένες διατυπώσεις πριν επιτραπούν σχετικές απαντήσεις.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-09-07",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-09-08",
+          "kind": "excluded",
+          "label": "Κλινικές ή συγκριτικές υποσχέσεις",
+          "text": "Δεν εισάγονται ως δεδομένα οι συγκριτικές υποσχέσεις ανώτερης απορρόφησης ή οι αναφορές ρύθμισης φλεγμονώδους απόκρισης.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Ρόλος συστατικών",
+          "note": "Δεν γίνονται ενεργή γνώση με γενική έγκριση του site.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/16207515451779",
+      "handle": "dr-q10-active-ubiquinol",
+      "title": "Dr. Q10 Active Ubiquinol",
+      "source": "https://bionera.gr/products/dr-q10-active-ubiquinol",
+      "retrievedAt": "2026-10-16T09:58:44.090Z",
+      "pageSource": {
+        "file": "sources/dr-q10-active-ubiquinol.page-content.json",
+        "sha256": "56b0e8b77471053e7e3a4dcd644d2dd26fc5384bb964e908a95c189246121e31",
+        "rawResponseSha256": "3ce7ad34f4609032bd8aa08b1571840b3c8e2698f28339ab1866bfcd9c8dc6b2"
+      },
+      "metadataSource": {
+        "file": "sources/dr-q10-active-ubiquinol.product-metadata.json",
+        "sha256": "ca7ce180434f890de6db6e92c11f2d80548cb8f563a975a94f175a4234bbf1ae",
+        "rawResponseSha256": "dd20bc87820c2f2546e730b5f98277f777f3512cb3a1cd329339fe305e7717cc"
+      },
+      "items": [
+        {
+          "id": "BIO-10-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. Q10 Active Ubiquinol διατίθεται σε συσκευασία 30 κάψουλες.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-10-02",
+          "kind": "fact",
+          "label": "Σύνθεση και μορφή",
+          "text": "Το Dr. Q10 Active Ubiquinol περιέχει ubiquinol, την αναγμένη μορφή του συνενζύμου Q10.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-10-03",
+          "kind": "fact",
+          "label": "Δηλωμένη ποσότητα",
+          "text": "Η περιγραφή του Dr. Q10 Active Ubiquinol αναφέρει 200 mg ubiquinol ανά ημερήσια δόση μίας κάψουλας.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-10-04",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Ubiquinol (CoQ10): 200 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Να ελεγχθούν η τελική ετικέτα, τα έκδοχα, η μορφή κάψουλας και τα αλλεργιογόνα. Η ονομασία Active δεν τεκμηριώνει συγκριτική αποτελεσματικότητα. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-10-05",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει μία κάψουλα ημερησίως.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-10-06",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Στη συγκεκριμένη σελίδα δεν εντοπίστηκε ξεχωριστή ενότητα οφέλους για μεταφορά στη γνώση. Ο agent μπορεί να παρουσιάζει την εγκεκριμένη σύνθεση χωρίς να προσθέτει ισχυρισμούς καρδιάς, ενέργειας ή αντιγήρανσης.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-10-07",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/16281663668611",
+      "handle": "dr-vitamin-c-liposomal",
+      "title": "Dr. Vitamin C Liposomal",
+      "source": "https://bionera.gr/products/dr-vitamin-c-liposomal",
+      "retrievedAt": "2026-10-16T09:58:44.591Z",
+      "pageSource": {
+        "file": "sources/dr-vitamin-c-liposomal.page-content.json",
+        "sha256": "ce749de346407ac55ea5fa45f84f6e054b8e84d8c3b3b1dc44dc80d143b48361",
+        "rawResponseSha256": "90bbd2110892004c04cb22ba1799a69be2ab5af1cecd0c99db11dd5a9aeb5078"
+      },
+      "metadataSource": {
+        "file": "sources/dr-vitamin-c-liposomal.product-metadata.json",
+        "sha256": "ea98b67bad10039a5b2b9f60772f4ee03d1b9663656f9b8cd2b2c583e49361a7",
+        "rawResponseSha256": "6245179d399b3186df2cc0ea701b3d7c4a788b551962a74859897d9e1bd8be26"
+      },
+      "items": [
+        {
+          "id": "BIO-11-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. Vitamin C Liposomal διατίθεται σε συσκευασία 60 κάψουλες.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-11-02",
+          "kind": "fact",
+          "label": "Σύνθεση",
+          "text": "Το Dr. Vitamin C Liposomal αναφέρει στη σύνθεσή του Vitamin C (Ester C), βιοφλαβονοειδή εσπεριδοειδών, acerola, rose hips και rutin.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-11-03",
+          "kind": "fact",
+          "label": "Δηλωμένη ποσότητα",
+          "text": "Η περιγραφή του Dr. Vitamin C Liposomal αναφέρει 1000 mg Vitamin C (Ester C) ανά ημερήσια δόση.",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-11-04",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Vitamin C (Ester C): 1.000 mg — 1250% Σ.Η.Π.\nCitrus Bioflavonoid Complex: 70 mg\nAcerola: 50 mg\nRose Hips Extract: 30 mg\nRutin: 14 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Ο τίτλος λέει Liposomal, ενώ περιγραφή και πίνακας αναφέρουν Ester C. Να επιβεβαιωθούν η πραγματική τεχνολογία/μορφή και τα τεκμήριά της. Δεν συνάγεται λιποσωμιακή σύνθεση ή αυξημένη απορρόφηση από το όνομα. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-11-05",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει δύο κάψουλες ημερησίως το πρωί με άδειο στομάχι.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-11-06",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα συνδέει τη βιταμίνη C με ανοσοποιητικό, μείωση κόπωσης και οξειδωτικό στρες. Να ελεγχθούν ακριβής διατύπωση, ποσότητα και όροι χρήσης.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-11-07",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    },
+    {
+      "productId": "gid://shopify/Product/15704597987715",
+      "handle": "dr-womandrive",
+      "title": "Dr. WomanDrive",
+      "source": "https://bionera.gr/products/dr-womandrive",
+      "retrievedAt": "2026-10-16T09:58:45.209Z",
+      "pageSource": {
+        "file": "sources/dr-womandrive.page-content.json",
+        "sha256": "a390b0b19f3451c902742e0029970f6780061cdc46d329588e02303ab462c032",
+        "rawResponseSha256": "4a28c4fac9b4a8fbbb72d9cf0fa54e37afcc16f17342da8b7437b10d6721d070"
+      },
+      "metadataSource": {
+        "file": "sources/dr-womandrive.product-metadata.json",
+        "sha256": "47fb42331e1a78aa0eea6c201221402c952f291f5eb1200a52e67cad41b1cf18",
+        "rawResponseSha256": "fbdd5c2292a240889c9a0dff3ca923198ee15583d539992e6a23556c502e1de3"
+      },
+      "items": [
+        {
+          "id": "BIO-12-01",
+          "kind": "fact",
+          "label": "Συσκευασία",
+          "text": "Το Dr. WomanDrive διατίθεται σε συσκευασία 30 κάψουλες.",
+          "sourceLocation": "Κύρια ενότητα προϊόντος → Ποσότητα",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-12-02",
+          "kind": "fact",
+          "label": "Σύνθεση",
+          "text": "Στον πίνακα του Dr. WomanDrive αναφέρονται Siberian Rhubarb (Rheum rhaponticum), Black Cohosh (Cimicifuga racemosa), ισοφλαβόνες σόγιας και Chaste Tree (Vitex agnus-castus).",
+          "sourceLocation": "Περιγραφή προϊόντος / Τι περιέχει",
+          "note": "",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-12-03",
+          "kind": "clarification",
+          "label": "Πλήρης πίνακας σύνθεσης — έλεγχος ποσοτήτων",
+          "text": "Siberian Rhubarb (Rheum rhaponticum, ERr 731): 4 mg\nBlack Cohosh (Cimicifuga racemosa, 2.5% triterpene glycosides): 40 mg\nSoy Isoflavones (from Glycine max): 60 mg\nChaste Tree Extract (Vitex agnus-castus) (0.6% casticin): 40 mg",
+          "sourceLocation": "Τι περιέχει",
+          "note": "Να επιβεβαιωθούν η τυποποίηση των εκχυλισμάτων, η βάση των ποσοτήτων και η πλήρης δήλωση αλλεργιογόνων. Ο ισχυρισμός «δεν περιέχει ορμόνες» χρειάζεται έλεγχο πλήρους σύνθεσης πριν ενεργοποίηση. Οι τιμές καταγράφονται όπως εμφανίζονται, χωρίς μετατροπές μονάδων ή υπολογισμό ημερών χρήσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-12-04",
+          "kind": "clarification",
+          "label": "Δημοσιευμένες οδηγίες λήψης",
+          "text": "Η σελίδα αναφέρει μία κάψουλα ημερησίως το πρωί μετά το πρωινό γεύμα.",
+          "sourceLocation": "Οδηγίες και δοσολογία",
+          "note": "Χρειάζεται έγκριση της τελικής ετικέτας και χωριστός έλεγχος του τρόπου παρουσίασης γενικών οδηγιών. Δεν αποτελεί οδηγία λήψης προς τον αναγνώστη. Η τρέχουσα πολιτική προσωπικής δοσολογίας του agent διατηρείται.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-12-05",
+          "kind": "clarification",
+          "label": "Οφέλη — επόμενο στάδιο τεκμηρίωσης",
+          "text": "Η σελίδα παρουσιάζει το προϊόν για την περίοδο της εμμηνόπαυσης και περιγράφει συμπτώματα. Αυτό δεν αρκεί για να προτείνεται ως προσωπική λύση· απαιτείται έλεγχος κάθε επιτρεπόμενης διατύπωσης.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Τα συστατικά και ο ρόλος τους",
+          "note": "Χρειάζονται η ακριβής επιτρεπόμενη διατύπωση, το συστατικό που τη στηρίζει, οι όροι χρήσης και η ισχύουσα ετικέτα. Παραμένει εκτός ενεργής γνώσης.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-12-06",
+          "kind": "clarification",
+          "label": "Πλήρης ετικέτα και προφυλάξεις",
+          "text": "Χρειάζεται η τελική ετικέτα με πλήρη συστατικά και έκδοχα, αλλεργιογόνα, προειδοποιήσεις και τυχόν ειδικούς όρους φύλαξης.",
+          "sourceLocation": "Δημόσια σελίδα / γενικό FAQ",
+          "note": "Το κοινό FAQ αναφέρει φύλαξη σε δροσερό και ξηρό μέρος, προστατευμένο από ήλιο και μακριά από παιδιά. Δεν το θεωρούμε πλήρη ειδική προειδοποίηση για κάθε προϊόν. Δεν συνάγονται vegan, gluten-free, καταλληλότητα για αλλεργίες ή απουσία αλληλεπιδράσεων.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        },
+        {
+          "id": "BIO-12-07",
+          "kind": "excluded",
+          "label": "Κλινικές ή συγκριτικές υποσχέσεις",
+          "text": "Δεν εισάγονται ως σύσταση αντιμετώπισης εξάψεων, νυχτερινών εφιδρώσεων, ξηρότητας, πόνου ή διαταραχών ύπνου οι σχετικές αναφορές της σελίδας.",
+          "sourceLocation": "Περιγραφή / Πού βοηθάει / Ρόλος συστατικών",
+          "note": "Δεν γίνονται ενεργή γνώση με γενική έγκριση του site.",
+          "status": "draft",
+          "approvedBy": null,
+          "approvedAt": null
+        }
+      ]
+    }
+  ]
+}

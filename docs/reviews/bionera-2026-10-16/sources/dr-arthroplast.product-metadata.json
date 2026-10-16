@@ -1,0 +1,30 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-arthroplast.js",
+  "retrievedAt": "2026-10-16T09:58:40.831Z",
+  "rawResponseSha256": "f63ac3843ad5ee7931058d0e4980853b4ed0fa7cf2df68d14e45baf572535ca0",
+  "id": "gid://shopify/Product/15978008740227",
+  "handle": "dr-arthroplast",
+  "title": "Dr. ArthroPlast",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. ArthroPlast της BioNera είναι μια προηγμένη premium φόρμουλα ολοκληρωμένης υποστήριξης, για όσους θέλουν να διατηρήσουν την κινητικότητα, την ευκαμψία και την αντοχή του κινητικού τους συστήματος. Ο συνδυασμός δομικών συστατικών, βιοδραστικών εκχυλισμάτων και απαραίτητων μικροθρεπτικών στοιχείων προσφέρει πολυεπίπεδη υποστήριξη.\n\nΣχεδιασμένο για έναν δραστήριο τρόπο ζωής, υποστηρίζει τη φυσιολογική κατάσταση των οστών και τη φυσιολογική λειτουργία των μυών — βοηθώντας σε να παραμένεις σε κίνηση χωρίς συμβιβασμούς.\n\nΤρόπος χρήσης: Λαμβάνετε 2 κάψουλες ημερησίως με νερό.",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/58084768317827",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-arthroplast-primary-colour-calibrated-v2.png?v=1788953870",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA-Dr-ArthroPlast-back.png?v=1779367228",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/arthro_v2_01.png?v=1781114825",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/arthro_v2_02.png?v=1781114825",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/arthro_v2_03.png?v=1781114825",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/arthro_v2_04.png?v=1781114825",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/arthro_v2_05.png?v=1781114825",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/02-dr-longevity-17-ingredients.jpg?v=1787387147"
+  ]
+}

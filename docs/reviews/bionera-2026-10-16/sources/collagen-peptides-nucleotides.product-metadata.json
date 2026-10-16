@@ -1,0 +1,29 @@
+{
+  "sourceUrl": "https://bionera.gr/products/collagen-peptides-nucleotides.js",
+  "retrievedAt": "2026-10-16T09:58:39.272Z",
+  "rawResponseSha256": "6f1db43db93aaa4e3eddf81e938a809180bbb1be6dc8d02880586bd3a335fa4b",
+  "id": "gid://shopify/Product/15978008772995",
+  "handle": "collagen-peptides-nucleotides",
+  "title": "Collagen Peptides Nucleotides+",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Τα Collagen Peptides Nucleotides+ της BioNera είναι μια προηγμένη premium σύνθεση beauty & wellness, σχεδιασμένη για όσες/-ους θέλουν να υποστηρίξουν τη φυσιολογική κατάσταση μαλλιών, δέρματος και νυχιών μέσα από μια σύγχρονη και επιστημονικά τεκμηριωμένη προσέγγιση.\n\nΟ συνδυασμός υδρολυμένων πεπτιδίων κολλαγόνου τύπου I & III, PDRN νουκλεοτιδίων, υαλουρονικού οξέος, βιοτίνης, εκχυλισμάτων ιπποφαούς και argan, βιταμινών C, E και χαλκού δημιουργεί μια ολοκληρωμένη φόρμουλα υψηλών προδιαγραφών — με ευχάριστη γεύση σοκολάτα για μια καθημερινή ρουτίνα που τη χαίρεσαι.\n\nΤρόπος χρήσης: Αναμείξτε 1 μεζούρα (20 g) σε 200 ml νερό, μία φορά ημερησίως, κατά προτίμηση το βράδυ.",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/58084768350595",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/collagen-peptides-nucleotides-primary-colour-calibrated-v2.png?v=1788953868",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/bionera-collagen-peptides-back-large.png?v=1781195260",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/collagen_v2_01.png?v=1781115066",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/collagen_v2_02.png?v=1781115066",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/collagen_v2_03.png?v=1781115066",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/collagen_v2_04.png?v=1781115065",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/collagen_v2_05.png?v=1781115066"
+  ]
+}

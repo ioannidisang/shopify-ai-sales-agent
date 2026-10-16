@@ -1,0 +1,36 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-metabolic-control.js",
+  "retrievedAt": "2026-10-16T09:58:43.330Z",
+  "rawResponseSha256": "e27b3bd7e98405f4f7b684bd2757848350d6a11f1b33a06ef524c874e2dea2c2",
+  "id": "gid://shopify/Product/15717064245635",
+  "handle": "dr-metabolic-control",
+  "title": "Dr. Metabolic Control",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. Metabolic Control της BioNera είναι μια προηγμένη, επιστημονικά σχεδιασμένη φόρμουλα που υποστηρίζει τον φυσιολογικό μεταβολισμό και τη σταθερή ενεργειακή ισορροπία μέσα στην ημέρα.\n\nΠεριέχει χρώμιο (ως πικολινικό χρώμιο) 200 μg, το οποίο συμβάλλει στη διατήρηση των φυσιολογικών επιπέδων γλυκόζης του αίματος και στον φυσιολογικό μεταβολισμό των μακροθρεπτικών συστατικών, σε συνδυασμό με επιλεγμένα φυτικά εκχυλίσματα υψηλής δόσης.\n\nΙδανικό για όσους θέλουν να συμπληρώσουν μια ισορροπημένη διατροφή και έναν δραστήριο τρόπο ζωής.",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/57404644950403",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-metabolic-control-primary-colour-calibrated-v2.png?v=1788953870",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/BIONERA_Dr_Metabolic_Control_back.png?v=1776773885",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_clean_label.png?v=1776946358",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_kathari_synthesi.png?v=1776946366",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_ipsili_dosi_ververinis.png?v=1776946360",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_Clinical_stack.png?v=1776946360",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_6_drastika.png?v=1776946361",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_epistimi_metavolikou_eleghou.png?v=1776946361",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_epipeda_zaharou.png?v=1776946364",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_daily_ritual.png?v=1776946364",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_metavoliki_isorropia.png?v=1776946364",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_gia_poious_einai.png?v=1776946364",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_eksypni_synthesi.png?v=1776946364",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Dr_Metabolic_control_odigies_chrisis.png?v=1776946365"
+  ]
+}

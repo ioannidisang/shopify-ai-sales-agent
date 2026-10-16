@@ -1,0 +1,29 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-vitamin-c-liposomal.js",
+  "retrievedAt": "2026-10-16T09:58:44.754Z",
+  "rawResponseSha256": "6245179d399b3186df2cc0ea701b3d7c4a788b551962a74859897d9e1bd8be26",
+  "id": "gid://shopify/Product/16281663668611",
+  "handle": "dr-vitamin-c-liposomal",
+  "title": "Dr. Vitamin C Liposomal",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. Vitamin C Liposomal προσφέρει 1.000 mg Vitamin C (Ester C) ανά ημερήσια δόση, μαζί με bioflavonoids εσπεριδοειδών, acerola, rose hips και rutin. Η βιταμίνη C συμβάλλει στη φυσιολογική λειτουργία του ανοσοποιητικού συστήματος και στη μείωση της κούρασης και της κόπωσης.\n\n60 κάψουλες · 30 ημερήσιες δόσεις",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/62521501286787",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-vitamin-c-liposomal-primary-colour-calibrated-v2.png?v=1788953870",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-vitamin-c-liposomal-rear-transparent-2026-09-11.webp?v=1789126068",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/vitamin-c-1000mg-web.webp?v=1788353935",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/vitamin-c-benefits-web.webp?v=1788353936",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/vitamin-c-formula-web.webp?v=1788353934",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/vitamin-c-routine-web.webp?v=1788353934",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/vitamin-c-athens-lifestyle-web.webp?v=1788353934"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-omega-krill.js",
+  "retrievedAt": "2026-10-16T09:58:43.796Z",
+  "rawResponseSha256": "d7cc6995b2816440818cffe381991571079254ee2d27d2345ad08ee0c671d01e",
+  "id": "gid://shopify/Product/15717959336323",
+  "handle": "dr-omega-krill",
+  "title": "Dr. Omega Krill",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. Omega Krill της BioNera προσφέρει υψηλής ισχύος έλαιο krill, με 2000 mg ανά δόση, σχεδιασμένο για όσους αναζητούν ουσιαστική και ολοκληρωμένη υποστήριξη καρδιαγγειακής, εγκεφαλικής και μεταβολικής υγείας. Τα ωμέγα-3 λιπαρά οξέα EPA και DHA βρίσκονται φυσικά δεσμευμένα σε φωσφολιπίδια — μορφή που ευνοεί την απορρόφηση και τη βιοδιαθεσιμότητα — ενώ η φυσική ασταξανθίνη προσφέρει ισχυρή αντιοξειδωτική προστασία απέναντι στο οξειδωτικό στρες.\n\nΗ υψηλή περιεκτικότητα των 2000 mg στοχεύει σε ουσιαστική ενίσχυση του λιπιδαιμικού προφίλ, υποστήριξη της αγγειακής λειτουργίας και συμβολή στη ρύθμιση της φλεγμονώδους απόκρισης, ενώ παράλληλα ενισχύει τη γνωστική απόδοση και τη συνολική ζωτικότητα. Το Dr. Omega Krill αποτελεί μια premium επιλογή για όσους επιθυμούν καθαρή, ισχυρή και βιοδιαθέσιμη καθημερινή πρόσληψη ωμέγα-3 σε υψηλή δοσολογία.",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/57405716529539",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-omega-krill-primary-colour-calibrated-v2.png?v=1788953869",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_back.png?v=1776773884",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_i_dinami_tou_krill_6c9e4e46-60ac-4bdb-a029-0b18fbe479a7.png?v=1778317779",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_ypostiriksi_kardias.png?v=1776961342",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_stiriksi_stin_kinisi.png?v=1776961343",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_high_dose_bioavailable_form.png?v=1776961339",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_2_gels_ti_mera.png?v=1776961343",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_fosfolipidiki_morfi.png?v=1776961343",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_katharo_krill.png?v=1776961343",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_omega_3_absorption.png?v=1776961342",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/Bionera_Dr_Omega_Krill_one_oil_four_systems.png?v=1776961343"
+  ]
+}

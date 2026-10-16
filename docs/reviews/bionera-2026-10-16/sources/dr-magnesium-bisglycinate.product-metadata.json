@@ -1,0 +1,30 @@
+{
+  "sourceUrl": "https://bionera.gr/products/dr-magnesium-bisglycinate.js",
+  "retrievedAt": "2026-10-16T09:58:42.599Z",
+  "rawResponseSha256": "7cc5e3ac57ccb0c936ac036fc24b9a92b2800a538917a47189e858ae01d900cb",
+  "id": "gid://shopify/Product/16256686391683",
+  "handle": "dr-magnesium-bisglycinate",
+  "title": "Dr. Magnesium Bisglycinate",
+  "productType": "Συμπλήρωμα Διατροφής",
+  "vendor": "Bionera",
+  "descriptionText": "Το Dr. Magnesium Bisglycinate προσφέρει 400 mg στοιχειακού μαγνησίου ανά ημερήσια δόση, σε συνδυασμό με 800 mg γλυκίνης. Το μαγνήσιο συμβάλλει στη μείωση της κούρασης και της κόπωσης και στη φυσιολογική λειτουργία των μυών και του νευρικού συστήματος.\n\n90 κάψουλες · 30 ημερήσιες δόσεις",
+  "variants": [
+    {
+      "id": "gid://shopify/ProductVariant/62416306798979",
+      "title": "Default Title",
+      "options": [
+        "Default Title"
+      ]
+    }
+  ],
+  "imageSources": [
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-magnesium-bisglycinate-primary-colour-calibrated-v2.png?v=1788953869",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/dr-magnesium-bisglycinate-rear-transparent-2026-09-11.webp?v=1789126068",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/02-dr-magnesium-facts.jpg?v=1787222840",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/03-dr-magnesium-benefits.jpg?v=1787139633",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/04-dr-magnesium-formula.jpg?v=1787222864",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/05-dr-magnesium-30-doses.jpg?v=1787222871",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/06-dr-magnesium-lifestyle.jpg?v=1787222879",
+    "https://cdn.shopify.com/s/files/1/0976/1810/0611/files/07-dr-magnesium-label-details-product.jpg?v=1787223633"
+  ]
+}
