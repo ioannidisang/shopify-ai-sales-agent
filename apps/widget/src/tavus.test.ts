@@ -26,6 +26,37 @@ beforeEach(() => { vi.useFakeTimers(); });
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
 
 describe('private Tavus transport', () => {
+  it.each([
+    [429, 'avatar_daily_limit'], [409, 'avatar_session_busy'], [403, 'avatar_access_denied'], [503, 'avatar_unavailable'],
+  ] as const)('reports the safe %s startup reason after cleanup without joining or retrying', async (status, code) => {
+    const f = fixture();
+    const resetAt = new Date(Math.floor(Date.now() / 86_400_000) * 86_400_000 + 86_400_000).toISOString();
+    // A plain structural value models the independently bundled loader: no instanceof identity.
+    f.post.mockRejectedValueOnce({ name: 'AvatarStartRequestError', status, code, resetAt });
+    await f.pilot.start('private-code');
+    expect(f.pilot.state).toBe('failed');
+    expect(f.call.join).not.toHaveBeenCalled();
+    expect(f.call.destroy).toHaveBeenCalledOnce();
+    expect(f.onDiagnostic).not.toHaveBeenCalled();
+    expect(f.onEnd.mock.calls).toEqual([code === 'avatar_daily_limit' ? [code, { resetAt }] : [code]]);
+    expect(f.onEnd.mock.invocationCallOrder[0]).toBeGreaterThan(vi.mocked(f.call.destroy).mock.invocationCallOrder[0]!);
+    await vi.advanceTimersByTimeAsync(180_001);
+    expect(f.post).toHaveBeenCalledExactlyOnceWith('/avatar/start', { token: 'widget-token', accessCode: 'private-code' });
+  });
+
+  it('keeps generic request failures separate from daily limits and SDK connection failures', async () => {
+    const f = fixture();
+    f.post.mockRejectedValueOnce(new Error('private server error'));
+    await f.pilot.start('private-code');
+    expect(f.onEnd).toHaveBeenCalledExactlyOnceWith('avatar_unavailable');
+    expect(f.onDiagnostic).not.toHaveBeenCalled();
+    f.onEnd.mockClear();
+    vi.mocked(f.call.join).mockRejectedValueOnce({ name: 'AvatarStartRequestError', status: 409, code: 'avatar_session_busy' });
+    await f.pilot.start('private-code');
+    expect(f.onEnd).toHaveBeenCalledExactlyOnceWith('connection');
+    expect(f.onDiagnostic).toHaveBeenCalledOnce();
+  });
+
   it('does nothing before explicit start and keeps microphone and camera off when joining', async () => {
     const f = fixture();
     expect(f.post).not.toHaveBeenCalled();

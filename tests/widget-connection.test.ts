@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WidgetConnection } from '../apps/widget/src/connection.js';
 import { widgetModuleUrl } from '../apps/widget/src/module-url.js';
 import type { Bootstrap } from '../apps/widget/src/types.js';
+import { avatarStartFailureFromError } from '../apps/widget/src/avatar-start-error.js';
 
 function session(assignment: Bootstrap['assignment'], token = 'session-1'): Bootstrap {
   return { token, conversationId: token, assignment, experimentId: 'test-v1', brand: 'Test', enabled: true, knowledgeVersion: '1' };
@@ -31,6 +32,44 @@ function deferred<T>() {
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('connection shared by launcher and lazy shopping UI', () => {
+  it.each([
+    [429, 'avatar_daily_limit'], [409, 'avatar_session_busy'], [403, 'avatar_access_denied'], [503, 'avatar_unavailable'],
+  ] as const)('preserves only the safe avatar startup category for %s', async (status, code) => {
+    const { connection, fetcher } = fixture(false);
+    const resetAt = new Date(Math.floor(Date.now() / 86_400_000) * 86_400_000 + 86_400_000).toISOString();
+    fetcher.mockResolvedValue(Response.json({ code, resetAt, error: 'private response detail', token: 'secret' }, { status }));
+    const error = await connection.post('/avatar/start', {}).catch(error => error);
+    expect(error).toMatchObject({ message: 'Assistant request unavailable' });
+    expect(avatarStartFailureFromError(error)).toEqual(code === 'avatar_daily_limit' ? { code, resetAt } : { code });
+    expect(JSON.stringify(error)).not.toMatch(/private response detail|secret/);
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    [429, {}], [429, { code: 'avatar_daily_limit', resetAt: 'not-a-date' }],
+    [429, { code: 'avatar_daily_limit', resetAt: '2099-01-01T00:00:00.000Z' }],
+    [403, { code: 'avatar_daily_limit', resetAt: '2026-10-17T00:00:00.000Z' }],
+    [503, { code: 'provider_secret', error: 'private response detail' }],
+  ])('keeps an unrecognized or unvalidated %s response generic', async (status, payload) => {
+    const { connection, fetcher } = fixture(false);
+    fetcher.mockResolvedValue(Response.json(payload, { status: status as number }));
+    const error = await connection.post('/avatar/start', {}).catch(error => error);
+    expect(error).toMatchObject({ message: 'Assistant request unavailable' });
+    expect(avatarStartFailureFromError(error)).toBeUndefined();
+    expect(error).not.toHaveProperty('code');
+  });
+
+  it('does not accept avatar categories on other endpoints or expose malformed error bodies', async () => {
+    const { connection, fetcher } = fixture(false);
+    fetcher.mockResolvedValueOnce(Response.json({ code: 'avatar_session_busy' }, { status: 409 }))
+      .mockResolvedValueOnce(new Response('<html>private provider detail</html>', { status: 503 }));
+    for (const path of ['/chat', '/avatar/start']) {
+      const error = await connection.post(path, {}).catch(error => error);
+      expect(avatarStartFailureFromError(error)).toBeUndefined();
+      expect(error).toMatchObject({ message: 'Assistant request unavailable' });
+    }
+  });
+
   it('deduplicates simultaneous bootstrap requests and does not persist identity or track without consent', async () => {
     const { connection, fetcher, storage, publish } = fixture(false);
     const result = deferred<Response>();

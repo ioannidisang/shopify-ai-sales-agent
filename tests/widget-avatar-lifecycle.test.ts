@@ -85,6 +85,41 @@ beforeEach(() => { provider.createTavusPilot.mockReset(); presentation.createGre
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('private avatar launch lifecycle', () => {
+  it.each(['el', 'en'])('shows distinct startup failures and the daily reset in local time in %s', async locale => {
+    const f = await fixture(locale);
+    let callbacks!: PilotOptions;
+    const pilot = { state: 'starting' as PilotState, start: vi.fn(async () => callbacks.onState('starting')), stop: vi.fn() };
+    provider.createTavusPilot.mockImplementation((options: PilotOptions) => { callbacks = options; return pilot; });
+    f.code.value = 'synthetic-code'; f.start.click();
+    await vi.waitFor(() => expect(pilot.start).toHaveBeenCalledOnce());
+    pilot.state = 'failed'; callbacks.onState('failed');
+    const resetAt = new Date(Math.floor(Date.now() / 86_400_000) * 86_400_000 + 86_400_000).toISOString();
+    callbacks.onEnd?.('avatar_daily_limit', { resetAt });
+    const local = new Intl.DateTimeFormat(locale === 'el' ? 'el-GR' : 'en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }).format(new Date(resetAt));
+    expect(f.status.textContent).toContain(local);
+    expect(f.status.textContent).toContain(locale === 'el' ? 'ημερήσιο όριο' : 'daily avatar trial limit');
+    expect(f.status.textContent).toContain(locale === 'el' ? 'τοπική ώρα σου' : 'your local time');
+    for (const [reason, message] of [
+      ['avatar_session_busy', locale === 'el' ? 'ενεργή συνεδρία' : 'session is still active'],
+      ['avatar_access_denied', locale === 'el' ? 'Η ιδιωτική δοκιμή δεν είναι προσβάσιμη' : 'The private trial is not accessible'],
+      ['avatar_unavailable', locale === 'el' ? 'δεν μπορεί να ξεκινήσει' : 'could not start'],
+    ] as const) {
+      callbacks.onEnd?.(reason);
+      expect(f.status.textContent).toContain(message);
+      expect(f.status.textContent).not.toMatch(/διακόπηκε|interrupted|ημερήσιο|daily/);
+    }
+    callbacks.onEnd?.('avatar_daily_limit', { resetAt: 'private invalid response' });
+    expect(f.status.textContent).not.toMatch(/private invalid|ημερήσιο|daily/);
+    callbacks.onDiagnostic?.({ event: 'start-failure', code: 'unknown', stage: 'unknown', elapsedSeconds: 0, microphone: 'off', checkedSequence: 0 });
+    const diagnostic = f.host.shadowRoot!.find(element => element.className === 'avatar-diagnostic');
+    expect(diagnostic.hidden).toBe(false);
+    f.code.value = 'synthetic-code'; f.start.click();
+    expect(diagnostic.hidden).toBe(true);
+    expect(diagnostic.children[1]!.textContent).toBe('');
+    expect(f.status.textContent).toBe(locale === 'el' ? 'Συνδέεται ο ψηφιακός βοηθός…' : 'Connecting the digital assistant…');
+    await vi.waitFor(() => expect(pilot.start).toHaveBeenCalledTimes(2));
+  });
+
   it('activates person-only presentation only for the explicit flag and releases it on replacement and end', async () => {
     const f = await fixture();
     Object.assign(f.connection.session.avatar, { background: 'greenscreen' });

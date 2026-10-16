@@ -12,6 +12,13 @@ const MAX_STARTS_PER_DAY = 3;
 const CALLBACK_DEADLINE_MS = 30_000;
 const MAX_PENDING_TURNS = 4;
 const MAX_CALLBACK_WAITERS = 8;
+const START_FAILURES = {
+  avatar_daily_limit: { status: 429, error: 'Avatar daily trial limit reached' },
+  avatar_session_busy: { status: 409, error: 'An avatar session is already in progress' },
+  avatar_access_denied: { status: 403, error: 'Avatar access unavailable' },
+  avatar_unavailable: { status: 503, error: 'Avatar temporarily unavailable' },
+} as const;
+type StartFailure = { code: 'avatar_daily_limit'; resetAt: string } | { code: Exclude<keyof typeof START_FAILURES, 'avatar_daily_limit'> };
 const CALLBACK_REASONS = ['ok', 'invalid_input', 'session_guard', 'config_guard', 'queue_full', 'deadline', 'lease_lost', 'conversation_busy', 'turn_limit', 'model_budget', 'generation_failed'] as const;
 export type AvatarCallbackReason = typeof CALLBACK_REASONS[number];
 const bearerBody = z.object({ token: z.string().min(1).max(2048) });
@@ -234,18 +241,29 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
     } finally { sweeping = false; }
   }
 
-  app.post('/proxy/avatar/start', { config: { rateLimit: { max: 5, timeWindow: 60000 } } }, async req => {
+  app.post('/proxy/avatar/start', { config: { rateLimit: { max: 5, timeWindow: 60000 } } }, async (req, reply) => {
     const body = bearerBody.extend({ accessCode: z.string().min(16).max(128) }).strict().parse(req.body);
     const { tenant, claims } = await deps.authenticate(req, body.token);
-    available(tenant.config);
-    if (claims.assignment === 'control' || claims.experimentId !== 'off' || claims.locale !== 'el') throw new AvatarError(403);
+    const failure = (detail: StartFailure) => {
+      const { status, error } = START_FAILURES[detail.code];
+      // Fixed public codes only; upstream errors and private request material are
+      // never copied into either diagnostics or the shopper-facing response.
+      app.log.info({ code: detail.code, status }, 'Avatar start rejected');
+      return reply.code(status).send({ error, ...detail });
+    };
+    if (!provider || !avatarAvailable(env, tenant.config) || claims.assignment === 'control' || claims.experimentId !== 'off' || claims.locale !== 'el') return failure({ code: 'avatar_access_denied' });
     const hash = createHash('sha256').update(body.accessCode).digest('hex');
-    if (!constantEqual(hash, env.tavus!.accessCodeHash)) throw new AvatarError(403);
+    if (!constantEqual(hash, env.tavus!.accessCodeHash)) return failure({ code: 'avatar_access_denied' });
     // The access code is the authorization boundary; theme-role gating is only UI defense.
     await sweep();
-    if ((await db.query("SELECT id FROM avatar_sessions WHERE shop=$1 AND state IN ('starting','active','ending')", [claims.shop])).rows.length) throw new AvatarError(409);
-    const day = new Date().toISOString().slice(0, 10);
-    if (!await takeBudget(db, claims.shop, `${day}:avatar-start`, MAX_STARTS_PER_DAY)) throw new AvatarError(429);
+    if ((await db.query("SELECT id FROM avatar_sessions WHERE shop=$1 AND state IN ('starting','active','ending')", [claims.shop])).rows.length) return failure({ code: 'avatar_session_busy' });
+    const budgetDate = new Date();
+    const day = budgetDate.toISOString().slice(0, 10);
+    if (!await takeBudget(db, claims.shop, `${day}:avatar-start`, MAX_STARTS_PER_DAY)) {
+      // Use the same UTC day as the consumed bucket, including month/year rollover.
+      const resetAt = new Date(Date.UTC(budgetDate.getUTCFullYear(), budgetDate.getUTCMonth(), budgetDate.getUTCDate() + 1)).toISOString();
+      return failure({ code: 'avatar_daily_limit', resetAt });
+    }
     const id = randomUUID(); const secret = randomBytes(32).toString('base64url');
     // Includes a bounded allocation allowance. Provider enforces 180s of conversation time.
     const expiresAt = new Date(Date.now() + (TAVUS_MAX_CALL_SECONDS + 30) * 1000);
@@ -253,7 +271,7 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
       await db.query("INSERT INTO avatar_sessions(id,shop,conversation_id,claims,credential_hash,state,expires_at) VALUES($1,$2,$3,$4,$5,'starting',$6)",
         [id, claims.shop, claims.sid, JSON.stringify(claims), security.hashClient(claims.shop, `avatar:${secret}`), expiresAt]);
     } catch (error) {
-      if ((error as { code?: string }).code === '23505') throw new AvatarError(409);
+      if ((error as { code?: string }).code === '23505') return failure({ code: 'avatar_session_busy' });
       throw error;
     }
     owned.add(id);
@@ -278,7 +296,7 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
         await db.query('UPDATE avatar_sessions SET provider_conversation_id=$2 WHERE id=$1 AND provider_conversation_id IS NULL', [id, error.conversationId]);
       }
       const row = await get(id); if (row) await stop(row);
-      throw new AvatarError(503);
+      return failure({ code: 'avatar_unavailable' });
     }
   });
 

@@ -1,5 +1,6 @@
 import { analyticsAllowed, loadConsent, visitorId } from './consent.js';
 import type { AnalyticsEventName, Bootstrap } from './types.js';
+import { parseAvatarStartFailure } from './avatar-start-error.js';
 
 export type EventDetail = { productId?: string; variantId?: string; quantity?: number };
 
@@ -40,6 +41,10 @@ export class WidgetConnection {
         this.notify();
         // Renew an expired session without retrying the shopper's request or cart action.
         void this.ensureSession().catch(() => { /* Stay hidden until assignment is known. */ });
+      }
+      if (path === '/avatar/start' && [403, 409, 429, 503].includes(response.status)) {
+        const failure = parseAvatarStartFailure(response.status, await response.json().catch(() => undefined));
+        if (failure) throw Object.assign(new Error('Assistant request unavailable'), { name: 'AvatarStartRequestError', status: response.status, ...failure });
       }
       throw new Error('Assistant request unavailable');
     }

@@ -225,6 +225,7 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     const session = await bootstrap();
     const responses = await Promise.all([start(session), start(session)]);
     expect(responses.map(response => response.statusCode).sort()).toEqual([200, 409]);
+    expect(responses.find(response => response.statusCode === 409)!.json()).toEqual({ error: 'An avatar session is already in progress', code: 'avatar_session_busy' });
     expect(provider.createPal).toHaveBeenCalledOnce();
     expect(provider.createConversation).toHaveBeenCalledOnce();
     const room = responses.find(response => response.statusCode === 200)!.json<Started>();
@@ -245,8 +246,63 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
       expect((await end(session, room)).statusCode).toBe(200);
       expect((await row(room)).state).toBe('ended');
     }
-    expect((await start(session)).statusCode).toBe(429);
+    const rejected = await start(session);
+    expect(rejected.statusCode).toBe(429);
+    const now = new Date();
+    const resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString();
+    expect(rejected.json()).toEqual({ error: 'Avatar daily trial limit reached', code: 'avatar_daily_limit', resetAt });
+    expect(rejected.headers['cache-control']).toBe('no-store');
+    expect((await db.query('SELECT count FROM usage_buckets WHERE shop=$1 AND bucket=$2', [shop, `${now.toISOString().slice(0, 10)}:avatar-start`])).rows[0]!.count).toBe(3);
     expect(provider.createPal).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([
+    ['2026-11-30T23:59:00.000Z', '2026-12-01T00:00:00.000Z'],
+    ['2026-12-31T23:59:00.000Z', '2027-01-01T00:00:00.000Z'],
+  ])('returns the UTC budget reset across date rollover at %s', async (now, resetAt) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(now));
+    try {
+      await build();
+      const session = await bootstrap();
+      await db.query('INSERT INTO usage_buckets(shop,bucket,count) VALUES($1,$2,3)', [shop, `${now.slice(0, 10)}:avatar-start`]);
+      const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+      const response = await start(session);
+      expect(response.statusCode).toBe(429);
+      expect(response.json()).toEqual({ error: 'Avatar daily trial limit reached', code: 'avatar_daily_limit', resetAt });
+      expect(info).toHaveBeenCalledExactlyOnceWith({ code: 'avatar_daily_limit', status: 429 }, 'Avatar start rejected');
+      expect(provider.createPal).not.toHaveBeenCalled();
+      expect(provider.createConversation).not.toHaveBeenCalled();
+      expect((await db.query('SELECT id FROM avatar_sessions')).rows).toHaveLength(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('does not disclose the daily budget or reset time before signed ownership and the preview code are valid', async () => {
+    await build();
+    const session = await bootstrap();
+    const bucket = `${new Date().toISOString().slice(0, 10)}:avatar-start`;
+    await db.query('INSERT INTO usage_buckets(shop,bucket,count) VALUES($1,$2,3)', [shop, bucket]);
+    const wrongCode = await start(session, 'wrong-test-code-long-enough');
+    expect(wrongCode.statusCode).toBe(403);
+    expect(wrongCode.json()).toEqual({ error: 'Avatar access unavailable', code: 'avatar_access_denied' });
+    const unsigned = await app!.inject({ method: 'POST', url: '/proxy/avatar/start?shop=' + shop, payload: { token: session.token, accessCode } });
+    expect(unsigned.statusCode).toBe(401);
+    expect(unsigned.json()).not.toHaveProperty('code');
+    expect(unsigned.json()).not.toHaveProperty('resetAt');
+    expect((await db.query('SELECT count FROM usage_buckets WHERE shop=$1 AND bucket=$2', [shop, bucket])).rows[0]!.count).toBe(3);
+    expect(provider.createPal).not.toHaveBeenCalled();
+  });
+
+  it('keeps the per-minute request limit distinct from the authorized daily avatar budget', async () => {
+    await build();
+    const session = await bootstrap();
+    for (let attempt = 0; attempt < 5; attempt++) expect((await start(session, 'wrong-test-code-long-enough')).statusCode).toBe(403);
+    const limited = await start(session);
+    expect(limited.statusCode).toBe(429);
+    expect(limited.json()).not.toHaveProperty('code');
+    expect(limited.json()).not.toHaveProperty('resetAt');
+    expect((await db.query("SELECT count FROM usage_buckets WHERE shop=$1 AND bucket LIKE '%:avatar-start'", [shop])).rows).toHaveLength(0);
+    expect(provider.createPal).not.toHaveBeenCalled();
   });
 
   it('binds callback credentials to the exact avatar session and rejects expired sessions', async () => {
@@ -769,11 +825,12 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
   });
 
   it('invalidates credentials and keeps the cost lease on unknown provider failure without a retry', async () => {
-    provider.createConversation.mockRejectedValue(new Error('Private upstream credential details'));
+    provider.createConversation.mockRejectedValue(Object.assign(new Error('Private upstream credential details'), { code: 'avatar_daily_limit', resetAt: 'private upstream value' }));
     await build();
     const session = await bootstrap();
     const response = await start(session);
     expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({ error: 'Avatar temporarily unavailable', code: 'avatar_unavailable' });
     expect(response.body).not.toContain('Private upstream');
     expect(provider.createConversation).toHaveBeenCalledOnce();
     const saved = (await db.query('SELECT * FROM avatar_sessions')).rows[0]!;

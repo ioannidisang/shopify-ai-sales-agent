@@ -1,12 +1,13 @@
 import DailyImport, { type DailyCallFactory } from '@daily-co/daily-js';
 import type { ChatResponse } from './types.js';
+import { avatarStartFailureFromError, type AvatarStartFailure } from './avatar-start-error.js';
 
 // The browser bundle uses Daily's ESM entry; NodeNext sees its legacy CJS package metadata.
 const Daily = DailyImport as unknown as DailyCallFactory;
 
 export type PilotState = 'idle' | 'starting' | 'active' | 'stopping' | 'failed';
 export type MicrophoneState = 'off' | 'starting' | 'on' | 'failed';
-export type PilotEndReason = 'connection' | 'result' | 'duration' | 'server';
+export type PilotEndReason = 'connection' | 'result' | 'duration' | 'server' | AvatarStartFailure['code'];
 const DAILY_FATAL_CODES = ['ejected', 'nbf-room', 'nbf-token', 'exp-room', 'exp-token', 'no-room', 'meeting-full', 'end-of-life', 'not-allowed', 'connection-error'] as const;
 const DAILY_FAILURE_STAGES = ['load', 'join', 'reconnect', 'move', 'rtc-connection', 'room-lookup'] as const;
 export interface PilotDiagnostic {
@@ -47,7 +48,7 @@ export interface PilotOptions {
   onMicrophone(enabled: boolean): void;
   onMicrophoneState?(state: MicrophoneState): void;
   /** Fixed reason only: never forward SDK errors, room URLs or media content. */
-  onEnd?(reason: PilotEndReason): void;
+  onEnd?(reason: PilotEndReason, detail?: { resetAt: string }): void;
   /** Ephemeral allowlisted diagnostic; contains no SDK messages or identifiers. */
   onDiagnostic?(diagnostic: PilotDiagnostic): void;
   createCall?: () => PilotCall;
@@ -147,6 +148,8 @@ export class TavusPilot {
     this.startedAt = Date.now(); this.lastDiagnostic = undefined;
     this.setState('starting');
     this.sequence = 0;
+    let requestFailed = false;
+    let startFailure: AvatarStartFailure | undefined;
     try {
       const call = this.options.createCall?.() ?? Daily.createCallObject({
         startVideoOff: true, startAudioOff: true, videoSource: false,
@@ -177,7 +180,11 @@ export class TavusPilot {
           void this.stop(true, 'connection');
         }
       });
-      const session = await this.options.post<AvatarSession>('/avatar/start', { token: this.options.token, accessCode });
+      const session = await this.options.post<AvatarSession>('/avatar/start', { token: this.options.token, accessCode }).catch(error => {
+        requestFailed = true;
+        startFailure = avatarStartFailureFromError(error);
+        throw error;
+      });
       accessCode = '';
       if (!this.current(generation)) { await this.endSession(session.sessionId); return; }
       this.session = { sessionId: session.sessionId, conversationId: session.conversationId };
@@ -193,7 +200,10 @@ export class TavusPilot {
       void this.poll(generation);
     } catch {
       accessCode = '';
-      if (this.current(generation)) { this.diagnose('start-failure'); await this.stop(true, 'connection'); }
+      if (this.current(generation)) {
+        if (requestFailed) await this.stop(true, startFailure?.code ?? 'avatar_unavailable', startFailure?.code === 'avatar_daily_limit' ? { resetAt: startFailure.resetAt } : undefined);
+        else { this.diagnose('start-failure'); await this.stop(true, 'connection'); }
+      }
     }
   }
 
@@ -253,7 +263,7 @@ export class TavusPilot {
     try { await this.options.post('/avatar/end', { token: this.options.token, sessionId }); } catch { /* Server duration limit still applies. */ }
   }
 
-  stop(failed = false, reason?: PilotEndReason): Promise<void> {
+  stop(failed = false, reason?: PilotEndReason, detail?: { resetAt: string }): Promise<void> {
     if (this.stopping) return this.stopping;
     if (this.state === 'idle' || this.state === 'failed') return Promise.resolve();
     ++this.generation;
@@ -274,7 +284,7 @@ export class TavusPilot {
         session ? this.endSession(session.sessionId) : Promise.resolve(),
       ]);
       this.setState(failed ? 'failed' : 'idle');
-      if (reason) this.options.onEnd?.(reason);
+      if (reason) { if (detail) this.options.onEnd?.(reason, detail); else this.options.onEnd?.(reason); }
       this.stopping = undefined;
     })();
     return this.stopping;

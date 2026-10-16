@@ -7,6 +7,7 @@ import { createGreenscreenRenderer, type GreenscreenRenderer } from './greenscre
 import { isUnpublishedTheme } from './preview.js';
 import type { AnalyticsEventName, ChatResponse, Product, Variant } from './types.js';
 import type { TavusPilot, PilotState, PilotOptions } from './tavus.js';
+import { validAvatarResetAt } from './avatar-start-error.js';
 
 const copy = {
   en: {
@@ -31,6 +32,10 @@ const copy = {
     avatarMicCancel: 'Cancel microphone activation', avatarMicStarting: 'Waiting for microphone access. Allow access in your browser.', avatarMicReady: 'Microphone active. You can speak now.', avatarMicFailed: 'The microphone could not be activated. Check browser permissions or continue typing.',
     avatarConnectionEnded: 'The avatar connection was interrupted. You can continue in text.', avatarResultEnded: 'The checked answer could not be retrieved. The avatar stopped; you can continue in text.', avatarDurationEnded: 'The 3-minute trial has ended. You can continue in text.', avatarServerEnded: 'The avatar session has ended. You can continue in text.',
     avatarDiagnostic: 'Connection details for this trial',
+    avatarDailyLimit: 'The daily avatar trial limit has been reached. It resets on {reset} (your local time). You can continue in text.',
+    avatarBusy: 'Another avatar session is still active. End it before starting a new one, or continue in text.',
+    avatarAccessDenied: 'The private trial is not accessible. Check the code and that you are using the active preview. You can continue in text.',
+    avatarUnavailable: 'The avatar could not start right now. You can continue in text.',
     avatarBackgroundFallback: 'Background removal is unavailable in this browser. Showing the original video; sound and text remain available.',
   },
   el: {
@@ -55,6 +60,10 @@ const copy = {
     avatarMicCancel: 'Ακύρωση ανοίγματος μικροφώνου', avatarMicStarting: 'Περιμένουμε πρόσβαση στο μικρόφωνο. Επίτρεψέ την στον browser.', avatarMicReady: 'Το μικρόφωνο είναι ενεργό. Μπορείς να μιλήσεις.', avatarMicFailed: 'Το μικρόφωνο δεν ενεργοποιήθηκε. Έλεγξε την άδεια στον browser ή συνέχισε γραπτά.',
     avatarConnectionEnded: 'Η σύνδεση με το πρόσωπο διακόπηκε. Μπορείς να συνεχίσεις γραπτά.', avatarResultEnded: 'Δεν παραλήφθηκε η ελεγμένη απάντηση. Το πρόσωπο σταμάτησε· μπορείς να συνεχίσεις γραπτά.', avatarDurationEnded: 'Η δοκιμή των 3 λεπτών ολοκληρώθηκε. Μπορείς να συνεχίσεις γραπτά.', avatarServerEnded: 'Η συνεδρία με το πρόσωπο ολοκληρώθηκε. Μπορείς να συνεχίσεις γραπτά.',
     avatarDiagnostic: 'Στοιχεία σύνδεσης της δοκιμής',
+    avatarDailyLimit: 'Συμπληρώθηκε το ημερήσιο όριο δοκιμών του προσώπου. Ανανεώνεται στις {reset} (τοπική ώρα σου). Μπορείς να συνεχίσεις γραπτά.',
+    avatarBusy: 'Υπάρχει ακόμη ενεργή συνεδρία με το πρόσωπο. Τερμάτισέ την πριν ξεκινήσεις νέα ή συνέχισε γραπτά.',
+    avatarAccessDenied: 'Η ιδιωτική δοκιμή δεν είναι προσβάσιμη. Έλεγξε τον κωδικό και ότι χρησιμοποιείς την ενεργή προεπισκόπηση. Μπορείς να συνεχίσεις γραπτά.',
+    avatarUnavailable: 'Το πρόσωπο δεν μπορεί να ξεκινήσει αυτή τη στιγμή. Μπορείς να συνεχίσεις γραπτά.',
     avatarBackgroundFallback: 'Δεν ήταν δυνατή η αφαίρεση φόντου σε αυτόν τον browser. Προβάλλεται το αρχικό βίντεο· ο ήχος και το κείμενο παραμένουν διαθέσιμα.',
   },
 } as const;
@@ -307,9 +316,16 @@ class SalesAssistant {
           this.avatarDiagnosticText.textContent = `${diagnostic.event} / ${diagnostic.code} / ${diagnostic.stage} · ${diagnostic.elapsedSeconds}s · mic:${diagnostic.microphone} · replies:${diagnostic.checkedSequence}`;
           this.avatarDiagnostic.hidden = false;
         },
-        onEnd: reason => {
+        onEnd: (reason, detail) => {
           if (!current() || !this.avatarStatus) return;
-          this.avatarStatus.textContent = reason === 'duration' ? this.t.avatarDurationEnded : reason === 'server' ? this.t.avatarServerEnded : reason === 'result' ? this.t.avatarResultEnded : this.t.avatarConnectionEnded;
+          let message: string = reason === 'duration' ? this.t.avatarDurationEnded : reason === 'server' ? this.t.avatarServerEnded : reason === 'result' ? this.t.avatarResultEnded
+            : reason === 'avatar_session_busy' ? this.t.avatarBusy : reason === 'avatar_access_denied' ? this.t.avatarAccessDenied
+              : reason === 'avatar_unavailable' || reason === 'avatar_daily_limit' ? this.t.avatarUnavailable : this.t.avatarConnectionEnded;
+          if (reason === 'avatar_daily_limit' && validAvatarResetAt(detail?.resetAt)) {
+            const reset = new Intl.DateTimeFormat(this.locale.toLowerCase().startsWith('el') ? 'el-GR' : 'en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }).format(new Date(detail.resetAt));
+            message = this.t.avatarDailyLimit.replace('{reset}', reset);
+          }
+          this.avatarStatus.textContent = message;
         },
         onTracks: tracks => {
           if (!current() || !this.avatarVideo) return;
