@@ -52,6 +52,7 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
   const profile = configuredProfile?.approvedBy?.trim() && configuredProfile.approvedAt
     && Number.isFinite(Date.parse(configuredProfile.approvedAt)) && Date.parse(configuredProfile.approvedAt) <= Date.now() ? configuredProfile : undefined;
   const base = { message: input.message, history: history.slice(-10), locale, facts,
+    ...(input.responseMode === 'voice' ? { responseMode: 'voice' as const } : {}),
     ...(profile ? { guidance: { instructions: profile.instructions, examples: profile.examples } } : {}) };
   const finish = async (result: AssistantResponse, intent: string, draft?: ConversationDraft): Promise<AssistantResponse> => {
     // Legacy planner-only consumers keep their deterministic interface. Production always supplies a composer.

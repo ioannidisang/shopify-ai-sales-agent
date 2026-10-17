@@ -9,7 +9,7 @@ import type { RuntimeEnvironment } from '../apps/server/src/config.js';
 import { Security } from '../apps/server/src/security.js';
 import { TavusAllocationCleanupError, type TavusProvider } from '../apps/server/src/tavus-client.js';
 import { MEDICAL_HISTORY_MARKER } from '../packages/core/src/index.js';
-import type { Catalog, Planner, ShopConfig } from '../packages/core/src/types.js';
+import type { Catalog, Planner, Product, ShopConfig } from '../packages/core/src/types.js';
 import type { ConversationModel } from '../packages/core/src/conversation.js';
 
 const shop = 'bionera-gr.myshopify.com';
@@ -148,6 +148,91 @@ afterEach(async () => { await app?.close(); app = undefined; });
 afterAll(async () => { await db.close(); });
 
 describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions', () => {
+  it.each([true, false])('speaks only final live card prices over stream=%s while keeping poll text and history price-free', async stream => {
+    const candidates: Product[] = ['Alpha', 'Beta', 'Gamma'].map((title, index) => ({
+      id: `gid://shopify/Product/${index + 1}`, title, handle: title.toLowerCase(), url: `/products/${title.toLowerCase()}`, imageUrl: null,
+      variants: [{ id: `gid://shopify/ProductVariant/${index + 11}`, legacyId: String(index + 11), title: 'Default Title',
+        price: { amount: '1.00', currencyCode: 'EUR' }, availableForSale: false, currentlyNotInStock: false }],
+    }));
+    const fresh = candidates.map((product, index) => ({ ...product, variants: [{ ...product.variants[0]!, price: { amount: ['12.50', '21.99', '30.01'][index]!, currencyCode: 'EUR' } }] }));
+    const refreshed = vi.fn<Catalog['getProducts']>().mockResolvedValue(fresh);
+    const priceCatalog: Catalog = { search: async () => candidates, getProducts: refreshed, getVariant: async () => null };
+    planner.plan.mockResolvedValue({ intent: 'search', searchQuery: 'synthetic', productIds: candidates.map(product => product.id), factIds: [], variantId: null, quantity: null });
+    const checkedText = 'Οι τρέχουσες τιμές φαίνονται στις κάρτες των προϊόντων.';
+    composer.compose.mockResolvedValue({ segments: [{ text: checkedText, productIds: candidates.map(product => product.id), factIds: [] }] });
+    app = await buildApp(environment, db, { tavus: provider, planner, composer, catalog: () => priceCatalog });
+    const session = await bootstrap(); const room = await started(session);
+    const client = callbackClient(room);
+    const readSpeech = async (message: string): Promise<string> => {
+      if (stream) {
+        const chunks = await client.chat.completions.create({ model: 'shopify-grounded', stream: true, messages: [{ role: 'user', content: message }] });
+        let text = '';
+        for await (const chunk of chunks) text += chunk.choices[0]?.delta.content ?? '';
+        return text;
+      }
+      const response = await client.chat.completions.create({ model: 'shopify-grounded', stream: false, messages: [{ role: 'user', content: message }] });
+      return response.choices[0]!.message.content!;
+    };
+    expect(await readSpeech('Ποιες είναι οι τιμές για αυτές τις επιλογές;')).toBe(`${checkedText}\n\nΟι τιμές στις κάρτες, με τη σειρά που εμφανίζονται, είναι: 12,50 ευρώ, 21,99 ευρώ, 30,01 ευρώ.`);
+    expect(refreshed).toHaveBeenCalledOnce();
+    expect(composer.verify).toHaveBeenCalledOnce();
+    const result = (await poll(session, room)).json();
+    expect(result.response.text).toBe(checkedText);
+    expect(result.response.products).toEqual(fresh);
+    const storedHistory = async () => {
+      const saved = (await db.query<{ history: string }>('SELECT history FROM conversations WHERE shop=$1 AND id=$2', [shop, session.conversationId])).rows[0]!;
+      return security.decrypt<Array<{ role: string; content: string }>>(saved.history, shop);
+    };
+    expect((await storedHistory()).filter(turn => turn.role === 'assistant').map(turn => turn.content)).toEqual([checkedText]);
+    const later = fresh.map(product => ({ ...product, variants: [{ ...product.variants[0]!, price: { amount: '44.00', currencyCode: 'EUR' } }] }));
+    refreshed.mockResolvedValue(later);
+    const secondSpeech = await readSpeech('Έλεγξε ξανά τις τιμές των επιλογών.');
+    expect(secondSpeech).toContain('44,00 ευρώ, 44,00 ευρώ, 44,00 ευρώ');
+    expect(secondSpeech).not.toContain('12,50 ευρώ');
+    expect(composer.verify).toHaveBeenCalledTimes(2);
+    expect((await poll(session, room)).json().response.products).toEqual(later);
+    expect((await storedHistory()).filter(turn => turn.role === 'assistant').map(turn => turn.content)).toEqual([checkedText, checkedText]);
+  });
+
+  it('selects voice presentation only at the authenticated avatar transport, never from public chat input', async () => {
+    await build();
+    const session = await bootstrap();
+    const payload = { token: session.token, message: 'Γεια σου', country: 'GR', locale: 'el' };
+    const forged = await app!.inject({ method: 'POST', url: proxy('chat'), payload: { ...payload, responseMode: 'voice' } });
+    expect(forged.statusCode).toBe(400);
+    expect(composer.compose).not.toHaveBeenCalled();
+    expect((await app!.inject({ method: 'POST', url: proxy('chat'), payload })).statusCode).toBe(200);
+    expect(composer.compose.mock.calls[0]![0]).not.toHaveProperty('responseMode');
+    const room = await started(session);
+    expect((await callback(room)).statusCode).toBe(200);
+    expect(composer.compose.mock.calls[1]![0]).toMatchObject({ responseMode: 'voice' });
+    expect(composer.verify).toHaveBeenCalledTimes(2);
+  });
+
+  it('binds only the owning tenant pronunciation dictionary to its PAL while preserving the configured voice', async () => {
+    const pronunciation: NonNullable<ShopConfig['pronunciation']> = {
+      shop, locale: 'el', version: 'synthetic-pronunciation-v1', approvedBy: 'Merchant', approvedAt: '2026-01-01T00:00:00.000Z',
+      dictionaryId: 'pd_synthetic_tenant_dictionary',
+      rules: [{ text: 'D3', pronunciation: 'ντι τρία', type: 'alias', case_sensitive: false, word_boundaries: true }],
+    };
+    const voice = { externalVoiceId: 'syntheticEleni', model: 'eleven_multilingual_v2' as const };
+    await configure({ pronunciation });
+    await build({ ...environment, tavus: { ...environment.tavus!, voice } });
+    const session = await bootstrap(); const room = await started(session);
+    expect(provider.createPal).toHaveBeenCalledOnce();
+    expect(provider.createPal.mock.calls[0]![0]).toMatchObject({
+      pronunciationDictionaryId: pronunciation.dictionaryId, voice,
+      faceId: environment.tavus!.faceId, callbackBaseUrl: `${environment.appUrl}/api/avatar/${room.sessionId}/v1`,
+    });
+    expect(provider.createPal.mock.calls[0]![0]).not.toHaveProperty('rules');
+    expect((await end(session, room)).statusCode).toBe(200);
+    for (const invalid of [{ ...pronunciation, shop: secondShop }, { ...pronunciation, locale: 'en' as const }]) {
+      await configure({ pronunciation: invalid });
+      expect((await start(session)).statusCode).toBe(400);
+      expect(provider.createPal).toHaveBeenCalledOnce();
+    }
+  });
+
   it('captures an allowlisted provider shutdown before ending and deleting without logging private data', async () => {
     await build();
     const session = await bootstrap(); const room = await started(session);

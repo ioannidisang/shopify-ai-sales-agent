@@ -3,6 +3,8 @@ import type { GroundedFact, HistoryMessage, Locale, PendingAction, Plan, Product
 
 export interface ConversationInput {
   message: string; history: HistoryMessage[]; locale: Locale; brand: string;
+  /** Internal delivery hint only; never factual evidence or permission to relax checks. */
+  responseMode?: 'voice';
   instructions: string; examples: Array<{ user: string; assistant: string }>;
   products: Product[]; facts: GroundedFact[]; intent: string; pendingAction?: PendingAction;
 }

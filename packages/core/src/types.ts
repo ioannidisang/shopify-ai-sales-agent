@@ -1,3 +1,5 @@
+import type { PronunciationConfig } from './pronunciation.js';
+
 export type Locale = 'el' | 'en';
 export type ModelProvider = 'openai' | 'mistral';
 export interface Money { amount: string; currencyCode: string }
@@ -31,6 +33,7 @@ export interface ShopConfig {
   conversation?: { version: string; instructions: string; examples: Array<{ user: string; assistant: string }>; approvedBy?: string; approvedAt?: string };
   approvedImageUrls: string[]; knowledgeVersion: string;
   previewCatalog?: PreviewCatalogApproval;
+  pronunciation?: PronunciationConfig;
 }
 export interface CatalogContext { country: string; locale: Locale; signal?: AbortSignal }
 export interface Catalog {
@@ -65,6 +68,8 @@ export interface AssistantResponse {
 export interface RespondInput {
   shop: ShopConfig; facts: ApprovedFact[]; catalog: Catalog; planner: Planner;
   composer?: import('./conversation.js').ConversationModel;
+  /** Selected by the trusted server transport, not by a shopper request field. */
+  responseMode?: 'voice';
   signal?: AbortSignal;
   message: string; history: HistoryMessage[]; country: string; locale: Locale;
 }

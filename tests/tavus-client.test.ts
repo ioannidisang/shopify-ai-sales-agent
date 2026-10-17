@@ -67,6 +67,37 @@ describe('Tavus private full-pipeline adapter', () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it('attaches an approved dictionary only to TTS without altering the grounded LLM configuration', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({ pal_id: 'p123trial' }));
+    await client(fetcher).createPal({ ...pal,
+      voice: { externalVoiceId: 'publicVoice123', model: 'eleven_multilingual_v2' },
+      pronunciationDictionaryId: 'pd_bionera_el_v1',
+    });
+    const payload = body(fetcher);
+    expect(payload.layers.tts).toEqual({ tts_engine: 'elevenlabs', external_voice_id: 'publicVoice123',
+      tts_model_name: 'eleven_multilingual_v2', pronunciation_dictionary_id: 'pd_bionera_el_v1' });
+    expect(payload.layers.llm).toEqual({ model: 'shopify-grounded', base_url: pal.callbackBaseUrl,
+      api_key: pal.callbackSecret, speculative_inference: false });
+    expect(payload.system_prompt).not.toContain('pronunciation');
+    expect(payload).not.toHaveProperty('rules');
+  });
+
+  it.each(['', 'dictionary123', 'pd_../../other', 'https://example.test/pd_123', `pd_${'a'.repeat(126)}`])(
+    'rejects invalid pronunciation dictionary references before allocation: %s', async pronunciationDictionaryId => {
+      const fetcher = vi.fn<typeof fetch>();
+      await expect(client(fetcher).createPal({ ...pal,
+        voice: { externalVoiceId: 'publicVoice123', model: 'eleven_flash_v2_5' }, pronunciationDictionaryId,
+      })).rejects.toBeInstanceOf(TavusUnavailableError);
+      expect(fetcher).not.toHaveBeenCalled();
+    });
+
+  it('rejects whole-word pronunciation configuration with automatic TTS provider selection', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    await expect(client(fetcher).createPal({ ...pal, pronunciationDictionaryId: 'pd_bionera_el_v1' }))
+      .rejects.toBeInstanceOf(TavusUnavailableError);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('creates a private short room with recordings disabled and no persistent-memory tags', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(json({ ...conversation, private_debug: 'ignored' }));
     expect(await client(fetcher).createConversation({ palId: 'p123trial' })).toEqual({

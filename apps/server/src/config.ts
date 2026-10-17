@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { shopDomain } from './security.js';
 import { previewCatalogSchema } from '../../../packages/shopify/src/preview-catalog.js';
 import { TAVUS_GREENSCREEN_FACE_IDS, type TavusVoice } from './tavus-client.js';
+import { pronunciationConfigSchema } from '../../../packages/core/src/pronunciation.js';
 
 // One active registration chooses one canonical local OAuth route. No URL normalization
 // is allowed here: encoded separators, query strings and alternate paths must fail closed.
@@ -29,7 +30,9 @@ export const configSchema = z.object({
   approvedImageUrls: z.array(z.url().refine(value => new URL(value).protocol === 'https:')).max(500),
   knowledgeVersion: z.string().max(80),
   previewCatalog: previewCatalogSchema.optional(),
+  pronunciation: pronunciationConfigSchema.optional(),
 }).strict().refine(value => !value.previewCatalog || value.previewCatalog.shop === value.shop, 'Preview approval must belong to this tenant')
+  .refine(value => !value.pronunciation || (value.pronunciation.shop === value.shop && value.pronunciation.locale === value.locale), 'Pronunciation approval must belong to this tenant and locale')
   .refine(value => !value.previewCatalog || !value.experiment.enabled, 'Remove preview catalog approval before enabling an experiment');
 export const factSchema = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/), shop: shopDomain,

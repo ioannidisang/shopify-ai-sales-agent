@@ -49,7 +49,59 @@
       "approvedAt": "2026-10-13T15:14:45.292Z"
     },
     "approvedImageUrls": [],
-    "knowledgeVersion": "knowledge-1af58cb9-101b-451f-9ef1-6c55c2259e6f"
+    "knowledgeVersion": "knowledge-1af58cb9-101b-451f-9ef1-6c55c2259e6f",
+    "pronunciation": {
+      "shop": "bionera-gr.myshopify.com",
+      "locale": "el",
+      "version": "bionera-el-pronunciation-v1",
+      "approvedBy": "Merchant pronunciation corrections in chat, 2026-10-17",
+      "approvedAt": "2026-10-17T08:37:57.000Z",
+      "rules": [
+        {
+          "text": "D3",
+          "pronunciation": "ντι τρία",
+          "type": "alias",
+          "case_sensitive": false,
+          "word_boundaries": true
+        },
+        {
+          "text": "K2",
+          "pronunciation": "κάππα δύο",
+          "type": "alias",
+          "case_sensitive": false,
+          "word_boundaries": true
+        },
+        {
+          "text": "MK7",
+          "pronunciation": "μι κάπα εφτά",
+          "type": "alias",
+          "case_sensitive": false,
+          "word_boundaries": true
+        },
+        {
+          "text": "MK-7",
+          "pronunciation": "μι κάπα εφτά",
+          "type": "alias",
+          "case_sensitive": false,
+          "word_boundaries": true
+        },
+        {
+          "text": "Dr. ArthroPlast",
+          "pronunciation": "ντόκτορ άρθροπλαστ",
+          "type": "alias",
+          "case_sensitive": false,
+          "word_boundaries": true
+        },
+        {
+          "text": "Dr.Arthroplast",
+          "pronunciation": "ντόκτορ άρθροπλαστ",
+          "type": "alias",
+          "case_sensitive": false,
+          "word_boundaries": true
+        }
+      ],
+      "dictionaryId": "pd_72aac0b739564022"
+    }
   },
   "facts": [
     {

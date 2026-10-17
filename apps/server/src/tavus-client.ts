@@ -1,4 +1,5 @@
 import { isIP } from 'node:net';
+import { pronunciationDictionaryIdSchema } from '../../../packages/core/src/pronunciation.js';
 
 const API_ORIGIN = 'https://tavusapi.com';
 const MAX_RESPONSE_BYTES = 64 * 1024;
@@ -27,6 +28,7 @@ export interface TavusCreatePalInput extends TavusRequestOptions {
   callbackBaseUrl: string;
   callbackSecret: string;
   voice?: TavusVoice;
+  pronunciationDictionaryId?: string;
 }
 
 export interface TavusCreateConversationInput extends TavusRequestOptions {
@@ -159,6 +161,9 @@ export class TavusClient implements TavusProvider {
     if (!SECRET.test(input.callbackSecret)) throw new TavusUnavailableError();
     const voice = input.voice;
     if (voice && !['eleven_multilingual_v2', 'eleven_flash_v2_5'].includes(voice.model)) throw new TavusUnavailableError();
+    const dictionary = input.pronunciationDictionaryId;
+    // These approved profiles depend on ElevenLabs whole-word alias matching.
+    if (dictionary !== undefined && (!voice || !pronunciationDictionaryIdSchema.safeParse(dictionary).success)) throw new TavusUnavailableError();
     const tts = voice ? { tts_engine: 'elevenlabs', external_voice_id: resourceId(voice.externalVoiceId), tts_model_name: voice.model }
       : { tts_engine: 'tavus-auto' };
     const result = object(await this.request('/v2/pals', 'POST', {
@@ -175,7 +180,7 @@ export class TavusClient implements TavusProvider {
       layers: {
         perception: { perception_model: 'off', emotion_recognition: 'limited' },
         stt: { stt_engine: 'tavus-auto' },
-        tts,
+        tts: { ...tts, ...(dictionary !== undefined ? { pronunciation_dictionary_id: dictionary } : {}) },
         conversational_flow: {
           turn_detection_model: 'sparrow-2', turn_taking_patience: 'medium',
           pal_interruptibility: 'high', idle_engagement: 'off',

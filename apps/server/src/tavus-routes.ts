@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { ShopConfig } from '../../../packages/core/src/types.js';
 import type { ChatResponse } from '../../widget/src/types.js';
 import type { RuntimeEnvironment } from './config.js';
+import { spokenPrices } from './spoken-prices.js';
 import { takeBudget, type Database } from './database.js';
 import { constantEqual, tokenPayload, type Security, type SessionClaims } from './security.js';
 import { TavusClient, TavusAllocationCleanupError, TAVUS_MAX_CALL_SECONDS, TAVUS_DIAGNOSTIC_TIMEOUT_MS, TAVUS_SHUTDOWN_REASONS, type TavusProvider } from './tavus-client.js';
@@ -278,6 +279,7 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
     try {
       const { palId } = await provider!.createPal({ faceId: env.tavus!.faceId,
         callbackBaseUrl: `${env.appUrl.replace(/\/$/, '')}/api/avatar/${id}/v1`, callbackSecret: secret,
+        ...(tenant.config.pronunciation ? { pronunciationDictionaryId: tenant.config.pronunciation.dictionaryId } : {}),
         ...(env.tavus!.voice ? { voice: env.tavus!.voice } : {}) });
       await db.query('UPDATE avatar_sessions SET provider_pal_id=$2 WHERE id=$1', [id, palId]);
       const pending = await get(id);
@@ -375,7 +377,8 @@ export function registerAvatarRoutes(app: FastifyInstance, env: RuntimeEnvironme
         // Read after the last async validation so owner-end wins during that wait too.
         active(await get(id));
         controller.signal.throwIfAborted();
-        const text = response?.text || unavailableSpeech;
+        const priceSpeech = response ? spokenPrices(message, response.products, claims.locale) : '';
+        const text = [response?.text || unavailableSpeech, priceSpeech].filter(Boolean).join('\n\n');
         const completionId = `chatcmpl-${randomUUID()}`; const created = Math.floor(Date.now() / 1000);
         if (body.stream === false) return { id: completionId, object: 'chat.completion', created, model: 'shopify-grounded', choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }] };
         const chunk = (delta: object, finish: string | null) => `data: ${JSON.stringify({ id: completionId, object: 'chat.completion.chunk', created, model: 'shopify-grounded', choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;

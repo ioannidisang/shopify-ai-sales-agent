@@ -7,6 +7,27 @@ export class CompositionRejected extends Error {
 
 const numbers = (value: string) => value.normalize('NFKC').match(/\d+(?:[.,]\d+)*/g) ?? [];
 
+const greekCardLocation = String.raw`(?:στην\s+(?:αντιστοιχη\s+)?καρτα(?:\s+του\s+προιοντος)?|στις\s+(?:αντιστοιχες\s+)?καρτες(?:\s+(?:τους|των\s+προιοντων))?)`;
+const englishCardLocation = String.raw`(?:on|in)\s+(?:the|their)\s+(?:corresponding\s+)?(?:product\s+)?cards?`;
+const greekProductCount = String.raw`(?:\s+των\s+\d+\s+προιοντων)?`;
+const englishProductCount = String.raw`(?:\s+(?:of|for)\s+(?:the\s+|these\s+)?\d+\s+products?)?`;
+const cardPriceDirections = [
+  new RegExp(String.raw`^(?:οι\s+(?:τρεχουσες\s+)?τιμες|η\s+(?:τρεχουσα\s+)?τιμη)${greekProductCount}\s+(?:ειναι\s+διαθεσιμ(?:ες|η)|φαινονται|φαινεται|εμφανιζονται|εμφανιζεται|αναγραφονται|αναγραφεται)\s+${greekCardLocation}[.!?;]?$`, 'u'),
+  new RegExp(String.raw`^(?:δες|μπορεις\s+να\s+δεις)\s+(?:τις\s+(?:(?:τρεχουσες|διαθεσιμες)\s+)?τιμες|την\s+(?:(?:τρεχουσα|διαθεσιμη)\s+)?τιμη)${greekProductCount}\s+${greekCardLocation}[.!?;]?$`, 'u'),
+  new RegExp(String.raw`^(?:the\s+)?(?:current\s+)?prices?${englishProductCount}\s+(?:are|is)\s+(?:available|shown|displayed|listed)\s+${englishCardLocation}[.!?]?$`, 'u'),
+  new RegExp(String.raw`^(?:you\s+can\s+)?(?:see|check|view)\s+(?:the\s+)?(?:(?:current|available)\s+)?prices?${englishProductCount}\s+${englishCardLocation}[.!?]?$`, 'u'),
+];
+
+/** Whole UI-only sentences can describe prices as available and count cited cards.
+ * This never adds the count to numeric product evidence or permits monetary values.
+ * False means a recognized direction has absent cards or a wrong card count.
+ */
+function currentCardPriceDirection(text: string, citedCardCount: number): boolean | undefined {
+  const normal = normalizeInput(text).trim();
+  if (!cardPriceDirections.some(pattern => pattern.test(normal))) return undefined;
+  return citedCardCount > 0 && numbers(normal).every(value => value === String(citedCardCount));
+}
+
 /** Stock states belong to the refreshed cards, including when a draft omits citations. */
 function containsStockAssertion(text: string, hasCurrentCard: boolean, unreferenced: boolean): boolean {
   const normal = normalizeInput(text).trim();
@@ -70,7 +91,8 @@ export async function verifyGrounded(model: ConversationModel, input: Conversati
       const product = products.get(id)!;
       return !product.requiresSellingPlan && product.variants.length > 0;
     });
-    if (containsStockAssertion(segment.text, hasCurrentCard, segment.productIds.length === 0 && segment.factIds.length === 0)) throw new CompositionRejected();
+    const priceDirection = currentCardPriceDirection(segment.text, hasCurrentCard ? new Set(segment.productIds).size : 0);
+    if (priceDirection === false || (priceDirection !== true && containsStockAssertion(segment.text, hasCurrentCard, segment.productIds.length === 0 && segment.factIds.length === 0))) throw new CompositionRejected();
     // Links and markup come from the application; commercial prices remain in live cards.
     if (/(?:https?:|www\.|<\/?[a-z]|\]\(|\{\{|gid:\/\/)/i.test(segment.text)
       || /(?:[€$£¥]|\b(?:eur|usd|gbp|euros?|dollars?)\b|ευρω)/u.test(normal)
@@ -82,7 +104,7 @@ export async function verifyGrounded(model: ConversationModel, input: Conversati
       ...segment.productIds.flatMap(id => { const product = products.get(id)!; return [product.title, ...product.variants.map(variant => variant.title)]; }),
       input.pendingAction ? String(input.pendingAction.quantity) : ''].join(' ');
     const allowedNumbers = new Set(numbers(evidence).map(value => value.replace(',', '.')));
-    if (numbers(segment.text).some(value => !allowedNumbers.has(value.replace(',', '.')))) throw new CompositionRejected();
+    if (priceDirection !== true && numbers(segment.text).some(value => !allowedNumbers.has(value.replace(',', '.')))) throw new CompositionRejected();
   }
   // A separate pass judges each assertion against the supplied evidence, not just citation membership.
   const verification = verificationSchema.parse(await model.verify(input, draft));

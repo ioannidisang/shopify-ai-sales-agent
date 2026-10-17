@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import type { z } from 'zod';
 import { conversationDraftSchema, verificationSchema, type ConversationDraft, type ConversationInput, type ConversationModel, type ConversationSelection, type ModelOptions, type ModelUsage, type Verification } from './conversation.js';
-import { composerInstructions, conversationContext, conversationSelectionSchema, measuredCall, PlannerError, plannerContext, plannerInstructions, planSchema, selectionComposerInstructions, verifierInstructions } from './model-protocol.js';
+import { composerInstructions, conversationContext, conversationSelectionSchema, measuredCall, PlannerError, plannerContext, plannerInstructions, planSchema, selectionComposerInstructions, verificationContext, verifierInstructions } from './model-protocol.js';
 import { compactSelectionReferences, selectionReferenceInstructions } from './selection-references.js';
 import type { Planner, PlannerInput, Plan } from './types.js';
 
@@ -48,6 +48,6 @@ export class OpenAIPlanner implements Planner, ConversationModel {
   }
 
   verify(input: ConversationInput, draft: ConversationDraft): Promise<Verification> {
-    return this.request('verify', verifierInstructions, { context: conversationContext(input, true), draft }, verificationSchema, 100);
+    return this.request('verify', verifierInstructions, { context: verificationContext(input), draft }, verificationSchema, 100);
   }
 }

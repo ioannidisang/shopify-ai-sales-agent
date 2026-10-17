@@ -209,7 +209,8 @@ export async function buildApp(env: Environment, db: Database, services: Service
       if (!await takeBudget(db, claims.shop, `${day}:model`, 2000)) throw new HttpError(429, 'Daily limit', 'model_budget');
       // Read the history held by the acquired turn lock; an earlier pre-lock read can be stale.
       const history = security!.decrypt<History>(lock.rows[0]!.history, claims.shop);
-      const response = await respond({ shop: tenant.config, facts: tenant.facts, catalog: timings.catalog(catalog(tenant)), ...model, message: body.message, history, country: body.country, locale: body.locale, signal: turnSignal });
+      const response = await respond({ shop: tenant.config, facts: tenant.facts, catalog: timings.catalog(catalog(tenant)), ...model, message: body.message, history, country: body.country, locale: body.locale, signal: turnSignal,
+        ...(callbackSignal ? { responseMode: 'voice' as const } : {}) });
       callbackSignal?.throwIfAborted();
       // Merchant revocation/config changes during generation must not release the older evidence.
       const latest = await db.query<{ config: unknown; facts: unknown }>('SELECT config,facts FROM shops WHERE shop=$1 AND active=true', [claims.shop]);

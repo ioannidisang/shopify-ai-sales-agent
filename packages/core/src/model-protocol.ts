@@ -3,7 +3,7 @@ import { conversationDraftSchema, type ConversationInput, type ModelOptions, typ
 import type { PlannerInput } from './types.js';
 
 /** Bump whenever prompts, context, output contracts or server response validation rules change. */
-export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v9';
+export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v10';
 
 export const planSchema = z.object({
   intent: z.enum(['search', 'facts', 'add_to_cart', 'clarify', 'greeting', 'medical', 'unsupported']),
@@ -38,6 +38,8 @@ conversation context. Translate generic Greek product category terms into common
 On the second pass, choose only provided product IDs and fact IDs, ranked by the stated shopping preferences.
 For an explicit named-product information request, keep the matching provided product and its relevant approved facts
 even when unavailable for purchase. Inventory restricts cart actions, not access to factual product information.
+For a price follow-up about earlier displayed products, resolve the referenced products using history's display order
+and select their matching current candidates. Historical prices are never evidence; current cards will be refreshed.
 Never infer health benefits or suitability from product titles. Product facts must reference exact provided fact IDs.
 Only use add_to_cart when the latest user message explicitly asks to add a concrete product. Resolve a variant only
 when uniquely specified by the user or when that product has exactly one variant. Otherwise use clarify.
@@ -80,6 +82,11 @@ may have empty evidence lists. Ask a relevant question when information is missi
 Use only the selected products; explain a recommendation only using supported preferences, product data and approved facts.
 Never invent scarcity, discounts, health effects or product comparisons. Do not copy a product name containing a health claim.
 When relevant evidence is absent, say that you do not have that information. Do not promise to have looked up unseen sources.
+Explain your own information limit in ordinary language, without narrating internal approval or verification processes.
+Do not turn missing supplied evidence into a claim that no scientific evidence exists or that a product cannot work.
+When responseMode is voice, prefer one or two short, naturally spoken sentences, about 40 words in total, with at most
+one useful question. Answer the immediate request first; omit repeated introductions, lists and unnecessary explanation.
+This is a brevity target, never permission to omit a necessary safety boundary, qualification, reference or confirmation.
 When asked for price or availability and productCards confirms it is shown, naturally direct the shopper to that product's
 card without repeating commerce values or claiming the information is unavailable. Do not promise a card value when its
 corresponding showsPrice or showsAvailability flag is false, or when the product has no current card.
@@ -87,8 +94,8 @@ If there is a pendingAction, invite the shopper to check the displayed proposal 
 
 export const composerInstructions = `Write a natural, concise shopping reply in the requested locale, using the merchant's style when compatible.
 Return only the required JSON object of text segments. This is a fresh reply, not a script or a copy of the examples.
-For intent wellbeing_information_limit, acknowledge that approved information does not establish a product benefit for
-the shopper's general goal, then ask one neutral shopping question. Use no product or fact references, infer no benefit,
+For intent wellbeing_information_limit, explain plainly that you lack the product information needed to recommend
+something for the shopper's general goal, then ask one neutral shopping question. Use no product or fact references, infer no benefit,
 and describe only the limits of the evidence available to you. Never say the brand has no suitable products or that a
 product cannot have a benefit: missing approved evidence does not prove absence, inefficacy or catalog availability.
 Do not turn this evidence limit into a medical assessment. Do not refer the shopper to a health professional solely
@@ -103,6 +110,9 @@ The supplied products and facts are CANDIDATES, not an already selected recommen
 Select at most 4 productIds and at most 4 factIds. Only select provided IDs. A product-specific fact requires its selected product.
 When the shopper explicitly asks about a named product, select its matching current candidate and relevant approved facts
 even if all its variants are sold out. Answer the factual question; do not omit the product or replace its facts with a stock statement.
+For a price follow-up about earlier displayed products, preserve the referenced products and their display order when
+they are still current candidates. Select those cards and refer to their shown prices, without speaking monetary values
+or saying prices are missing when the selected candidateProductCards confirms they are shown. History supplies only references.
 Set searchQuery to an empty string; this stage cannot request another search. Never invent an ID or a source.
 Preserve clinical context for dependent requests. Use medical for diagnosis, treatment, symptoms, medication interactions,
 pregnancy, breastfeeding, personalized dosage, medical suitability or a child. For medical, clear all selected IDs and return draft=null.
@@ -161,7 +171,7 @@ question without recommending a product has medical=false. Mentioning sleep or w
 A neutral shopping clarification with no inferred benefit or suitability is permitted.
 Two contrasting examples (apply their reasoning, not their wording):
 1. Context: a general wish for better sleep, no relevant clinical history, products=[], facts=[]. Draft with empty
-references: "Δεν έχω εγκεκριμένη τεκμηρίωση για όφελος στον ύπνο. Προτιμάς να συγκρίνουμε μορφή, συστατικά ή τιμή;"
+references: "Δεν έχω τις πληροφορίες που χρειάζονται για να σου προτείνω κάποιο προϊόν για καλύτερο ύπνο. Ποιο προϊόν ή συστατικό σε ενδιαφέρει;"
 Verdict: supported=true, medical=false. This states the limitation of the supplied evidence and asks a neutral question.
 An absence-of-evidence acknowledgment needs no citation and is not an invented store policy or product claim.
 The question does not assert that any product has a benefit or that comparison data has already been obtained.
@@ -200,6 +210,7 @@ export function plannerContext(input: PlannerInput) {
 export function conversationContext(input: ConversationInput, includeCommerce = false) {
   return {
     locale: input.locale, brand: input.brand.slice(0, 80), message: input.message.slice(0, 2000),
+    ...(input.responseMode === 'voice' ? { responseMode: 'voice' as const } : {}),
     history: historyContext(input.history), intent: input.intent.slice(0, 40),
     merchantStyle: merchantGuidance(input),
     products: productsContext(input.products, includeCommerce),
@@ -212,6 +223,12 @@ export function conversationContext(input: ConversationInput, includeCommerce = 
     facts: input.facts.slice(0, 24).map(fact => ({ id: fact.id, productId: fact.productId, text: fact.text.slice(0, 1200) })),
     pendingAction: input.pendingAction ? { kind: input.pendingAction.kind, variantId: input.pendingAction.variantId, quantity: input.pendingAction.quantity } : null,
   };
+}
+
+/** Style is not evidence. Preserve the same current facts, commerce and full bounded clinical history. */
+export function verificationContext(input: ConversationInput) {
+  const { merchantStyle: _style, responseMode: _delivery, ...evidence } = conversationContext(input, true);
+  return evidence;
 }
 
 export function selectionConversationContext(input: ConversationInput) {
