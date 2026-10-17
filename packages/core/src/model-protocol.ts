@@ -3,7 +3,7 @@ import { conversationDraftSchema, type ConversationInput, type ModelOptions, typ
 import type { PlannerInput } from './types.js';
 
 /** Bump whenever prompts, context, output contracts or server response validation rules change. */
-export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v10';
+export const MODEL_PROTOCOL_VERSION = 'grounded-conversation-v11';
 
 export const planSchema = z.object({
   intent: z.enum(['search', 'facts', 'add_to_cart', 'clarify', 'greeting', 'medical', 'unsupported']),

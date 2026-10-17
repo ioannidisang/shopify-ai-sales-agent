@@ -70,6 +70,8 @@ export interface RespondInput {
   composer?: import('./conversation.js').ConversationModel;
   /** Selected by the trusted server transport, not by a shopper request field. */
   responseMode?: 'voice';
+  /** Optional internal operational observer; receives no text, references or policy category. */
+  onGroundingRejected?: (stage: import('./grounding.js').GroundingRejectionStage) => void | Promise<void>;
   signal?: AbortSignal;
   message: string; history: HistoryMessage[]; country: string; locale: Locale;
 }

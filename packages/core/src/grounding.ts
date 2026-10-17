@@ -1,8 +1,15 @@
 import { conversationDraftSchema, verificationSchema, type ConversationDraft, type ConversationInput, type ConversationModel } from './conversation.js';
 import { containsForbiddenClaim, isSleepWellbeingRequest, normalizeInput } from './policy.js';
 
+/** Fixed operational checks only; never encode shopper intent, policy category or clinical state. */
+export const groundingRejectionStages = ['schema_check', 'reference_check', 'content_check', 'card_check',
+  'format_check', 'numeric_check', 'semantic_check', 'source_freshness'] as const;
+export type GroundingRejectionStage = typeof groundingRejectionStages[number];
+
 export class CompositionRejected extends Error {
-  constructor(public readonly medical = false) { super('The response could not be verified.'); }
+  constructor(public readonly medical = false, public readonly stage: GroundingRejectionStage = 'content_check') {
+    super('The response could not be verified.');
+  }
 }
 
 const numbers = (value: string) => value.normalize('NFKC').match(/\d+(?:[.,]\d+)*/g) ?? [];
@@ -69,46 +76,50 @@ export async function composeGrounded(model: ConversationModel, input: Conversat
 
 /** A draft composed alongside selection has exactly the same final validation boundary. */
 export async function verifyGrounded(model: ConversationModel, input: ConversationInput, untrusted: ConversationDraft): Promise<string> {
-  const draft = conversationDraftSchema.parse(untrusted);
+  const parsed = conversationDraftSchema.safeParse(untrusted);
+  if (!parsed.success) throw new CompositionRejected(false, 'schema_check');
+  const draft = parsed.data;
   // Even a bare product card can imply that it meets the shopper's sleep goal.
   // The current approval flow has no separate permission for such effects: a
   // permissive verifier cannot promote ingredients/package facts into that role.
   // Do not inspect older goals here; independent later factual queries are valid.
   if ((input.intent === 'wellbeing_information_limit' || isSleepWellbeingRequest(input.message))
     && (input.products.length > 0 || input.facts.some(fact => fact.productId !== null) || input.pendingAction)) {
-    throw new CompositionRejected();
+    throw new CompositionRejected(false, 'content_check');
   }
   const products = new Map(input.products.map(product => [product.id, product]));
   const facts = new Map(input.facts.map(fact => [fact.id, fact]));
   for (const segment of draft.segments) {
-    if (segment.productIds.some(id => !products.has(id)) || segment.factIds.some(id => !facts.has(id))) throw new CompositionRejected();
+    if (segment.productIds.some(id => !products.has(id)) || segment.factIds.some(id => !facts.has(id))) throw new CompositionRejected(false, 'reference_check');
     // Also reject an unsolicited sleep-effect claim in an otherwise factual
     // product answer; ingredient citations cannot legitimize that extra claim.
-    if (segment.productIds.length > 0 && isSleepWellbeingRequest(segment.text)) throw new CompositionRejected();
+    if (segment.productIds.length > 0 && isSleepWellbeingRequest(segment.text)) throw new CompositionRejected(false, 'content_check');
     const normal = normalizeInput(segment.text);
-    if (containsForbiddenClaim(segment.text)) throw new CompositionRejected(true);
+    if (containsForbiddenClaim(segment.text)) throw new CompositionRejected(true, 'content_check');
     const hasCurrentCard = segment.productIds.length > 0 && segment.productIds.every(id => {
       const product = products.get(id)!;
       return !product.requiresSellingPlan && product.variants.length > 0;
     });
     const priceDirection = currentCardPriceDirection(segment.text, hasCurrentCard ? new Set(segment.productIds).size : 0);
-    if (priceDirection === false || (priceDirection !== true && containsStockAssertion(segment.text, hasCurrentCard, segment.productIds.length === 0 && segment.factIds.length === 0))) throw new CompositionRejected();
+    if (priceDirection === false || (priceDirection !== true && containsStockAssertion(segment.text, hasCurrentCard, segment.productIds.length === 0 && segment.factIds.length === 0))) throw new CompositionRejected(false, 'card_check');
     // Links and markup come from the application; commercial prices remain in live cards.
     if (/(?:https?:|www\.|<\/?[a-z]|\]\(|\{\{|gid:\/\/)/i.test(segment.text)
       || /(?:[€$£¥]|\b(?:eur|usd|gbp|euros?|dollars?)\b|ευρω)/u.test(normal)
-      || /(?:\b(?:i(?:'ve| have)?\s+)?(?:added|ordered|purchased|paid|updated your cart)\b|προσεθεσα|προσθεσα|εβαλα.{0,50}καλαθ|ολοκληρωσα.{0,50}(?:αγορ|παραγγελ))/u.test(normal)) throw new CompositionRejected();
+      || /(?:\b(?:i(?:'ve| have)?\s+)?(?:added|ordered|purchased|paid|updated your cart)\b|προσεθεσα|προσθεσα|εβαλα.{0,50}καλαθ|ολοκληρωσα.{0,50}(?:αγορ|παραγγελ))/u.test(normal)) throw new CompositionRejected(false, 'format_check');
     const citedFacts = segment.factIds.map(id => facts.get(id)!);
-    if (citedFacts.some(fact => fact.productId !== null && !segment.productIds.includes(fact.productId))) throw new CompositionRejected();
+    if (citedFacts.some(fact => fact.productId !== null && !segment.productIds.includes(fact.productId))) throw new CompositionRejected(false, 'reference_check');
     // Numeric product specifications need evidence; shopper numbers can be echoed as preferences.
     const evidence = [segment.productIds.length || segment.factIds.length ? '' : input.message, ...citedFacts.map(fact => fact.text),
       ...segment.productIds.flatMap(id => { const product = products.get(id)!; return [product.title, ...product.variants.map(variant => variant.title)]; }),
       input.pendingAction ? String(input.pendingAction.quantity) : ''].join(' ');
     const allowedNumbers = new Set(numbers(evidence).map(value => value.replace(',', '.')));
-    if (priceDirection !== true && numbers(segment.text).some(value => !allowedNumbers.has(value.replace(',', '.')))) throw new CompositionRejected();
+    if (priceDirection !== true && numbers(segment.text).some(value => !allowedNumbers.has(value.replace(',', '.')))) throw new CompositionRejected(false, 'numeric_check');
   }
   // A separate pass judges each assertion against the supplied evidence, not just citation membership.
-  const verification = verificationSchema.parse(await model.verify(input, draft));
-  if (verification.medical) throw new CompositionRejected(true);
-  if (!verification.supported) throw new CompositionRejected();
+  const verdict = verificationSchema.safeParse(await model.verify(input, draft));
+  if (!verdict.success) throw new CompositionRejected(false, 'schema_check');
+  const verification = verdict.data;
+  if (verification.medical) throw new CompositionRejected(true, 'semantic_check');
+  if (!verification.supported) throw new CompositionRejected(false, 'semantic_check');
   return draft.segments.map(segment => segment.text.trim()).join('\n\n');
 }

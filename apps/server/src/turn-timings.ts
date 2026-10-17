@@ -1,5 +1,6 @@
 import type { Catalog, Planner } from '../../../packages/core/src/types.js';
 import type { ConversationModel } from '../../../packages/core/src/conversation.js';
+import { groundingRejectionStages, type GroundingRejectionStage } from '../../../packages/core/src/grounding.js';
 
 const stages = ['plan', 'compose', 'verify', 'catalogComplete', 'catalogSearch', 'catalogProducts', 'catalogVariant'] as const;
 type Stage = typeof stages[number];
@@ -7,9 +8,10 @@ type Measurement = { calls: number; failed: number; durationMs: number };
 type Model = { planner: Planner; composer?: ConversationModel };
 const duration = (value: number) => Number.isFinite(value) ? Math.max(0, Math.min(60_000, Math.round(value))) : 0;
 
-/** Operational durations only: no messages, evidence, tenant or conversation identifiers. */
+/** Operational checks/durations only: no messages, evidence, policy category or identifiers. */
 export class TurnTimings {
   private readonly started: number;
+  private rejectionStage: GroundingRejectionStage | undefined;
   private readonly measurements: Record<Stage, Measurement> = {
     plan: { calls: 0, failed: 0, durationMs: 0 },
     compose: { calls: 0, failed: 0, durationMs: 0 },
@@ -21,6 +23,14 @@ export class TurnTimings {
   };
 
   constructor(private readonly now: () => number = () => performance.now()) { this.started = this.now(); }
+
+  groundingRejected(stage: unknown) {
+    // Runtime allowlist is required even when a typed caller is expected. Keep
+    // only the first failing check; never copy an error or provider object.
+    if (this.rejectionStage === undefined && groundingRejectionStages.some(value => value === stage)) {
+      this.rejectionStage = stage as GroundingRejectionStage;
+    }
+  }
 
   private async measure<T>(stage: Stage, work: () => Promise<T>): Promise<T> {
     const started = this.now();
@@ -54,8 +64,9 @@ export class TurnTimings {
   }
 
   snapshot() {
-    // Copy only fixed numeric fields; never spread a vendor result or an error.
+    // Copy only fixed numeric fields and an allowlisted operational check.
     const values = Object.fromEntries(stages.map(stage => [stage, { ...this.measurements[stage] }])) as Record<Stage, Measurement>;
-    return { durationMs: duration(this.now() - this.started), stages: values };
+    return { durationMs: duration(this.now() - this.started), stages: values,
+      ...(this.rejectionStage ? { groundingRejectionStage: this.rejectionStage } : {}) };
   }
 }

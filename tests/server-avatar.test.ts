@@ -209,6 +209,19 @@ describe('private Tavus pilot with real PostgreSQL and signed Shopify sessions',
     expect(composer.verify).toHaveBeenCalledTimes(2);
   });
 
+  it('logs only the fixed failing check when an avatar draft fails grounding', async () => {
+    await build();
+    const session = await bootstrap(); const room = await started(session);
+    const info = vi.spyOn(app!.log, 'info').mockImplementation(() => {});
+    composer.compose.mockResolvedValue({ segments: [{ text: 'Synthetic private number 900.', productIds: [], factIds: [] }] });
+    expect((await callback(room)).statusCode).toBe(200);
+    const timing = info.mock.calls.find(call => call[1] === 'Assistant turn timings');
+    expect(timing?.[0]).toMatchObject({ transport: 'avatar', groundingRejectionStage: 'numeric_check' });
+    const logged = JSON.stringify(timing?.[0]);
+    for (const value of ['Synthetic', 'private', 'medical', 'policy', shop, session.conversationId, room.sessionId]) expect(logged).not.toContain(value);
+    expect(composer.verify).not.toHaveBeenCalled();
+  });
+
   it('binds only the owning tenant pronunciation dictionary to its PAL while preserving the configured voice', async () => {
     const pronunciation: NonNullable<ShopConfig['pronunciation']> = {
       shop, locale: 'el', version: 'synthetic-pronunciation-v1', approvedBy: 'Merchant', approvedAt: '2026-01-01T00:00:00.000Z',

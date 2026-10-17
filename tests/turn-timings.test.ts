@@ -8,6 +8,19 @@ const privateInput: PlannerInput = { message: 'private shopper message', history
 const privateConversation: ConversationInput = { ...privateInput, brand: 'private tenant', instructions: '', examples: [], intent: 'greeting' };
 
 describe('private turn duration measurements', () => {
+  it('accepts only fixed operational rejection stages and retains no error objects or policy categories', () => {
+    const timings = new TurnTimings(() => 0);
+    for (const value of [null, undefined, 'private shopper text', 'medical', new Error('private provider body'), { stage: 'reference_check', text: 'private draft' }]) {
+      timings.groundingRejected(value);
+    }
+    expect(timings.snapshot()).not.toHaveProperty('groundingRejectionStage');
+    timings.groundingRejected('numeric_check');
+    timings.groundingRejected('semantic_check');
+    expect(timings.snapshot().groundingRejectionStage).toBe('numeric_check');
+    const snapshot = JSON.stringify(timings.snapshot());
+    for (const value of ['private', 'medical', 'body', 'draft', 'shopper', 'policy']) expect(snapshot).not.toContain(value);
+  });
+
   it('counts completed model stages and preserves adapter receivers, inputs and results', async () => {
     let now = 0;
     const timings = new TurnTimings(() => now);

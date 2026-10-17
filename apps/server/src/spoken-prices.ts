@@ -1,5 +1,6 @@
 import type { Locale, Product } from '../../../packages/core/src/types.js';
 import { normalizeInput } from '../../../packages/core/src/policy.js';
+import { priceFollowupCount } from '../../../packages/core/src/price-followup.js';
 
 /** Read a checked response's live card snapshot aloud, never model-authored amounts.
  * Kept outside conversation history: later turns must fetch commerce again.
@@ -7,8 +8,10 @@ import { normalizeInput } from '../../../packages/core/src/policy.js';
  */
 export function spokenPrices(message: string, products: Product[], locale: Locale): string {
   const query = normalizeInput(message);
+  const followupCount = priceFollowupCount(message);
+  if (followupCount !== undefined && followupCount !== null && followupCount !== products.length) return '';
   if (/(?:\b(?:no|without)\s+prices?\b|\b(?:don't|do\s+not)\b[^.!?;]{0,45}\b(?:price|prices|cost)\b|(?:χωρις|μην|δε(?:ν)?\s+(?:θελω|με\s+ενδιαφερ\p{L}*))[^.!?;]{0,45}(?:τιμ(?:η|ες)|κοστ\p{L}*))/u.test(query)) return '';
-  if (!/(?:\b(?:price|prices|cost|costs)\b|(?<!\p{L})(?:τιμη|τιμες|κοστιζει|κοστιζουν|κοστος)(?!\p{L}))/u.test(query)) return '';
+  if (followupCount === undefined && !/(?:\b(?:price|prices|cost|costs)\b|(?<!\p{L})(?:τιμη|τιμες|κοστιζει|κοστιζουν|κοστος)(?!\p{L}))/u.test(query)) return '';
   if (!products.length || products.length > 4) return '';
   const amounts: string[] = [];
   let currency: string | undefined;

@@ -3,6 +3,7 @@ import { hasExplicitAddIntent, isMedicalRequest, isSleepWellbeingRequest, usable
 import { currentSourceFacts, retrieveFacts } from './knowledge.js';
 import { composeGrounded, CompositionRejected, verifyGrounded } from './grounding.js';
 import { fitsSmallCatalogContext } from './catalog-bounds.js';
+import { priceFollowupProductIds } from './price-followup.js';
 import type { ConversationDraft, ConversationInput, ConversationSelection } from './conversation.js';
 import type { ApprovedFact, AssistantResponse, Locale, Plan, Product, RespondInput } from './types.js';
 
@@ -65,7 +66,7 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
     const text = draft ? await verifyGrounded(input.composer, composition, draft) : await composeGrounded(input.composer, composition);
     const selectedIds = new Set(result.facts.map(fact => fact.id));
     const stillApproved = usableFacts(currentSourceFacts(input.facts, shop.shop).filter(fact => selectedIds.has(fact.id)), shop.shop, locale);
-    if (stillApproved.length !== selectedIds.size) throw new CompositionRejected();
+    if (stillApproved.length !== selectedIds.size) throw new CompositionRejected(false, 'source_freshness');
     return { ...result, text };
   };
   try {
@@ -77,6 +78,22 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
     // A future reviewed effect policy is required before this scope can rank items.
     if (isSleepWellbeingRequest(input.message)) {
       return await finish(policyResponse(locale, 'noFacts'), 'wellbeing_information_limit');
+    }
+    // An exact lookup of already displayed prices is a commerce UI action.
+    // Read its cards again; never ask the model to copy monetary values or
+    // promote an earlier price snapshot into current evidence.
+    const priceIds = priceFollowupProductIds(input.message, history);
+    if (priceIds) {
+      const fresh = await catalog.getProducts(priceIds, context);
+      input.signal?.throwIfAborted();
+      if (fresh.length !== priceIds.length || new Set(fresh.map(product => product.id)).size !== priceIds.length
+        || fresh.some(product => !priceIds.includes(product.id))) throw new CompositionRejected(false, 'reference_check');
+      const products = priceIds.map(id => fresh.find(product => product.id === id)!);
+      if (products.some(product => product.requiresSellingPlan || !product.variants.length)) throw new CompositionRejected(false, 'card_check');
+      return { text: locale === 'el'
+        ? (products.length === 1 ? 'Δες την τρέχουσα τιμή στην κάρτα του προϊόντος.' : 'Δες τις τρέχουσες τιμές στις κάρτες των προϊόντων.')
+        : (products.length === 1 ? 'See the current price on the product card.' : 'See the current prices on the product cards.'),
+        products: products.map(product => ({ ...product, imageUrl: product.imageUrl && shop.approvedImageUrls.includes(product.imageUrl) ? product.imageUrl : null })), facts: [] };
     }
     // IDs are stored by the server in display order. Never use historical commerce.
     const lastDisplay = history.slice().reverse().find(turn => turn.role === 'assistant' && turn.context?.productIds.length);
@@ -124,7 +141,7 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
     }
     const allowedProductIds = new Set(candidates.map(product => product.id));
     if (plan.intent === 'medical') return policyResponse(locale, 'medical');
-    if (combined && !combined.draft && plan.intent !== 'add_to_cart') throw new CompositionRejected();
+    if (combined && !combined.draft && plan.intent !== 'add_to_cart') throw new CompositionRejected(false, 'schema_check');
     const selectedDraft = combined?.draft ?? undefined;
     if (plan.intent === 'unsupported' || plan.intent === 'greeting') return await finish(policyResponse(locale, plan.intent), plan.intent, selectedDraft);
     // Never fetch an arbitrary model-supplied ID; it must be a member of this shop's search result.
@@ -167,6 +184,10 @@ export async function respond(input: RespondInput): Promise<AssistantResponse> {
       plan.intent === 'add_to_cart' ? undefined : selectedDraft);
   } catch (error) {
     // Never leak provider error bodies, credentials, or unsafe model output.
+    if (error instanceof CompositionRejected) {
+      try { void Promise.resolve(input.onGroundingRejected?.(error.stage)).catch(() => {}); }
+      catch { /* Diagnostics cannot change the existing checked fallback. */ }
+    }
     if (error instanceof CompositionRejected && error.medical) return policyResponse(locale, 'medical');
     return policyResponse(locale, 'unavailable');
   }

@@ -210,6 +210,7 @@ export async function buildApp(env: Environment, db: Database, services: Service
       // Read the history held by the acquired turn lock; an earlier pre-lock read can be stale.
       const history = security!.decrypt<History>(lock.rows[0]!.history, claims.shop);
       const response = await respond({ shop: tenant.config, facts: tenant.facts, catalog: timings.catalog(catalog(tenant)), ...model, message: body.message, history, country: body.country, locale: body.locale, signal: turnSignal,
+        onGroundingRejected: stage => timings.groundingRejected(stage),
         ...(callbackSignal ? { responseMode: 'voice' as const } : {}) });
       callbackSignal?.throwIfAborted();
       // Merchant revocation/config changes during generation must not release the older evidence.
