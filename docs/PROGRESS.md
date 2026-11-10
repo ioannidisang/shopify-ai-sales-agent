@@ -1,5 +1,17 @@
 # Πρόοδος — Shopify AI Sales Agent
 
+## 10 Νοεμβρίου 2026 — προετοιμασία δοκιμής, ληγμένο OpenAI credential
+
+Ο έμπορος ζήτησε νέα ανθρώπινη δοκιμή. Επιβεβαιώθηκε το υπάρχον service **srv-dav36517lnhs73akj8fg**, not_suspended, auto-deploy off, και το ίδιο Live deployment **dep-db9jhidg1s2s738usulg / 8dc096b / v11**. Στις **14:07:23.458 UTC**, health/readiness/bootstrap πέρασαν με ενεργό Bionera, ίδια knowledgeVersion, private Tavus/180s/greenscreen, experiment off και no-store. Το bootstrap δεν ελέγχει αν ο πάροχος αποδέχεται το API key.
+
+Το πλήρες **pnpm check στις 16:08:01 Europe/Athens** πέρασε typecheck, **863/863 tests σε 38 files** και production build, 32,17s tests. Log: `.data/nov10-readiness-check.log` (ignored). Δεν άλλαξε source/config. Τα 41 approved Bionera facts και το pronunciation binding δεν έχουν τοπική ημερομηνία λήξης. Η παλιά ληγμένη NutriTiger preview εξαίρεση δεν αφορά το ενεργό Bionera.
+
+Πραγματικός read-only έλεγχος στο Render Shell στις **14:09:47.876 UTC** επέστρεψε **unresolved=0**, κενό bucket για το σημερινό `avatar-start` (μηδενική χρήση) και παρουσία OpenAI credential. Συνεπώς υπάρχουν **3 από 3** διαθέσιμες εκκινήσεις του εφαρμοστικού ορίου. Στις **14:10:10.556 UTC**, Tavus GETs πέρασαν με πλήρεις λίστες **conversations=0 / user PALs=0**. Το υπόλοιπο λεπτών/credits δεν επαληθεύτηκε.
+
+Η μία synthetic ερώτηση προϊόντων στον πραγματικό agent επέστρεψε outage χωρίς προϊόντα/facts σε **1075ms**. Τα safe logs έδειξαν επιτυχή πλήρη live Shopify κατάλογο (347ms), αποτυχημένη σύνθεση (515ms), χωρίς verifier. Ο στοχευμένος διαγνωστικός έλεγχος του ίδιου deployed OpenAI credential στις **14:11:08.884 UTC** επέστρεψε **HTTP401 με ρητή αναφορά λήξης**. Το raw μήνυμα/credential δεν εκτυπώθηκε ή αποθηκεύτηκε· το code εκτός allowlist αποδόθηκε μόνο ως `other`. Αυτό συμφωνεί με την καταγεγραμμένη αρχική διάρκεια 30 ημερών από 1 Οκτωβρίου.
+
+Η ανθρώπινη δοκιμή παραμένει **εκκρεμής λόγω ληγμένου OpenAI key**. Δεν δημιουργήθηκε Tavus session/PAL, δεν καταναλώθηκε σημερινή avatar εκκίνηση, δεν άλλαξαν quota, credentials, billing, deployment ή theme. Χρειάζεται εξουσιοδοτημένη αντικατάσταση key στο ίδιο επιβεβαιωμένο OpenAI project, ιδιωτική ενημέρωση του agent στο Render και νέα επαλήθευση πραγματικής απάντησης πριν από τη φωνητική δοκιμή. Δεν πρέπει να παρουσιαστεί το υγιές bootstrap ως έτοιμος agent όσο η εξουσιοδότηση OpenAI αποτυγχάνει.
+
 ## 17 Οκτωβρίου 2026 — έλεγχος μηνύματος ενεργής συνεδρίας μετά το v11
 
 Ο έμπορος ανέφερε `avatar_session_busy`. Τα πραγματικά app logs καταγράφουν δύο απορρίψεις στις **09:30:22.913 / 09:31:27.090 UTC**, και μετά shutdown **participant_left_timeout στις 09:33:22.467 UTC**. Δεν εμφανίστηκαν `Avatar cleanup pending` ή `Avatar reconciliation pending` στο ελεγχόμενο χρονικό διάστημα. Αυτό επιβεβαιώνει ότι υπήρχε καταχωρισμένη συνεδρία κατά την απόρριψη, αλλά δεν αποδεικνύει πώς ξεκίνησε ή αν ο χρήστης συνδέθηκε επιτυχώς.
